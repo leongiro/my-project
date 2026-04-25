@@ -10,20 +10,40 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
       --bg: #0a0a0f; --surface: #12121a; --border: #1e1e2e;
-      --text: #e8e8f0; --muted: #5a5a7a;
+      --text: #e8e8f0; --muted: #5a5a7a; --pos: #4ade80; --neg: #f87171;
     }
     body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; padding: 2rem; }
+
     header { display: flex; align-items: baseline; gap: 1rem; margin-bottom: 2rem; }
     h1 { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.02em; }
-    .year { font-family: 'DM Mono', monospace; font-size: 0.85rem; color: var(--muted); }
-    .cards { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
-    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem 1rem; min-width: 130px; flex: 1; }
-    .card-name { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.3rem; }
-    .card-value { font-family: 'DM Mono', monospace; font-size: 1.3rem; font-weight: 500; }
-    .card-value.pos { color: #4ade80; }
-    .card-value.neg { color: #f87171; }
+    .sub { font-family: 'DM Mono', monospace; font-size: 0.85rem; color: var(--muted); }
+
+    .group { margin-bottom: 2rem; }
+    .group-title {
+      font-size: 11px; color: var(--muted); text-transform: uppercase;
+      letter-spacing: 0.1em; margin-bottom: 0.75rem;
+      padding-bottom: 0.5rem; border-bottom: 1px solid var(--border);
+    }
+
+    .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.75rem; }
+
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 0.85rem 1rem;
+      display: flex; flex-direction: column; gap: 0.3rem;
+    }
+    .card-name { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; }
+    .card-value { font-family: 'DM Mono', monospace; font-size: 1.25rem; font-weight: 500; }
+    .card-bar-wrap { background: var(--border); border-radius: 3px; height: 4px; width: 100%; margin-top: 4px; overflow: hidden; }
+    .card-bar { height: 4px; border-radius: 3px; transition: width 0.6s ease; }
+    .pos { color: var(--pos); } .neg { color: var(--neg); }
+    .bar-pos { background: var(--pos); } .bar-neg { background: var(--neg); }
+
+    .chart-section { margin-top: 2.5rem; }
+    .chart-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 1rem; }
     .chart-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
     canvas { width: 100% !important; }
+
     .loading { text-align: center; padding: 4rem; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 0.85rem; }
     .dot { display: inline-block; animation: blink 1.2s infinite; }
     .dot:nth-child(2) { animation-delay: 0.2s; }
@@ -35,57 +55,78 @@
 <body>
   <header>
     <h1>YTD Dashboard</h1>
-    <span class="year" id="year-label"></span>
+    <span class="sub" id="year-label"></span>
   </header>
-  <div class="cards" id="cards">
+
+  <div id="content">
     <div class="loading">Data laden<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>
   </div>
-  <div class="chart-wrap">
-    <div class="loading" id="loading">Grafiek laden<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>
-    <canvas id="chart" style="display:none"></canvas>
-  </div>
+
   <script>
     document.getElementById("year-label").textContent = new Date().getFullYear() + " year-to-date";
+
+    const GROUPS = ["Aandelen", "Crypto", "Obligaties", "Grondstoffen"];
+
+    const COLORS = [
+      "#60a5fa","#34d399","#fbbf24","#f472b6","#a78bfa",
+      "#fb923c","#22d3ee","#e879f9","#4ade80","#f87171",
+      "#facc15","#38bdf8","#c084fc","#86efac"
+    ];
 
     async function load() {
       try {
         const res  = await fetch("/api/finance");
         const json = await res.json();
         if (!json.ok) throw new Error(json.error);
-        renderCards(json.data);
-        renderChart(json.data);
+        render(json.data);
       } catch (err) {
-        document.getElementById("loading").innerHTML = `<div class="error">Kon data niet laden: ${err.message}</div>`;
-        document.getElementById("cards").innerHTML = `<div class="error">—</div>`;
+        document.getElementById("content").innerHTML = `<div class="error">Kon data niet laden: ${err.message}</div>`;
       }
     }
 
-    function renderCards(data) {
-      document.getElementById("cards").innerHTML = data.map(({ name, series }) => {
-        const last = series[series.length - 1]?.ytd ?? 0;
-        const cls  = last >= 0 ? "pos" : "neg";
-        const sign = last >= 0 ? "+" : "";
-        return `<div class="card">
-          <div class="card-name">${name}</div>
-          <div class="card-value ${cls}">${sign}${last.toFixed(2)}%</div>
+    function render(data) {
+      // Max absolute value for bar scaling
+      const maxAbs = Math.max(...data.map(d => Math.abs(d.series[d.series.length - 1]?.ytd ?? 0)), 1);
+
+      let html = "";
+      GROUPS.forEach(group => {
+        const items = data.filter(d => d.group === group);
+        if (!items.length) return;
+        html += `<div class="group"><div class="group-title">${group}</div><div class="cards">`;
+        items.forEach(({ name, series }) => {
+          const last = series[series.length - 1]?.ytd ?? 0;
+          const cls  = last >= 0 ? "pos" : "neg";
+          const sign = last >= 0 ? "+" : "";
+          const barW = Math.min((Math.abs(last) / maxAbs) * 100, 100).toFixed(1);
+          html += `
+            <div class="card">
+              <div class="card-name">${name}</div>
+              <div class="card-value ${cls}">${sign}${last.toFixed(2)}%</div>
+              <div class="card-bar-wrap"><div class="card-bar ${last >= 0 ? "bar-pos" : "bar-neg"}" style="width:${barW}%"></div></div>
+            </div>`;
+        });
+        html += `</div></div>`;
+      });
+
+      // Bar chart
+      html += `
+        <div class="chart-section">
+          <div class="chart-title">YTD Vergelijking</div>
+          <div class="chart-wrap"><canvas id="chart"></canvas></div>
         </div>`;
-      }).join("");
-    }
 
-    function renderChart(data) {
-      document.getElementById("loading").style.display = "none";
-      const canvas = document.getElementById("chart");
-      canvas.style.display = "block";
+      document.getElementById("content").innerHTML = html;
 
+      // Render chart
       const labels = data.map(d => d.name);
       const values = data.map(d => d.series[d.series.length - 1]?.ytd ?? 0);
       const colors = values.map(v => v >= 0 ? "#4ade80" : "#f87171");
 
-      new Chart(canvas, {
+      new Chart(document.getElementById("chart"), {
         type: "bar",
         data: {
           labels,
-          datasets: [{ data: values, backgroundColor: colors, borderRadius: 6, borderSkipped: false }]
+          datasets: [{ data: values, backgroundColor: colors, borderRadius: 5, borderSkipped: false }]
         },
         options: {
           responsive: true,
@@ -98,11 +139,8 @@
             }
           },
           scales: {
-            x: { grid: { color: "#1e1e2e" }, ticks: { color: "#e8e8f0", font: { family: "DM Sans", size: 13 } } },
-            y: {
-              grid: { color: "#1e1e2e" },
-              ticks: { color: "#5a5a7a", font: { family: "DM Mono", size: 11 }, callback: v => (v >= 0 ? "+" : "") + v + "%" }
-            }
+            x: { grid: { color: "#1e1e2e" }, ticks: { color: "#e8e8f0", font: { family: "DM Sans", size: 11 }, maxRotation: 45 } },
+            y: { grid: { color: "#1e1e2e" }, ticks: { color: "#5a5a7a", font: { family: "DM Mono", size: 11 }, callback: v => (v >= 0 ? "+" : "") + v + "%" } }
           }
         }
       });
