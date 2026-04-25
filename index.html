@@ -47,6 +47,15 @@
       "#fb923c","#22d3ee","#e879f9","#f87171","#34d399",
       "#facc15","#38bdf8","#c084fc","#86efac"
     ];
+
+    function getWeekKey(dateStr) {
+      const d = new Date(dateStr);
+      const day = d.getDay();
+      const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+      const mon = new Date(d.setDate(diff));
+      return mon.toISOString().slice(0, 10);
+    }
+
     async function load() {
       try {
         const res  = await fetch("/api/finance");
@@ -57,6 +66,7 @@
         document.getElementById("content").innerHTML = `<div class="error">Kon data niet laden: ${err.message}</div>`;
       }
     }
+
     function render(data) {
       document.getElementById("content").innerHTML = `
         <div class="charts-row">
@@ -65,13 +75,15 @@
             <canvas id="bar-chart"></canvas>
           </div>
           <div class="chart-wrap">
-            <div class="chart-label">Historisch % — vanaf 1 jan 2020</div>
+            <div class="chart-label">Historisch % — vanaf 1 jan 2020 (weekniveau)</div>
             <canvas id="line-chart"></canvas>
             <div class="legend" id="legend"></div>
           </div>
         </div>
       `;
       document.getElementById("current-year").textContent = new Date().getFullYear();
+
+      // ── BAR CHART ──────────────────────────────────────────
       const barLabels = data.map(d => d.name);
       const barValues = data.map(d => d.ytd[d.ytd.length - 1]?.pct ?? 0);
       const barColors = barValues.map(v => v >= 0 ? "#4ade80" : "#f87171");
@@ -80,35 +92,68 @@
         data: { labels: barLabels, datasets: [{ data: barValues, backgroundColor: barColors, borderRadius: 5, borderSkipped: false }] },
         options: {
           indexAxis: "y", responsive: true,
-          plugins: { legend: { display: false }, tooltip: { backgroundColor: "#12121a", borderColor: "#1e1e2e", borderWidth: 1, titleColor: "#5a5a7a", bodyColor: "#e8e8f0", callbacks: { label: ctx => ` ${ctx.parsed.x >= 0 ? "+" : ""}${ctx.parsed.x.toFixed(2)}%` } } },
+          plugins: {
+            legend: { display: false },
+            tooltip: { backgroundColor: "#12121a", borderColor: "#1e1e2e", borderWidth: 1, titleColor: "#5a5a7a", bodyColor: "#e8e8f0", callbacks: { label: ctx => ` ${ctx.parsed.x >= 0 ? "+" : ""}${ctx.parsed.x.toFixed(2)}%` } }
+          },
           scales: {
             x: { grid: { color: "#1e1e2e" }, ticks: { color: "#5a5a7a", font: { family: "DM Mono", size: 11 }, callback: v => (v >= 0 ? "+" : "") + v + "%" } },
             y: { grid: { color: "transparent" }, ticks: { color: "#e8e8f0", font: { family: "DM Sans", size: 12 } } }
           }
         }
       });
-      const allDates = [...new Set(data.flatMap(d => d.hist.map(p => p.date)))].sort();
-      const sampledDates = allDates.filter((d, i) => {
-        if (i === 0 || i === allDates.length - 1) return true;
-        return d.slice(0, 7) !== allDates[i - 1].slice(0, 7);
-      });
-      const datasets = data.map(({ name, hist }, i) => {
+
+      // ── LINE CHART: resample naar weekniveau ───────────────
+      // Per instrument: per week de laatste waarde bewaren
+      const weekMaps = data.map(({ hist }) => {
         const map = {};
-        hist.forEach(p => { map[p.date] = p.pct; });
-        return { label: name, data: sampledDates.map(d => map[d] ?? null), borderColor: PALETTE[i % PALETTE.length], backgroundColor: "transparent", borderWidth: 1.5, pointRadius: 0, tension: 0.3, spanGaps: true };
+        hist.forEach(p => { map[getWeekKey(p.date)] = p.pct; });
+        return map;
       });
+
+      // Alle weken verzamelen en sorteren
+      const allWeeks = [...new Set(weekMaps.flatMap(m => Object.keys(m)))].sort();
+
+      const datasets = data.map(({ name, hist }, i) => {
+        const map = weekMaps[i];
+        return {
+          label: name,
+          data: allWeeks.map(w => map[w] ?? null),
+          borderColor: PALETTE[i % PALETTE.length],
+          backgroundColor: "transparent",
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0.3,
+          spanGaps: true,
+        };
+      });
+
       const lineChart = new Chart(document.getElementById("line-chart"), {
         type: "line",
-        data: { labels: sampledDates, datasets },
+        data: { labels: allWeeks, datasets },
         options: {
-          responsive: true, interaction: { mode: "index", intersect: false },
-          plugins: { legend: { display: false }, tooltip: { backgroundColor: "#12121a", borderColor: "#1e1e2e", borderWidth: 1, titleColor: "#5a5a7a", bodyColor: "#e8e8f0", callbacks: { label: ctx => ctx.parsed.y !== null ? ` ${ctx.dataset.label}: ${ctx.parsed.y >= 0 ? "+" : ""}${ctx.parsed.y.toFixed(2)}%` : null } } },
+          responsive: true,
+          interaction: { mode: "nearest", intersect: true },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: "#12121a", borderColor: "#1e1e2e", borderWidth: 1,
+              titleColor: "#5a5a7a", bodyColor: "#e8e8f0",
+              callbacks: {
+                label: ctx => ctx.parsed.y !== null
+                  ? ` ${ctx.dataset.label}: ${ctx.parsed.y >= 0 ? "+" : ""}${ctx.parsed.y.toFixed(2)}%`
+                  : null
+              }
+            }
+          },
           scales: {
             x: { grid: { color: "#1e1e2e" }, ticks: { color: "#5a5a7a", maxTicksLimit: 8, font: { family: "DM Mono", size: 11 } } },
             y: { grid: { color: "#1e1e2e" }, ticks: { color: "#5a5a7a", font: { family: "DM Mono", size: 11 }, callback: v => (v >= 0 ? "+" : "") + v + "%" } }
           }
         }
       });
+
+      // Legenda met toggle
       const legend = document.getElementById("legend");
       legend.innerHTML = data.map((d, i) => `
         <div class="legend-item" onclick="toggleLine(${i})">
@@ -116,6 +161,7 @@
           ${d.name}
         </div>
       `).join("");
+
       window.toggleLine = (i) => {
         const meta = lineChart.getDatasetMeta(i);
         meta.hidden = !meta.hidden;
@@ -123,6 +169,7 @@
         lineChart.update();
       };
     }
+
     load();
   </script>
 </body>
