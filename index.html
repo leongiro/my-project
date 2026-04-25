@@ -18,30 +18,23 @@
     h1 { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.02em; }
     .sub { font-family: 'DM Mono', monospace; font-size: 0.85rem; color: var(--muted); }
 
-    .group { margin-bottom: 2rem; }
-    .group-title {
-      font-size: 11px; color: var(--muted); text-transform: uppercase;
-      letter-spacing: 0.1em; margin-bottom: 0.75rem;
-      padding-bottom: 0.5rem; border-bottom: 1px solid var(--border);
+    .charts-row {
+      display: grid;
+      grid-template-columns: 1fr 1.8fr;
+      gap: 1.25rem;
+      align-items: start;
     }
 
-    .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.75rem; }
-
-    .card {
+    .chart-wrap {
       background: var(--surface); border: 1px solid var(--border);
-      border-radius: 10px; padding: 0.85rem 1rem;
-      display: flex; flex-direction: column; gap: 0.3rem;
+      border-radius: 12px; padding: 1.5rem;
     }
-    .card-name { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; }
-    .card-value { font-family: 'DM Mono', monospace; font-size: 1.25rem; font-weight: 500; }
-    .card-bar-wrap { background: var(--border); border-radius: 3px; height: 4px; width: 100%; margin-top: 4px; overflow: hidden; }
-    .card-bar { height: 4px; border-radius: 3px; transition: width 0.6s ease; }
-    .pos { color: var(--pos); } .neg { color: var(--neg); }
-    .bar-pos { background: var(--pos); } .bar-neg { background: var(--neg); }
 
-    .chart-section { margin-top: 2.5rem; }
-    .chart-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 1rem; }
-    .chart-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
+    .chart-label {
+      font-size: 11px; color: var(--muted); text-transform: uppercase;
+      letter-spacing: 0.1em; margin-bottom: 1rem;
+    }
+
     canvas { width: 100% !important; }
 
     .loading { text-align: center; padding: 4rem; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 0.85rem; }
@@ -50,6 +43,17 @@
     .dot:nth-child(3) { animation-delay: 0.4s; }
     @keyframes blink { 0%,80%,100%{opacity:0} 40%{opacity:1} }
     .error { color: #f87171; font-family: 'DM Mono', monospace; font-size: 13px; padding: 2rem; text-align: center; }
+
+    .legend {
+      display: flex; flex-wrap: wrap; gap: 0.6rem 1.2rem;
+      margin-top: 1rem;
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); cursor: pointer; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+    @media (max-width: 900px) {
+      .charts-row { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
@@ -65,11 +69,9 @@
   <script>
     document.getElementById("year-label").textContent = new Date().getFullYear() + " year-to-date";
 
-    const GROUPS = ["Aandelen", "Crypto", "Obligaties", "Grondstoffen"];
-
-    const COLORS = [
-      "#60a5fa","#34d399","#fbbf24","#f472b6","#a78bfa",
-      "#fb923c","#22d3ee","#e879f9","#4ade80","#f87171",
+    const PALETTE = [
+      "#60a5fa","#4ade80","#fbbf24","#f472b6","#a78bfa",
+      "#fb923c","#22d3ee","#e879f9","#f87171","#34d399",
       "#facc15","#38bdf8","#c084fc","#86efac"
     ];
 
@@ -85,65 +87,129 @@
     }
 
     function render(data) {
-      // Max absolute value for bar scaling
-      const maxAbs = Math.max(...data.map(d => Math.abs(d.series[d.series.length - 1]?.ytd ?? 0)), 1);
+      document.getElementById("content").innerHTML = `
+        <div class="charts-row">
+          <div class="chart-wrap">
+            <div class="chart-label">YTD % — <span id="current-year"></span></div>
+            <canvas id="bar-chart"></canvas>
+          </div>
+          <div class="chart-wrap">
+            <div class="chart-label">Historisch % — vanaf 1 jan 2020</div>
+            <canvas id="line-chart"></canvas>
+            <div class="legend" id="legend"></div>
+          </div>
+        </div>
+      `;
+      document.getElementById("current-year").textContent = new Date().getFullYear();
 
-      let html = "";
-      GROUPS.forEach(group => {
-        const items = data.filter(d => d.group === group);
-        if (!items.length) return;
-        html += `<div class="group"><div class="group-title">${group}</div><div class="cards">`;
-        items.forEach(({ name, series }) => {
-          const last = series[series.length - 1]?.ytd ?? 0;
-          const cls  = last >= 0 ? "pos" : "neg";
-          const sign = last >= 0 ? "+" : "";
-          const barW = Math.min((Math.abs(last) / maxAbs) * 100, 100).toFixed(1);
-          html += `
-            <div class="card">
-              <div class="card-name">${name}</div>
-              <div class="card-value ${cls}">${sign}${last.toFixed(2)}%</div>
-              <div class="card-bar-wrap"><div class="card-bar ${last >= 0 ? "bar-pos" : "bar-neg"}" style="width:${barW}%"></div></div>
-            </div>`;
-        });
-        html += `</div></div>`;
-      });
+      // ── BAR CHART ──────────────────────────────────────────
+      const barLabels = data.map(d => d.name);
+      const barValues = data.map(d => d.ytd[d.ytd.length - 1]?.pct ?? 0);
+      const barColors = barValues.map(v => v >= 0 ? "#4ade80" : "#f87171");
 
-      // Bar chart
-      html += `
-        <div class="chart-section">
-          <div class="chart-title">YTD Vergelijking</div>
-          <div class="chart-wrap"><canvas id="chart"></canvas></div>
-        </div>`;
-
-      document.getElementById("content").innerHTML = html;
-
-      // Render chart
-      const labels = data.map(d => d.name);
-      const values = data.map(d => d.series[d.series.length - 1]?.ytd ?? 0);
-      const colors = values.map(v => v >= 0 ? "#4ade80" : "#f87171");
-
-      new Chart(document.getElementById("chart"), {
+      new Chart(document.getElementById("bar-chart"), {
         type: "bar",
         data: {
-          labels,
-          datasets: [{ data: values, backgroundColor: colors, borderRadius: 5, borderSkipped: false }]
+          labels: barLabels,
+          datasets: [{ data: barValues, backgroundColor: barColors, borderRadius: 5, borderSkipped: false }]
         },
         options: {
+          indexAxis: "y",
           responsive: true,
           plugins: {
             legend: { display: false },
             tooltip: {
               backgroundColor: "#12121a", borderColor: "#1e1e2e", borderWidth: 1,
               titleColor: "#5a5a7a", bodyColor: "#e8e8f0",
-              callbacks: { label: ctx => ` ${ctx.parsed.y >= 0 ? "+" : ""}${ctx.parsed.y.toFixed(2)}%` }
+              callbacks: { label: ctx => ` ${ctx.parsed.x >= 0 ? "+" : ""}${ctx.parsed.x.toFixed(2)}%` }
             }
           },
           scales: {
-            x: { grid: { color: "#1e1e2e" }, ticks: { color: "#e8e8f0", font: { family: "DM Sans", size: 11 }, maxRotation: 45 } },
-            y: { grid: { color: "#1e1e2e" }, ticks: { color: "#5a5a7a", font: { family: "DM Mono", size: 11 }, callback: v => (v >= 0 ? "+" : "") + v + "%" } }
+            x: {
+              grid: { color: "#1e1e2e" },
+              ticks: { color: "#5a5a7a", font: { family: "DM Mono", size: 11 }, callback: v => (v >= 0 ? "+" : "") + v + "%" }
+            },
+            y: {
+              grid: { color: "transparent" },
+              ticks: { color: "#e8e8f0", font: { family: "DM Sans", size: 12 } }
+            }
           }
         }
       });
+
+      // ── LINE CHART ─────────────────────────────────────────
+      // Collect all dates from hist series
+      const allDates = [...new Set(data.flatMap(d => d.hist.map(p => p.date)))].sort();
+
+      // Sample dates monthly for performance
+      const sampledDates = allDates.filter((d, i) => {
+        if (i === 0 || i === allDates.length - 1) return true;
+        const prev = allDates[i - 1];
+        return d.slice(0, 7) !== prev.slice(0, 7);
+      });
+
+      const datasets = data.map(({ name, hist }, i) => {
+        const map = {};
+        hist.forEach(p => { map[p.date] = p.pct; });
+        return {
+          label: name,
+          data: sampledDates.map(d => map[d] ?? null),
+          borderColor: PALETTE[i % PALETTE.length],
+          backgroundColor: "transparent",
+          borderWidth: 1.5,
+          pointRadius: 0,
+          tension: 0.3,
+          spanGaps: true,
+        };
+      });
+
+      const lineChart = new Chart(document.getElementById("line-chart"), {
+        type: "line",
+        data: { labels: sampledDates, datasets },
+        options: {
+          responsive: true,
+          interaction: { mode: "index", intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: "#12121a", borderColor: "#1e1e2e", borderWidth: 1,
+              titleColor: "#5a5a7a", bodyColor: "#e8e8f0",
+              callbacks: {
+                label: ctx => ctx.parsed.y !== null
+                  ? ` ${ctx.dataset.label}: ${ctx.parsed.y >= 0 ? "+" : ""}${ctx.parsed.y.toFixed(2)}%`
+                  : null
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: "#1e1e2e" },
+              ticks: { color: "#5a5a7a", maxTicksLimit: 8, font: { family: "DM Mono", size: 11 } }
+            },
+            y: {
+              grid: { color: "#1e1e2e" },
+              ticks: { color: "#5a5a7a", font: { family: "DM Mono", size: 11 }, callback: v => (v >= 0 ? "+" : "") + v + "%" }
+            }
+          }
+        }
+      });
+
+      // Legend met toggle
+      const legend = document.getElementById("legend");
+      legend.innerHTML = data.map((d, i) => `
+        <div class="legend-item" onclick="toggleLine(${i})">
+          <div class="legend-dot" id="dot-${i}" style="background:${PALETTE[i % PALETTE.length]}"></div>
+          ${d.name}
+        </div>
+      `).join("");
+
+      window.toggleLine = (i) => {
+        const meta = lineChart.getDatasetMeta(i);
+        meta.hidden = !meta.hidden;
+        const dot = document.getElementById(`dot-${i}`);
+        dot.style.opacity = meta.hidden ? "0.3" : "1";
+        lineChart.update();
+      };
     }
 
     load();
