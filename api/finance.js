@@ -1,10 +1,19 @@
 export default async function handler(req, res) {
   const tickers = [
-    { symbol: "^GSPC",  name: "S&P 500" },
-    { symbol: "GC=F",   name: "Goud" },
-    { symbol: "SI=F",   name: "Zilver" },
-    { symbol: "GDX",    name: "Goldminers" },
-    { symbol: "MSFT",   name: "Microsoft" },
+    { symbol: "QQQ",      name: "Nasdaq 100",       group: "Aandelen" },
+    { symbol: "RSP",      name: "S&P500 ongewogen",  group: "Aandelen" },
+    { symbol: "DIA",      name: "Dow Jones",         group: "Aandelen" },
+    { symbol: "EEM",      name: "Emerging Markets",  group: "Aandelen" },
+    { symbol: "EMXC",     name: "EM ex China",       group: "Aandelen" },
+    { symbol: "IWM",      name: "Russell 2000",      group: "Aandelen" },
+    { symbol: "FEZ",      name: "Stoxx 600",         group: "Aandelen" },
+    { symbol: "BTC-USD",  name: "Bitcoin",           group: "Crypto" },
+    { symbol: "SHY",      name: "Treasury 1-3yr",    group: "Obligaties" },
+    { symbol: "TIP",      name: "10y TIPS",          group: "Obligaties" },
+    { symbol: "GC=F",     name: "Goud",              group: "Grondstoffen" },
+    { symbol: "SI=F",     name: "Zilver",            group: "Grondstoffen" },
+    { symbol: "PL=F",     name: "Platina",           group: "Grondstoffen" },
+    { symbol: "PA=F",     name: "Palladium",         group: "Grondstoffen" },
   ];
 
   const now = new Date();
@@ -14,26 +23,28 @@ export default async function handler(req, res) {
 
   try {
     const results = await Promise.all(
-      tickers.map(async ({ symbol, name }) => {
-        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?period1=${period1}&period2=${period2}&interval=1d`;
-        const response = await fetch(url, {
-          headers: { "User-Agent": "Mozilla/5.0" },
-        });
-        const data = await response.json();
-        const closes = data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? [];
-        const timestamps = data?.chart?.result?.[0]?.timestamp ?? [];
+      tickers.map(async ({ symbol, name, group }) => {
+        try {
+          const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?period1=${period1}&period2=${period2}&interval=1d`;
+          const response = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+          const data = await response.json();
+          const closes     = data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? [];
+          const timestamps = data?.chart?.result?.[0]?.timestamp ?? [];
 
-        const valid = closes
-          .map((c, i) => ({ date: new Date(timestamps[i] * 1000).toISOString().slice(0, 10), close: c }))
-          .filter((d) => d.close !== null);
+          const valid = closes
+            .map((c, i) => ({ date: new Date(timestamps[i] * 1000).toISOString().slice(0, 10), close: c }))
+            .filter(d => d.close !== null);
 
-        const base = valid[0]?.close;
-        const series = valid.map((d) => ({
-          date: d.date,
-          ytd: base ? parseFloat((((d.close - base) / base) * 100).toFixed(2)) : 0,
-        }));
+          const base   = valid[0]?.close;
+          const series = valid.map(d => ({
+            date: d.date,
+            ytd: base ? parseFloat((((d.close - base) / base) * 100).toFixed(2)) : 0,
+          }));
 
-        return { symbol, name, series };
+          return { symbol, name, group, series };
+        } catch {
+          return { symbol, name, group, series: [] };
+        }
       })
     );
 
