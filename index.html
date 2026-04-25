@@ -13,47 +13,23 @@
       --text: #e8e8f0; --muted: #5a5a7a; --pos: #4ade80; --neg: #f87171;
     }
     body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; padding: 2rem; }
-
     header { display: flex; align-items: baseline; gap: 1rem; margin-bottom: 2rem; }
     h1 { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.02em; }
     .sub { font-family: 'DM Mono', monospace; font-size: 0.85rem; color: var(--muted); }
-
-    .charts-row {
-      display: grid;
-      grid-template-columns: 1fr 1.8fr;
-      gap: 1.25rem;
-      align-items: start;
-    }
-
-    .chart-wrap {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 12px; padding: 1.5rem;
-    }
-
-    .chart-label {
-      font-size: 11px; color: var(--muted); text-transform: uppercase;
-      letter-spacing: 0.1em; margin-bottom: 1rem;
-    }
-
+    .charts-row { display: grid; grid-template-columns: 1fr 1.8fr; gap: 1.25rem; align-items: start; }
+    .chart-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
+    .chart-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 1rem; }
     canvas { width: 100% !important; }
-
     .loading { text-align: center; padding: 4rem; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 0.85rem; }
     .dot { display: inline-block; animation: blink 1.2s infinite; }
     .dot:nth-child(2) { animation-delay: 0.2s; }
     .dot:nth-child(3) { animation-delay: 0.4s; }
     @keyframes blink { 0%,80%,100%{opacity:0} 40%{opacity:1} }
     .error { color: #f87171; font-family: 'DM Mono', monospace; font-size: 13px; padding: 2rem; text-align: center; }
-
-    .legend {
-      display: flex; flex-wrap: wrap; gap: 0.6rem 1.2rem;
-      margin-top: 1rem;
-    }
+    .legend { display: flex; flex-wrap: wrap; gap: 0.6rem 1.2rem; margin-top: 1rem; }
     .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); cursor: pointer; }
     .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-
-    @media (max-width: 900px) {
-      .charts-row { grid-template-columns: 1fr; }
-    }
+    @media (max-width: 900px) { .charts-row { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -61,20 +37,16 @@
     <h1>YTD Dashboard</h1>
     <span class="sub" id="year-label"></span>
   </header>
-
   <div id="content">
     <div class="loading">Data laden<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>
   </div>
-
   <script>
     document.getElementById("year-label").textContent = new Date().getFullYear() + " year-to-date";
-
     const PALETTE = [
       "#60a5fa","#4ade80","#fbbf24","#f472b6","#a78bfa",
       "#fb923c","#22d3ee","#e879f9","#f87171","#34d399",
       "#facc15","#38bdf8","#c084fc","#86efac"
     ];
-
     async function load() {
       try {
         const res  = await fetch("/api/finance");
@@ -85,7 +57,6 @@
         document.getElementById("content").innerHTML = `<div class="error">Kon data niet laden: ${err.message}</div>`;
       }
     }
-
     function render(data) {
       document.getElementById("content").innerHTML = `
         <div class="charts-row">
@@ -101,100 +72,43 @@
         </div>
       `;
       document.getElementById("current-year").textContent = new Date().getFullYear();
-
-      // ── BAR CHART ──────────────────────────────────────────
       const barLabels = data.map(d => d.name);
       const barValues = data.map(d => d.ytd[d.ytd.length - 1]?.pct ?? 0);
       const barColors = barValues.map(v => v >= 0 ? "#4ade80" : "#f87171");
-
       new Chart(document.getElementById("bar-chart"), {
         type: "bar",
-        data: {
-          labels: barLabels,
-          datasets: [{ data: barValues, backgroundColor: barColors, borderRadius: 5, borderSkipped: false }]
-        },
+        data: { labels: barLabels, datasets: [{ data: barValues, backgroundColor: barColors, borderRadius: 5, borderSkipped: false }] },
         options: {
-          indexAxis: "y",
-          responsive: true,
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              backgroundColor: "#12121a", borderColor: "#1e1e2e", borderWidth: 1,
-              titleColor: "#5a5a7a", bodyColor: "#e8e8f0",
-              callbacks: { label: ctx => ` ${ctx.parsed.x >= 0 ? "+" : ""}${ctx.parsed.x.toFixed(2)}%` }
-            }
-          },
+          indexAxis: "y", responsive: true,
+          plugins: { legend: { display: false }, tooltip: { backgroundColor: "#12121a", borderColor: "#1e1e2e", borderWidth: 1, titleColor: "#5a5a7a", bodyColor: "#e8e8f0", callbacks: { label: ctx => ` ${ctx.parsed.x >= 0 ? "+" : ""}${ctx.parsed.x.toFixed(2)}%` } } },
           scales: {
-            x: {
-              grid: { color: "#1e1e2e" },
-              ticks: { color: "#5a5a7a", font: { family: "DM Mono", size: 11 }, callback: v => (v >= 0 ? "+" : "") + v + "%" }
-            },
-            y: {
-              grid: { color: "transparent" },
-              ticks: { color: "#e8e8f0", font: { family: "DM Sans", size: 12 } }
-            }
+            x: { grid: { color: "#1e1e2e" }, ticks: { color: "#5a5a7a", font: { family: "DM Mono", size: 11 }, callback: v => (v >= 0 ? "+" : "") + v + "%" } },
+            y: { grid: { color: "transparent" }, ticks: { color: "#e8e8f0", font: { family: "DM Sans", size: 12 } } }
           }
         }
       });
-
-      // ── LINE CHART ─────────────────────────────────────────
-      // Collect all dates from hist series
       const allDates = [...new Set(data.flatMap(d => d.hist.map(p => p.date)))].sort();
-
-      // Sample dates monthly for performance
       const sampledDates = allDates.filter((d, i) => {
         if (i === 0 || i === allDates.length - 1) return true;
-        const prev = allDates[i - 1];
-        return d.slice(0, 7) !== prev.slice(0, 7);
+        return d.slice(0, 7) !== allDates[i - 1].slice(0, 7);
       });
-
       const datasets = data.map(({ name, hist }, i) => {
         const map = {};
         hist.forEach(p => { map[p.date] = p.pct; });
-        return {
-          label: name,
-          data: sampledDates.map(d => map[d] ?? null),
-          borderColor: PALETTE[i % PALETTE.length],
-          backgroundColor: "transparent",
-          borderWidth: 1.5,
-          pointRadius: 0,
-          tension: 0.3,
-          spanGaps: true,
-        };
+        return { label: name, data: sampledDates.map(d => map[d] ?? null), borderColor: PALETTE[i % PALETTE.length], backgroundColor: "transparent", borderWidth: 1.5, pointRadius: 0, tension: 0.3, spanGaps: true };
       });
-
       const lineChart = new Chart(document.getElementById("line-chart"), {
         type: "line",
         data: { labels: sampledDates, datasets },
         options: {
-          responsive: true,
-          interaction: { mode: "index", intersect: false },
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              backgroundColor: "#12121a", borderColor: "#1e1e2e", borderWidth: 1,
-              titleColor: "#5a5a7a", bodyColor: "#e8e8f0",
-              callbacks: {
-                label: ctx => ctx.parsed.y !== null
-                  ? ` ${ctx.dataset.label}: ${ctx.parsed.y >= 0 ? "+" : ""}${ctx.parsed.y.toFixed(2)}%`
-                  : null
-              }
-            }
-          },
+          responsive: true, interaction: { mode: "index", intersect: false },
+          plugins: { legend: { display: false }, tooltip: { backgroundColor: "#12121a", borderColor: "#1e1e2e", borderWidth: 1, titleColor: "#5a5a7a", bodyColor: "#e8e8f0", callbacks: { label: ctx => ctx.parsed.y !== null ? ` ${ctx.dataset.label}: ${ctx.parsed.y >= 0 ? "+" : ""}${ctx.parsed.y.toFixed(2)}%` : null } } },
           scales: {
-            x: {
-              grid: { color: "#1e1e2e" },
-              ticks: { color: "#5a5a7a", maxTicksLimit: 8, font: { family: "DM Mono", size: 11 } }
-            },
-            y: {
-              grid: { color: "#1e1e2e" },
-              ticks: { color: "#5a5a7a", font: { family: "DM Mono", size: 11 }, callback: v => (v >= 0 ? "+" : "") + v + "%" }
-            }
+            x: { grid: { color: "#1e1e2e" }, ticks: { color: "#5a5a7a", maxTicksLimit: 8, font: { family: "DM Mono", size: 11 } } },
+            y: { grid: { color: "#1e1e2e" }, ticks: { color: "#5a5a7a", font: { family: "DM Mono", size: 11 }, callback: v => (v >= 0 ? "+" : "") + v + "%" } }
           }
         }
       });
-
-      // Legend met toggle
       const legend = document.getElementById("legend");
       legend.innerHTML = data.map((d, i) => `
         <div class="legend-item" onclick="toggleLine(${i})">
@@ -202,16 +116,13 @@
           ${d.name}
         </div>
       `).join("");
-
       window.toggleLine = (i) => {
         const meta = lineChart.getDatasetMeta(i);
         meta.hidden = !meta.hidden;
-        const dot = document.getElementById(`dot-${i}`);
-        dot.style.opacity = meta.hidden ? "0.3" : "1";
+        document.getElementById(`dot-${i}`).style.opacity = meta.hidden ? "0.3" : "1";
         lineChart.update();
       };
     }
-
     load();
   </script>
 </body>
