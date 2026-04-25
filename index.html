@@ -11,6 +11,7 @@
     :root {
       --bg: #0a0a0f; --surface: #12121a; --border: #1e1e2e;
       --text: #e8e8f0; --muted: #5a5a7a; --pos: #4ade80; --neg: #f87171;
+      --accent: #60a5fa;
     }
     body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; padding: 2rem; }
     header { display: flex; align-items: baseline; gap: 1rem; margin-bottom: 2rem; }
@@ -18,8 +19,17 @@
     .sub { font-family: 'DM Mono', monospace; font-size: 0.85rem; color: var(--muted); }
     .charts-row { display: grid; grid-template-columns: 1fr 1.8fr; gap: 1.25rem; align-items: start; }
     .chart-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
-    .chart-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 1rem; }
+    .chart-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem; }
+    .chart-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
     canvas { width: 100% !important; }
+    .time-filters { display: flex; gap: 4px; }
+    .tf {
+      background: none; border: 1px solid var(--border); color: var(--muted);
+      font-family: 'DM Mono', monospace; font-size: 11px;
+      padding: 3px 8px; border-radius: 4px; cursor: pointer; transition: all 0.15s;
+    }
+    .tf:hover { color: var(--text); border-color: var(--muted); }
+    .tf.active { background: var(--accent); border-color: var(--accent); color: #0a0a0f; font-weight: 600; }
     .loading { text-align: center; padding: 4rem; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 0.85rem; }
     .dot { display: inline-block; animation: blink 1.2s infinite; }
     .dot:nth-child(2) { animation-delay: 0.2s; }
@@ -28,7 +38,7 @@
     .error { color: #f87171; font-family: 'DM Mono', monospace; font-size: 13px; padding: 2rem; text-align: center; }
     .legend { display: flex; flex-wrap: wrap; gap: 0.6rem 1.2rem; margin-top: 1rem; }
     .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); cursor: pointer; }
-    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; transition: opacity 0.2s; }
     @media (max-width: 900px) { .charts-row { grid-template-columns: 1fr; } }
   </style>
 </head>
@@ -42,11 +52,28 @@
   </div>
   <script>
     document.getElementById("year-label").textContent = new Date().getFullYear() + " year-to-date";
+
     const PALETTE = [
       "#60a5fa","#4ade80","#fbbf24","#f472b6","#a78bfa",
       "#fb923c","#22d3ee","#e879f9","#f87171","#34d399",
       "#facc15","#38bdf8","#c084fc","#86efac"
     ];
+
+    const PERIODS = [
+      { label: "1W", days: 7 },
+      { label: "1M", days: 30 },
+      { label: "3M", days: 90 },
+      { label: "6M", days: 180 },
+      { label: "YTD", days: null },
+      { label: "1J",  days: 365 },
+      { label: "2J",  days: 730 },
+      { label: "5J",  days: 1825 },
+    ];
+
+    let activePeriod = "1J";
+    let lineChartInstance = null;
+    let allWeeks = [];
+    let rawDatasets = [];
 
     function getWeekKey(dateStr) {
       const d = new Date(dateStr);
@@ -54,6 +81,42 @@
       const diff = d.getDate() - day + (day === 0 ? -6 : 1);
       const mon = new Date(d.setDate(diff));
       return mon.toISOString().slice(0, 10);
+    }
+
+    function getCutoffDate(period) {
+      const now = new Date();
+      if (period.label === "YTD") return new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
+      const cutoff = new Date(now);
+      cutoff.setDate(cutoff.getDate() - period.days);
+      return cutoff.toISOString().slice(0, 10);
+    }
+
+    function rebaseFromCutoff(weeks, datasets, cutoff) {
+      const startIdx = weeks.findIndex(w => w >= cutoff);
+      if (startIdx === -1) return { labels: weeks, rebased: datasets };
+      const labels = weeks.slice(startIdx);
+      const rebased = datasets.map(ds => {
+        const sliced = ds.data.slice(startIdx);
+        const firstVal = sliced.find(v => v !== null);
+        if (firstVal === undefined) return { ...ds, data: sliced };
+        return {
+          ...ds,
+          data: sliced.map(v => v !== null ? parseFloat((v - firstVal).toFixed(2)) : null)
+        };
+      });
+      return { labels, rebased };
+    }
+
+    function updateLineChart(period) {
+      activePeriod = period.label;
+      document.querySelectorAll(".tf").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.period === period.label);
+      });
+      const cutoff = getCutoffDate(period);
+      const { labels, rebased } = rebaseFromCutoff(allWeeks, rawDatasets, cutoff);
+      lineChartInstance.data.labels = labels;
+      lineChartInstance.data.datasets.forEach((ds, i) => { ds.data = rebased[i].data; });
+      lineChartInstance.update();
     }
 
     async function load() {
@@ -71,11 +134,16 @@
       document.getElementById("content").innerHTML = `
         <div class="charts-row">
           <div class="chart-wrap">
-            <div class="chart-label">YTD % — <span id="current-year"></span></div>
+            <div class="chart-top">
+              <div class="chart-label">YTD % — <span id="current-year"></span></div>
+            </div>
             <canvas id="bar-chart"></canvas>
           </div>
           <div class="chart-wrap">
-            <div class="chart-label">Historisch % — vanaf 1 jan 2020 (weekniveau)</div>
+            <div class="chart-top">
+              <div class="chart-label">Historisch %</div>
+              <div class="time-filters" id="time-filters"></div>
+            </div>
             <canvas id="line-chart"></canvas>
             <div class="legend" id="legend"></div>
           </div>
@@ -83,7 +151,13 @@
       `;
       document.getElementById("current-year").textContent = new Date().getFullYear();
 
-      // ── BAR CHART ──────────────────────────────────────────
+      // Tijdsfilter knoppen
+      const filtersEl = document.getElementById("time-filters");
+      filtersEl.innerHTML = PERIODS.map(p => `
+        <button class="tf ${p.label === activePeriod ? "active" : ""}" data-period="${p.label}">${p.label}</button>
+      `).join("");
+
+      // Bar chart
       const barLabels = data.map(d => d.name);
       const barValues = data.map(d => d.ytd[d.ytd.length - 1]?.pct ?? 0);
       const barColors = barValues.map(v => v >= 0 ? "#4ade80" : "#f87171");
@@ -103,34 +177,34 @@
         }
       });
 
-      // ── LINE CHART: resample naar weekniveau ───────────────
-      // Per instrument: per week de laatste waarde bewaren
+      // Line chart weekdata
       const weekMaps = data.map(({ hist }) => {
         const map = {};
         hist.forEach(p => { map[getWeekKey(p.date)] = p.pct; });
         return map;
       });
+      allWeeks = [...new Set(weekMaps.flatMap(m => Object.keys(m)))].sort();
+      rawDatasets = data.map(({ name }, i) => ({
+        label: name,
+        data: allWeeks.map(w => weekMaps[i][w] ?? null),
+        borderColor: PALETTE[i % PALETTE.length],
+        backgroundColor: "transparent",
+        borderWidth: 1.5,
+        pointRadius: 0,
+        tension: 0.3,
+        spanGaps: true,
+      }));
 
-      // Alle weken verzamelen en sorteren
-      const allWeeks = [...new Set(weekMaps.flatMap(m => Object.keys(m)))].sort();
+      const defaultPeriod = PERIODS.find(p => p.label === activePeriod);
+      const cutoff = getCutoffDate(defaultPeriod);
+      const { labels: initLabels, rebased: initData } = rebaseFromCutoff(allWeeks, rawDatasets, cutoff);
 
-      const datasets = data.map(({ name, hist }, i) => {
-        const map = weekMaps[i];
-        return {
-          label: name,
-          data: allWeeks.map(w => map[w] ?? null),
-          borderColor: PALETTE[i % PALETTE.length],
-          backgroundColor: "transparent",
-          borderWidth: 1.5,
-          pointRadius: 0,
-          tension: 0.3,
-          spanGaps: true,
-        };
-      });
-
-      const lineChart = new Chart(document.getElementById("line-chart"), {
+      lineChartInstance = new Chart(document.getElementById("line-chart"), {
         type: "line",
-        data: { labels: allWeeks, datasets },
+        data: {
+          labels: initLabels,
+          datasets: initData.map((ds, i) => ({ ...rawDatasets[i], data: ds.data }))
+        },
         options: {
           responsive: true,
           interaction: { mode: "nearest", intersect: true },
@@ -153,7 +227,13 @@
         }
       });
 
-      // Legenda met toggle
+      filtersEl.querySelectorAll(".tf").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const period = PERIODS.find(p => p.label === btn.dataset.period);
+          updateLineChart(period);
+        });
+      });
+
       const legend = document.getElementById("legend");
       legend.innerHTML = data.map((d, i) => `
         <div class="legend-item" onclick="toggleLine(${i})">
@@ -163,10 +243,10 @@
       `).join("");
 
       window.toggleLine = (i) => {
-        const meta = lineChart.getDatasetMeta(i);
+        const meta = lineChartInstance.getDatasetMeta(i);
         meta.hidden = !meta.hidden;
         document.getElementById(`dot-${i}`).style.opacity = meta.hidden ? "0.3" : "1";
-        lineChart.update();
+        lineChartInstance.update();
       };
     }
 
