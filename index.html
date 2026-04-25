@@ -8,134 +8,28 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --bg: #0a0a0f;
-      --surface: #12121a;
-      --border: #1e1e2e;
-      --text: #e8e8f0;
-      --muted: #5a5a7a;
-      --sp:   #60a5fa;
-      --gold: #fbbf24;
-      --silv: #94a3b8;
-      --gdx:  #34d399;
-      --msft: #f472b6;
+      --bg: #0a0a0f; --surface: #12121a; --border: #1e1e2e;
+      --text: #e8e8f0; --muted: #5a5a7a;
     }
-
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'DM Sans', sans-serif;
-      min-height: 100vh;
-      padding: 2rem;
-    }
-
-    header {
-      display: flex;
-      align-items: baseline;
-      gap: 1rem;
-      margin-bottom: 2rem;
-    }
-
-    h1 {
-      font-size: 1.4rem;
-      font-weight: 600;
-      letter-spacing: -0.02em;
-    }
-
-    .year {
-      font-family: 'DM Mono', monospace;
-      font-size: 0.85rem;
-      color: var(--muted);
-    }
-
-    .cards {
-      display: flex;
-      gap: 0.75rem;
-      flex-wrap: wrap;
-      margin-bottom: 1.5rem;
-    }
-
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 0.75rem 1rem;
-      min-width: 130px;
-      flex: 1;
-    }
-
-    .card-name {
-      font-size: 11px;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 0.3rem;
-    }
-
-    .card-value {
-      font-family: 'DM Mono', monospace;
-      font-size: 1.3rem;
-      font-weight: 500;
-    }
-
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; padding: 2rem; }
+    header { display: flex; align-items: baseline; gap: 1rem; margin-bottom: 2rem; }
+    h1 { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.02em; }
+    .year { font-family: 'DM Mono', monospace; font-size: 0.85rem; color: var(--muted); }
+    .cards { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem 1rem; min-width: 130px; flex: 1; }
+    .card-name { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.3rem; }
+    .card-value { font-family: 'DM Mono', monospace; font-size: 1.3rem; font-weight: 500; }
     .card-value.pos { color: #4ade80; }
     .card-value.neg { color: #f87171; }
-
-    .chart-wrap {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 1.5rem;
-      position: relative;
-    }
-
+    .chart-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
     canvas { width: 100% !important; }
-
-    .loading {
-      text-align: center;
-      padding: 4rem;
-      color: var(--muted);
-      font-family: 'DM Mono', monospace;
-      font-size: 0.85rem;
-    }
-
-    .dot {
-      display: inline-block;
-      animation: blink 1.2s infinite;
-    }
+    .loading { text-align: center; padding: 4rem; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 0.85rem; }
+    .dot { display: inline-block; animation: blink 1.2s infinite; }
     .dot:nth-child(2) { animation-delay: 0.2s; }
     .dot:nth-child(3) { animation-delay: 0.4s; }
-
     @keyframes blink { 0%,80%,100%{opacity:0} 40%{opacity:1} }
-
-    .legend {
-      display: flex;
-      gap: 1.25rem;
-      flex-wrap: wrap;
-      margin-top: 1rem;
-    }
-
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    .legend-dot {
-      width: 10px; height: 10px;
-      border-radius: 50%;
-    }
-
-    .error {
-      color: #f87171;
-      font-family: 'DM Mono', monospace;
-      font-size: 13px;
-      padding: 2rem;
-      text-align: center;
-    }
+    .error { color: #f87171; font-family: 'DM Mono', monospace; font-size: 13px; padding: 2rem; text-align: center; }
   </style>
 </head>
 <body>
@@ -143,62 +37,38 @@
     <h1>YTD Dashboard</h1>
     <span class="year" id="year-label"></span>
   </header>
-
   <div class="cards" id="cards">
     <div class="loading">Data laden<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>
   </div>
-
   <div class="chart-wrap">
     <div class="loading" id="loading">Grafiek laden<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>
     <canvas id="chart" style="display:none"></canvas>
-    <div class="legend" id="legend" style="display:none"></div>
   </div>
-
   <script>
-    const COLORS = {
-      "S&P 500":    "var(--sp)",
-      "Goud":       "var(--gold)",
-      "Zilver":     "var(--silv)",
-      "Goldminers": "var(--gdx)",
-      "Microsoft":  "var(--msft)",
-    };
-
-    const HEX = {
-      "S&P 500":    "#60a5fa",
-      "Goud":       "#fbbf24",
-      "Zilver":     "#94a3b8",
-      "Goldminers": "#34d399",
-      "Microsoft":  "#f472b6",
-    };
-
     document.getElementById("year-label").textContent = new Date().getFullYear() + " year-to-date";
 
     async function load() {
       try {
         const res  = await fetch("/api/finance");
         const json = await res.json();
-
         if (!json.ok) throw new Error(json.error);
-
         renderCards(json.data);
         renderChart(json.data);
       } catch (err) {
         document.getElementById("loading").innerHTML = `<div class="error">Kon data niet laden: ${err.message}</div>`;
-        document.getElementById("cards").innerHTML   = `<div class="error">—</div>`;
+        document.getElementById("cards").innerHTML = `<div class="error">—</div>`;
       }
     }
 
     function renderCards(data) {
-      const cards = document.getElementById("cards");
-      cards.innerHTML = data.map(({ name, series }) => {
+      document.getElementById("cards").innerHTML = data.map(({ name, series }) => {
         const last = series[series.length - 1]?.ytd ?? 0;
         const cls  = last >= 0 ? "pos" : "neg";
         const sign = last >= 0 ? "+" : "";
-        return `
-          <div class="card">
-            <div class="card-name">${name}</div>
-            <div class="card-value ${cls}">${sign}${last.toFixed(2)}%</div>
-          </div>`;
+        return `<div class="card">
+          <div class="card-name">${name}</div>
+          <div class="card-value ${cls}">${sign}${last.toFixed(2)}%</div>
+        </div>`;
       }).join("");
     }
 
@@ -207,66 +77,35 @@
       const canvas = document.getElementById("chart");
       canvas.style.display = "block";
 
-      const labels = data[0].series.map(d => d.date);
-
-      const datasets = data.map(({ name, series }) => ({
-        label: name,
-        data: series.map(d => d.ytd),
-        borderColor: HEX[name],
-        backgroundColor: "transparent",
-        borderWidth: 2,
-        pointRadius: 0,
-        tension: 0.3,
-      }));
+      const labels = data.map(d => d.name);
+      const values = data.map(d => d.series[d.series.length - 1]?.ytd ?? 0);
+      const colors = values.map(v => v >= 0 ? "#4ade80" : "#f87171");
 
       new Chart(canvas, {
-        type: "line",
-        data: { labels, datasets },
+        type: "bar",
+        data: {
+          labels,
+          datasets: [{ data: values, backgroundColor: colors, borderRadius: 6, borderSkipped: false }]
+        },
         options: {
           responsive: true,
-          interaction: { mode: "index", intersect: false },
           plugins: {
             legend: { display: false },
             tooltip: {
-              backgroundColor: "#12121a",
-              borderColor: "#1e1e2e",
-              borderWidth: 1,
-              titleColor: "#5a5a7a",
-              bodyColor: "#e8e8f0",
-              callbacks: {
-                label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y >= 0 ? "+" : ""}${ctx.parsed.y.toFixed(2)}%`
-              }
+              backgroundColor: "#12121a", borderColor: "#1e1e2e", borderWidth: 1,
+              titleColor: "#5a5a7a", bodyColor: "#e8e8f0",
+              callbacks: { label: ctx => ` ${ctx.parsed.y >= 0 ? "+" : ""}${ctx.parsed.y.toFixed(2)}%` }
             }
           },
           scales: {
-            x: {
-              grid: { color: "#1e1e2e" },
-              ticks: {
-                color: "#5a5a7a",
-                maxTicksLimit: 6,
-                font: { family: "DM Mono", size: 11 }
-              }
-            },
+            x: { grid: { color: "#1e1e2e" }, ticks: { color: "#e8e8f0", font: { family: "DM Sans", size: 13 } } },
             y: {
               grid: { color: "#1e1e2e" },
-              ticks: {
-                color: "#5a5a7a",
-                font: { family: "DM Mono", size: 11 },
-                callback: v => (v >= 0 ? "+" : "") + v + "%"
-              }
+              ticks: { color: "#5a5a7a", font: { family: "DM Mono", size: 11 }, callback: v => (v >= 0 ? "+" : "") + v + "%" }
             }
           }
         }
       });
-
-      const legend = document.getElementById("legend");
-      legend.style.display = "flex";
-      legend.innerHTML = data.map(({ name }) =>
-        `<div class="legend-item">
-          <div class="legend-dot" style="background:${HEX[name]}"></div>
-          ${name}
-        </div>`
-      ).join("");
     }
 
     load();
