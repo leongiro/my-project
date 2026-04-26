@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Macro Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;600&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0f; --surface: #12121a; --border: #1e1e2e;
+      --text: #e8e8f0; --muted: #5a5a7a;
+      --pos: #4ade80; --neg: #f87171; --neutral: #60a5fa;
+      --risk-on: #4ade80; --risk-off: #f87171; --risk-neutral: #fbbf24;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; padding: 2rem; }
+    nav { display: flex; gap: 1rem; margin-bottom: 2rem; align-items: center; }
+    nav a { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); text-decoration: none; padding: 4px 10px; border: 1px solid var(--border); border-radius: 4px; transition: all 0.15s; }
+    nav a:hover { color: var(--text); border-color: var(--muted); }
+    nav a.active { color: var(--text); border-color: var(--neutral); background: rgba(96,165,250,0.1); }
+    header { display: flex; align-items: center; gap: 1.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
+    h1 { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.02em; }
+    .risk-badge { padding: 6px 16px; border-radius: 20px; font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; }
+    .risk-badge.risk-on  { background: rgba(74,222,128,0.15); color: var(--risk-on);      border: 1px solid rgba(74,222,128,0.4); }
+    .risk-badge.risk-off { background: rgba(248,113,113,0.15); color: var(--risk-off);    border: 1px solid rgba(248,113,113,0.4); }
+    .risk-badge.neutral  { background: rgba(251,191,36,0.15);  color: var(--risk-neutral); border: 1px solid rgba(251,191,36,0.4); }
+    .stats { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 2rem; }
+    .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.8rem 1.1rem; flex: 1; min-width: 120px; }
+    .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.3rem; }
+    .stat-value { font-family: 'DM Mono', monospace; font-size: 1.2rem; font-weight: 500; }
+    .stat-sub   { font-family: 'DM Mono', monospace; font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
+    .pos { color: var(--pos); } .neg { color: var(--neg); } .neutral-c { color: var(--neutral); }
+    .vix-low  { color: var(--pos); } .vix-mid { color: var(--risk-neutral); } .vix-high { color: var(--neg); }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem; }
+    .chart-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+    .chart-top  { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; }
+    .chart-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+    .chart-latest { font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500; }
+    canvas { width: 100% !important; }
+    .vix-zones { display: flex; gap: 6px; margin-top: 6px; }
+    .vix-zone { font-size: 10px; padding: 2px 6px; border-radius: 3px; font-family: 'DM Mono', monospace; }
+    .vz-low  { background: rgba(74,222,128,0.15); color: var(--pos); }
+    .vz-mid  { background: rgba(251,191,36,0.15);  color: var(--risk-neutral); }
+    .vz-high { background: rgba(248,113,113,0.15); color: var(--neg); }
+    .loading { text-align: center; padding: 6rem; color: var(--muted); font-family: 'DM Mono', monospace; }
+    .dot { display: inline-block; animation: blink 1.2s infinite; }
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes blink { 0%,80%,100%{opacity:0} 40%{opacity:1} }
+    .error { color: #f87171; font-family: 'DM Mono', monospace; font-size: 13px; padding: 2rem; text-align: center; }
+    @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="/">📊 YTD</a>
+    <a href="/macro.html" class="active">🌍 Macro</a>
+  </nav>
+  <header>
+    <h1>Macro Dashboard</h1>
+    <div class="risk-badge" id="risk-badge">Laden...</div>
+  </header>
+  <div id="content">
+    <div class="loading">Data laden<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>
+  </div>
+  <script>
+    function lineChart(canvasId, series, color, opts = {}) {
+      const ctx = document.getElementById(canvasId);
+      if (!ctx || !series.length) return;
+      const labels = series.map(p => p.date);
+      const values = series.map(p => p.value);
+      const plugins = [];
+      if (opts.zones) {
+        plugins.push({
+          id: "zones",
+          beforeDraw(chart) {
+            const { ctx: c, chartArea, scales } = chart;
+            if (!chartArea) return;
+            opts.zones.forEach(z => {
+              const y = scales.y.getPixelForValue(z.val);
+              c.save();
+              c.strokeStyle = z.color;
+              c.lineWidth = 1;
+              c.setLineDash([4, 4]);
+              c.beginPath();
+              c.moveTo(chartArea.left, y);
+              c.lineTo(chartArea.right, y);
+              c.stroke();
+              c.restore();
+            });
+          }
+        });
+      }
+      return new Chart(ctx, {
+        type: "line",
+        plugins,
+        data: {
+          labels,
+          datasets: [{
+            data: values,
+            borderColor: color,
+            backgroundColor: opts.fill ? color.replace(")", ", 0.08)").replace("rgb", "rgba") : "transparent",
+            fill: opts.fill ?? false,
+            borderWidth: 1.5,
+            pointRadius: 0,
+            tension: 0.3,
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: "#12121a", borderColor: "#1e1e2e", borderWidth: 1,
+              titleColor: "#5a5a7a", bodyColor: "#e8e8f0",
+              callbacks: { label: ctx => ` ${opts.prefix ?? ""}${ctx.parsed.y?.toFixed(opts.decimals ?? 2)}${opts.suffix ?? ""}` }
+            }
+          },
+          scales: {
+            x: { grid: { color: "#1e1e2e" }, ticks: { color: "#5a5a7a", maxTicksLimit: 6, font: { family: "DM Mono", size: 10 } } },
+            y: { grid: { color: "#1e1e2e" }, min: opts.min, ticks: { color: "#5a5a7a", font: { family: "DM Mono", size: 10 }, callback: v => `${opts.prefix ?? ""}${v}${opts.suffix ?? ""}` } }
+          }
+        }
+      });
+    }
+
+    function fmt(v, decimals = 2, prefix = "", suffix = "") {
+      if (v === null || v === undefined) return "—";
+      return `${prefix}${parseFloat(v).toFixed(decimals)}${suffix}`;
+    }
+
+    function vixClass(v) {
+      if (v < 14) return "vix-low";
+      if (v > 20) return "vix-high";
+      return "vix-mid";
+    }
+
+    function deltaClass(arr) {
+      if (!arr || arr.length < 2) return "neutral-c";
+      const last = arr[arr.length - 1]?.value;
+      const prev = arr[arr.length - 20]?.value;
+      return last > prev ? "pos" : last < prev ? "neg" : "neutral-c";
+    }
+
+    async function load() {
+      try {
+        const res  = await fetch("/api/macro");
+        const json = await res.json();
+        if (!json.ok) throw new Error(json.error);
+        render(json);
+      } catch (err) {
+        document.getElementById("content").innerHTML = `<div class="error">Kon data niet laden: ${err.message}</div>`;
+      }
+    }
+
+    function render({ riskSignal, series, latest }) {
+      const badge = document.getElementById("risk-badge");
+      badge.className = `risk-badge ${riskSignal}`;
+      const labels = { "risk-on": "🟢 Risk On", "risk-off": "🔴 Risk Off", neutral: "🟡 Neutraal" };
+      badge.textContent = labels[riskSignal] ?? riskSignal;
+
+      document.getElementById("content").innerHTML = `
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-label">VIX</div>
+            <div class="stat-value ${vixClass(latest.vix)}">${fmt(latest.vix, 1)}</div>
+            <div class="stat-sub">${latest.vix < 14 ? "Laag — risk on" : latest.vix > 20 ? "Hoog — risk off" : "Neutraal"}</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">DXY (Dollar)</div>
+            <div class="stat-value ${deltaClass(series.dxy)}">${fmt(latest.dxy, 2)}</div>
+            <div class="stat-sub">Dollar Index</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">WTI Crude</div>
+            <div class="stat-value ${deltaClass(series.wti)}">$${fmt(latest.wti, 2)}</div>
+            <div class="stat-sub">per vat</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">CPI YoY</div>
+            <div class="stat-value ${latest.cpiYoY > 3 ? "neg" : latest.cpiYoY < 2 ? "pos" : "neutral-c"}">${fmt(latest.cpiYoY, 2, "", "%")}</div>
+            <div class="stat-sub">MoM: ${fmt(latest.cpiMoM, 2, "", "%")}</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">SPX / Goud</div>
+            <div class="stat-value ${deltaClass(series.spxGold)}">${fmt(latest.spxGold, 3)}</div>
+            <div class="stat-sub">ratio</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">High Beta / Value</div>
+            <div class="stat-value ${deltaClass(series.betaValue)}">${fmt(latest.betaValue, 3)}</div>
+            <div class="stat-sub">SPHB / VTV</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Credit Spread</div>
+            <div class="stat-value ${deltaClass(series.spreadSeries)}">${fmt(latest.spread, 3)}</div>
+            <div class="stat-sub">LQD/HYG proxy</div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="chart-wrap">
+            <div class="chart-top">
+              <div>
+                <div class="chart-title">VIX — Volatiliteitsindex (4 jaar)</div>
+                <div class="vix-zones">
+                  <span class="vix-zone vz-low">Laag &lt;14</span>
+                  <span class="vix-zone vz-mid">Neutraal 14-20</span>
+                  <span class="vix-zone vz-high">Hoog &gt;20</span>
+                </div>
+              </div>
+              <div class="chart-latest ${vixClass(latest.vix)}">${fmt(latest.vix, 1)}</div>
+            </div>
+            <canvas id="vix-chart" height="120"></canvas>
+          </div>
+          <div class="chart-wrap">
+            <div class="chart-top">
+              <div class="chart-title">DXY — Dollar Index (1 jaar)</div>
+              <div class="chart-latest ${deltaClass(series.dxy)}">${fmt(latest.dxy, 2)}</div>
+            </div>
+            <canvas id="dxy-chart" height="120"></canvas>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="chart-wrap">
+            <div class="chart-top">
+              <div class="chart-title">CPI — Inflatie YoY % (3 jaar)</div>
+              <div class="chart-latest ${latest.cpiYoY > 3 ? "neg" : "pos"}">${fmt(latest.cpiYoY, 2, "", "%")}</div>
+            </div>
+            <canvas id="cpi-chart" height="120"></canvas>
+          </div>
+          <div class="chart-wrap">
+            <div class="chart-top">
+              <div class="chart-title">PMI Trend (Manufacturing)</div>
+              <div class="chart-latest neutral-c">${series.pmi.length ? fmt(series.pmi[series.pmi.length-1]?.value, 1) : "—"}</div>
+            </div>
+            <canvas id="pmi-chart" height="120"></canvas>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="chart-wrap">
+            <div class="chart-top">
+              <div class="chart-title">SPX / Goud Ratio (1 jaar)</div>
+              <div class="chart-latest ${deltaClass(series.spxGold)}">${fmt(latest.spxGold, 3)}</div>
+            </div>
+            <canvas id="spxgold-chart" height="120"></canvas>
+          </div>
+          <div class="chart-wrap">
+            <div class="chart-top">
+              <div class="chart-title">High Beta vs Value — SPHB/VTV (1 jaar)</div>
+              <div class="chart-latest ${deltaClass(series.betaValue)}">${fmt(latest.betaValue, 3)}</div>
+            </div>
+            <canvas id="betavalue-chart" height="120"></canvas>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="chart-wrap">
+            <div class="chart-top">
+              <div class="chart-title">WTI Crude Oil (1 jaar)</div>
+              <div class="chart-latest ${deltaClass(series.wti)}">$${fmt(latest.wti, 2)}</div>
+            </div>
+            <canvas id="wti-chart" height="120"></canvas>
+          </div>
+          <div class="chart-wrap">
+            <div class="chart-top">
+              <div class="chart-title">Credit Spreads — LQD/HYG proxy (1 jaar)</div>
+              <div class="chart-latest ${deltaClass(series.spreadSeries)}">${fmt(latest.spread, 3)}</div>
+            </div>
+            <canvas id="spread-chart" height="120"></canvas>
+          </div>
+        </div>
+      `;
+
+      lineChart("vix-chart", series.vix, "#f472b6", { decimals: 1, zones: [{ val: 14, color: "rgba(74,222,128,0.5)" }, { val: 20, color: "rgba(248,113,113,0.5)" }] });
+      lineChart("dxy-chart",       series.dxy,          "#60a5fa", { decimals: 2 });
+      lineChart("cpi-chart",       series.cpiYoY,       "#fbbf24", { suffix: "%", decimals: 2, fill: true });
+      lineChart("pmi-chart",       series.pmi,          "#34d399", { decimals: 1, zones: [{ val: 50, color: "rgba(96,165,250,0.4)" }] });
+      lineChart("spxgold-chart",   series.spxGold,      "#a78bfa", { decimals: 3 });
+      lineChart("betavalue-chart", series.betaValue,    "#fb923c", { decimals: 3 });
+      lineChart("wti-chart",       series.wti,          "#22d3ee", { prefix: "$", decimals: 2 });
+      lineChart("spread-chart",    series.spreadSeries, "#f87171", { decimals: 3 });
+    }
+
+    load();
+  </script>
+</body>
+</html>
