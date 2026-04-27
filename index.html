@@ -14,6 +14,10 @@
       --accent: #60a5fa;
     }
     body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; padding: 2rem; }
+    nav { display: flex; gap: 0.75rem; margin-bottom: 2rem; align-items: center; }
+    nav a { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); text-decoration: none; padding: 4px 12px; border: 1px solid var(--border); border-radius: 4px; transition: all 0.15s; }
+    nav a:hover { color: var(--text); border-color: var(--muted); }
+    nav a.active { color: var(--text); border-color: var(--accent); background: rgba(96,165,250,0.1); }
     header { display: flex; align-items: baseline; gap: 1rem; margin-bottom: 2rem; }
     h1 { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.02em; }
     .sub { font-family: 'DM Mono', monospace; font-size: 0.85rem; color: var(--muted); }
@@ -23,11 +27,7 @@
     .chart-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
     canvas { width: 100% !important; }
     .time-filters { display: flex; gap: 4px; }
-    .tf {
-      background: none; border: 1px solid var(--border); color: var(--muted);
-      font-family: 'DM Mono', monospace; font-size: 11px;
-      padding: 3px 8px; border-radius: 4px; cursor: pointer; transition: all 0.15s;
-    }
+    .tf { background: none; border: 1px solid var(--border); color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px; padding: 3px 8px; border-radius: 4px; cursor: pointer; transition: all 0.15s; }
     .tf:hover { color: var(--text); border-color: var(--muted); }
     .tf.active { background: var(--accent); border-color: var(--accent); color: #0a0a0f; font-weight: 600; }
     .loading { text-align: center; padding: 4rem; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 0.85rem; }
@@ -43,6 +43,10 @@
   </style>
 </head>
 <body>
+  <nav>
+    <a href="/" class="active">📊 YTD Dashboard</a>
+    <a href="/macro.html">🌍 Macro</a>
+  </nav>
   <header>
     <h1>YTD Dashboard</h1>
     <span class="sub" id="year-label"></span>
@@ -56,7 +60,8 @@
     const PALETTE = [
       "#60a5fa","#4ade80","#fbbf24","#f472b6","#a78bfa",
       "#fb923c","#22d3ee","#e879f9","#f87171","#34d399",
-      "#facc15","#38bdf8","#c084fc","#86efac"
+      "#facc15","#38bdf8","#c084fc","#86efac","#fca5a5",
+      "#6ee7b7","#fdba74"
     ];
 
     const PERIODS = [
@@ -119,6 +124,18 @@
       lineChartInstance.update();
     }
 
+    function niceStep(range) {
+      const rough = range / 8;
+      const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+      const norm = rough / mag;
+      let step;
+      if (norm < 1.5) step = 1;
+      else if (norm < 3) step = 2;
+      else if (norm < 7) step = 5;
+      else step = 10;
+      return step * mag;
+    }
+
     async function load() {
       try {
         const res  = await fetch("/api/finance");
@@ -151,19 +168,27 @@
       `;
       document.getElementById("current-year").textContent = new Date().getFullYear();
 
-      // Tijdsfilter knoppen
       const filtersEl = document.getElementById("time-filters");
       filtersEl.innerHTML = PERIODS.map(p => `
         <button class="tf ${p.label === activePeriod ? "active" : ""}" data-period="${p.label}">${p.label}</button>
       `).join("");
 
-      // Bar chart
-      const barLabels = data.map(d => d.name);
-      const barValues = data.map(d => d.ytd[d.ytd.length - 1]?.pct ?? 0);
+      const sorted = [...data]
+        .map(d => ({ name: d.name, pct: d.ytd[d.ytd.length - 1]?.pct ?? 0 }))
+        .sort((a, b) => a.pct - b.pct);
+      const barLabels = sorted.map(d => d.name);
+      const barValues = sorted.map(d => d.pct);
       const barColors = barValues.map(v => v >= 0 ? "#4ade80" : "#f87171");
+      const minVal = Math.min(...barValues);
+      const maxVal = Math.max(...barValues);
+      const range  = maxVal - minVal || 10;
+      const step   = niceStep(range);
+      const yMin   = Math.floor(minVal / step) * step;
+      const yMax   = Math.ceil(maxVal / step) * step;
+
       new Chart(document.getElementById("bar-chart"), {
         type: "bar",
-        data: { labels: barLabels, datasets: [{ data: barValues, backgroundColor: barColors, borderRadius: 5, borderSkipped: false }] },
+        data: { labels: barLabels, datasets: [{ data: barValues, backgroundColor: barColors, borderRadius: 4, borderSkipped: false }] },
         options: {
           indexAxis: "y", responsive: true,
           plugins: {
@@ -171,13 +196,12 @@
             tooltip: { backgroundColor: "#12121a", borderColor: "#1e1e2e", borderWidth: 1, titleColor: "#5a5a7a", bodyColor: "#e8e8f0", callbacks: { label: ctx => ` ${ctx.parsed.x >= 0 ? "+" : ""}${ctx.parsed.x.toFixed(2)}%` } }
           },
           scales: {
-            x: { grid: { color: "#1e1e2e" }, ticks: { color: "#5a5a7a", font: { family: "DM Mono", size: 11 }, callback: v => (v >= 0 ? "+" : "") + v + "%" } },
-            y: { grid: { color: "transparent" }, ticks: { color: "#e8e8f0", font: { family: "DM Sans", size: 12 } } }
+            x: { min: yMin, max: yMax, grid: { color: "#1e1e2e" }, ticks: { stepSize: step, color: "#5a5a7a", font: { family: "DM Mono", size: 11 }, callback: v => (v >= 0 ? "+" : "") + v.toFixed(0) + "%" } },
+            y: { grid: { color: "transparent" }, ticks: { color: "#e8e8f0", font: { family: "DM Sans", size: 11 } } }
           }
         }
       });
 
-      // Line chart weekdata
       const weekMaps = data.map(({ hist }) => {
         const map = {};
         hist.forEach(p => { map[getWeekKey(p.date)] = p.pct; });
@@ -189,10 +213,7 @@
         data: allWeeks.map(w => weekMaps[i][w] ?? null),
         borderColor: PALETTE[i % PALETTE.length],
         backgroundColor: "transparent",
-        borderWidth: 1.5,
-        pointRadius: 0,
-        tension: 0.3,
-        spanGaps: true,
+        borderWidth: 1.5, pointRadius: 0, tension: 0.3, spanGaps: true,
       }));
 
       const defaultPeriod = PERIODS.find(p => p.label === activePeriod);
@@ -201,24 +222,13 @@
 
       lineChartInstance = new Chart(document.getElementById("line-chart"), {
         type: "line",
-        data: {
-          labels: initLabels,
-          datasets: initData.map((ds, i) => ({ ...rawDatasets[i], data: ds.data }))
-        },
+        data: { labels: initLabels, datasets: initData.map((ds, i) => ({ ...rawDatasets[i], data: ds.data })) },
         options: {
           responsive: true,
           interaction: { mode: "nearest", intersect: true },
           plugins: {
             legend: { display: false },
-            tooltip: {
-              backgroundColor: "#12121a", borderColor: "#1e1e2e", borderWidth: 1,
-              titleColor: "#5a5a7a", bodyColor: "#e8e8f0",
-              callbacks: {
-                label: ctx => ctx.parsed.y !== null
-                  ? ` ${ctx.dataset.label}: ${ctx.parsed.y >= 0 ? "+" : ""}${ctx.parsed.y.toFixed(2)}%`
-                  : null
-              }
-            }
+            tooltip: { backgroundColor: "#12121a", borderColor: "#1e1e2e", borderWidth: 1, titleColor: "#5a5a7a", bodyColor: "#e8e8f0", callbacks: { label: ctx => ctx.parsed.y !== null ? ` ${ctx.dataset.label}: ${ctx.parsed.y >= 0 ? "+" : ""}${ctx.parsed.y.toFixed(2)}%` : null } }
           },
           scales: {
             x: { grid: { color: "#1e1e2e" }, ticks: { color: "#5a5a7a", maxTicksLimit: 8, font: { family: "DM Mono", size: 11 } } },
