@@ -2,11 +2,9 @@ export default async function handler(req, res) {
   const now = new Date();
   const fourYearsAgo = new Date(now); fourYearsAgo.setFullYear(fourYearsAgo.getFullYear() - 4);
   const twoYearsAgo  = new Date(now); twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
-  const oneYearAgo   = new Date(now); oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
 
   const p1_4y = Math.floor(fourYearsAgo.getTime() / 1000);
   const p1_2y = Math.floor(twoYearsAgo.getTime() / 1000);
-  const p1_1y = Math.floor(oneYearAgo.getTime() / 1000);
   const p2    = Math.floor(now.getTime() / 1000);
 
   async function yahooSeries(symbol, period1) {
@@ -23,7 +21,7 @@ export default async function handler(req, res) {
     } catch { return []; }
   }
 
-  async function fredSeries(seriesId, limit = 60) {
+  async function fredSeries(seriesId, limit = 250) {
     try {
       const url = `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${seriesId}`;
       const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
@@ -41,7 +39,7 @@ export default async function handler(req, res) {
       vix, dxy, wti, spx, gold, copper,
       hyg, lqd, sphb, vtv,
       treasury10y, treasury2y, tips10y,
-      spxPE, cpi, pmi, jobless, m2, fedFunds,
+      cpi, jobless, m2, fedFunds,
     ] = await Promise.all([
       yahooSeries("^VIX",      p1_4y),
       yahooSeries("DX-Y.NYB",  p1_4y),
@@ -53,15 +51,13 @@ export default async function handler(req, res) {
       yahooSeries("LQD",       p1_4y),
       yahooSeries("SPHB",      p1_2y),
       yahooSeries("VTV",       p1_2y),
-      fredSeries("DGS10",      200),
-      fredSeries("DGS2",       200),
-      fredSeries("DFII10",     200),
-      fredSeries("CAPE",        60),
-      fredSeries("CPIAUCSL",    48),
-      fredSeries("MANEMP",      48),
+      fredSeries("DGS10",      250),
+      fredSeries("DGS2",       250),
+      fredSeries("DFII10",     250),
+      fredSeries("CPIAUCSL",    60),
       fredSeries("ICSA",        60),
-      fredSeries("M2SL",        48),
-      fredSeries("FEDFUNDS",    48),
+      fredSeries("M2SL",        60),
+      fredSeries("FEDFUNDS",    60),
     ]);
 
     const yieldCurve = treasury10y.map(t => {
@@ -70,11 +66,11 @@ export default async function handler(req, res) {
       return { date: t.date, value: parseFloat((t.value - t2.value).toFixed(3)) };
     }).filter(Boolean);
 
-    const erp = spxPE.map(p => {
-      const tips = tips10y.find(x => x.date.slice(0,7) === p.date.slice(0,7));
-      if (!tips || !p.value) return null;
-      const earningsYield = parseFloat((100 / p.value).toFixed(3));
-      return { date: p.date, value: parseFloat((earningsYield - tips.value).toFixed(3)) };
+    // ERP = 10Y Treasury nominaal - 10Y TIPS yield (break-even inflatie proxy)
+    const erp = tips10y.map(t => {
+      const nom = treasury10y.find(x => x.date === t.date);
+      if (!nom) return null;
+      return { date: t.date, value: parseFloat((nom.value - t.value).toFixed(3)) };
     }).filter(Boolean);
 
     const spreadSeries = hyg.map((h, i) => {
@@ -128,27 +124,40 @@ export default async function handler(req, res) {
     if (latestBV > prevBV) riskScore++; else if (latestBV < prevBV) riskScore--;
     if (latestSpread < prevSpread) riskScore++; else if (latestSpread > prevSpread) riskScore--;
     if (latestYC > 0.5) riskScore++; else if (latestYC < -0.3) riskScore--;
-    if (latestERP > 2) riskScore++; else if (latestERP < 0) riskScore--;
+    if (latestERP > 2) riskScore++; else if (latestERP < 1.5) riskScore--;
     if (latestCY > prevCY) riskScore++; else if (latestCY < prevCY) riskScore--;
 
     const riskSignal = riskScore >= 2 ? "risk-on" : riskScore <= -2 ? "risk-off" : "neutral";
 
     const latest = {
-      vix: latestVix, dxy: dxy[dxy.length-1]?.value, wti: wti[wti.length-1]?.value,
-      cpiYoY: cpiYoY[cpiYoY.length-1]?.value, cpiMoM: cpiMoM[cpiMoM.length-1]?.value,
-      spxGold: spxGold[spxGold.length-1]?.value, betaValue: latestBV, spread: latestSpread,
-      yieldCurve: latestYC, erp: latestERP, copperGold: latestCY,
+      vix: latestVix,
+      dxy: dxy[dxy.length-1]?.value,
+      wti: wti[wti.length-1]?.value,
+      cpiYoY: cpiYoY[cpiYoY.length-1]?.value,
+      cpiMoM: cpiMoM[cpiMoM.length-1]?.value,
+      spxGold: spxGold[spxGold.length-1]?.value,
+      betaValue: latestBV,
+      spread: latestSpread,
+      yieldCurve: latestYC,
+      erp: latestERP,
+      tipsYield: tips10y[tips10y.length-1]?.value,
+      copperGold: latestCY,
       fedFunds: fedFunds[fedFunds.length-1]?.value,
       treasury10y: treasury10y[treasury10y.length-1]?.value,
       treasury2y: treasury2y[treasury2y.length-1]?.value,
       jobless: jobless[jobless.length-1]?.value,
-      m2YoY: m2YoY[m2YoY.length-1]?.value, riskScore,
+      m2YoY: m2YoY[m2YoY.length-1]?.value,
+      riskScore,
     };
 
     res.setHeader("Cache-Control", "s-maxage=3600");
     res.status(200).json({
       ok: true, riskSignal,
-      series: { vix, dxy, wti, spxGold, betaValue, spreadSeries, cpiYoY, cpiMoM, pmi, yieldCurve, erp, copperGold, jobless, m2YoY, fedFunds, treasury10y, treasury2y },
+      series: {
+        vix, dxy, wti, spxGold, betaValue, spreadSeries,
+        cpiYoY, cpiMoM, yieldCurve, erp, copperGold,
+        jobless, m2YoY, fedFunds, treasury10y, treasury2y, tips10y,
+      },
       latest,
     });
   } catch (err) {
