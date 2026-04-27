@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sector Rotatie</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;600&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0f; --surface: #12121a; --border: #1e1e2e;
+      --text: #e8e8f0; --muted: #5a5a7a;
+      --pos: #4ade80; --neg: #f87171; --neutral: #60a5fa;
+      --cyc: #60a5fa; --def: #fbbf24;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; padding: 2rem; }
+    nav { display: flex; gap: 0.75rem; margin-bottom: 2rem; align-items: center; flex-wrap: wrap; }
+    nav a { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); text-decoration: none; padding: 4px 12px; border: 1px solid var(--border); border-radius: 4px; transition: all 0.15s; }
+    nav a:hover { color: var(--text); border-color: var(--muted); }
+    nav a.active { color: var(--text); border-color: var(--neutral); background: rgba(96,165,250,0.1); }
+    header { display: flex; align-items: center; gap: 1.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
+    h1 { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.02em; }
+    .badge { padding: 5px 14px; border-radius: 20px; font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; }
+    .badge.cyclisch  { background: rgba(96,165,250,0.15);  color: var(--cyc); border: 1px solid rgba(96,165,250,0.4); }
+    .badge.defensief { background: rgba(251,191,36,0.15);  color: var(--def); border: 1px solid rgba(251,191,36,0.4); }
+    .badge.neutraal  { background: rgba(74,222,128,0.15);  color: var(--pos); border: 1px solid rgba(74,222,128,0.4); }
+    .section-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin: 2rem 0 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+    .hm-filters { display: flex; gap: 4px; margin-bottom: 1rem; }
+    .hf { background: none; border: 1px solid var(--border); color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px; padding: 3px 10px; border-radius: 4px; cursor: pointer; transition: all 0.15s; }
+    .hf:hover { color: var(--text); border-color: var(--muted); }
+    .hf.active { background: var(--neutral); border-color: var(--neutral); color: #0a0a0f; font-weight: 600; }
+    .tb-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+    .tb-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; }
+    .tb-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem; }
+    .tb-name  { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+    .tb-pct   { font-family: 'DM Mono', monospace; font-size: 1.1rem; }
+    .rot-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+    .rot-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; display: flex; align-items: center; justify-content: space-between; }
+    .rot-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+    .rot-val   { font-family: 'DM Mono', monospace; font-size: 1.4rem; font-weight: 500; }
+    .heatmap { display: grid; grid-template-columns: repeat(11, 1fr); gap: 6px; margin-bottom: 1.5rem; }
+    .hm-cell { border-radius: 8px; padding: 0.6rem 0.4rem; text-align: center; cursor: default; transition: opacity 0.2s; }
+    .hm-cell:hover { opacity: 0.85; }
+    .hm-name { font-size: 10px; color: rgba(255,255,255,0.7); margin-bottom: 4px; line-height: 1.2; }
+    .hm-pct  { font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 600; color: #fff; }
+    .sector-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .sector-table th { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; padding: 6px 10px; text-align: right; border-bottom: 1px solid var(--border); }
+    .sector-table th:first-child { text-align: left; }
+    .sector-table td { padding: 8px 10px; text-align: right; border-bottom: 1px solid rgba(30,30,46,0.5); font-family: 'DM Mono', monospace; }
+    .sector-table td:first-child { text-align: left; font-family: 'DM Sans', sans-serif; }
+    .sector-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .trend-up   { color: var(--pos); } .trend-down { color: var(--neg); } .trend-side { color: var(--muted); }
+    .type-cyc { color: var(--cyc); font-size: 10px; }
+    .type-def { color: var(--def); font-size: 10px; }
+    .top-row td { background: rgba(74,222,128,0.05); }
+    .bot-row td { background: rgba(248,113,113,0.05); }
+    .macro-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 1.5rem; }
+    .macro-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.8rem 1rem; }
+    .macro-name { font-size: 11px; color: var(--muted); margin-bottom: 0.3rem; }
+    .macro-sym  { font-size: 13px; font-weight: 600; margin-bottom: 0.5rem; }
+    .macro-pcts { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .macro-pct  { font-family: 'DM Mono', monospace; font-size: 11px; }
+    .macro-lbl  { font-size: 9px; color: var(--muted); }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem; }
+    .chart-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+    .chart-top  { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+    .chart-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; }
+    canvas { width: 100% !important; }
+    .w52-wrap { background: var(--border); border-radius: 3px; height: 4px; width: 60px; display: inline-block; vertical-align: middle; margin-left: 4px; }
+    .w52-fill { height: 4px; border-radius: 3px; background: var(--neutral); }
+    .pos { color: var(--pos); } .neg { color: var(--neg); } .neu { color: var(--neutral); }
+    .loading { text-align: center; padding: 6rem; color: var(--muted); font-family: 'DM Mono', monospace; }
+    .dot { display: inline-block; animation: blink 1.2s infinite; }
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes blink { 0%,80%,100%{opacity:0} 40%{opacity:1} }
+    .error { color: #f87171; font-family: 'DM Mono', monospace; font-size: 13px; padding: 2rem; text-align: center; }
+    @media (max-width: 1100px) { .heatmap { grid-template-columns: repeat(6, 1fr); } }
+    @media (max-width: 900px)  { .tb-row, .macro-row, .grid-2 { grid-template-columns: 1fr 1fr; } .rot-row { grid-template-columns: 1fr; } }
+    @media (max-width: 600px)  { .tb-row, .macro-row { grid-template-columns: 1fr; } .heatmap { grid-template-columns: repeat(3, 1fr); } }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="/">📊 YTD Dashboard</a>
+    <a href="/macro.html">🌍 Macro</a>
+    <a href="/sector.html" class="active">🔄 Sector Rotatie</a>
+  </nav>
+  <header>
+    <h1>Sector Rotatie</h1>
+    <div class="badge" id="rot-badge">Laden...</div>
+  </header>
+  <div id="content">
+    <div class="loading">Data laden<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>
+  </div>
+  <script>
+    function fmt(v, d = 2, pre = "", suf = "") {
+      if (v === null || v === undefined) return "—";
+      return `${pre}${parseFloat(v).toFixed(d)}${suf}`;
+    }
+    function pctClass(v) { return v > 0 ? "pos" : v < 0 ? "neg" : "neu"; }
+    function trendIcon(t) {
+      if (t === "up")   return '<span class="trend-up">▲ Up</span>';
+      if (t === "down") return '<span class="trend-down">▼ Down</span>';
+      return '<span class="trend-side">— Side</span>';
+    }
+    function heatColor(pct) {
+      if (pct === null) return "#1e1e2e";
+      if (pct >  3) return "#166534";
+      if (pct >  1) return "#15803d";
+      if (pct >  0) return "#16a34a";
+      if (pct > -1) return "#991b1b";
+      if (pct > -3) return "#b91c1c";
+      return "#7f1d1d";
+    }
+
+    let allSectors = [];
+
+    function renderHeatmap(period) {
+      document.querySelectorAll(".hf").forEach(b => b.classList.toggle("active", b.dataset.p === period));
+      const key = period === "1W" ? "pct1w" : period === "1M" ? "pct1m" : "pct3m";
+      document.querySelectorAll(".hm-cell").forEach((cell, i) => {
+        const s = allSectors[i];
+        if (!s) return;
+        const pct = s[key];
+        cell.style.background = heatColor(pct);
+        cell.querySelector(".hm-pct").textContent = pct !== null ? (pct >= 0 ? "+" : "") + pct.toFixed(1) + "%" : "—";
+      });
+    }
+
+    async function load() {
+      try {
+        const res  = await fetch("/api/sector");
+        const json = await res.json();
+        if (!json.ok) throw new Error(json.error);
+        allSectors = json.sectors;
+        render(json);
+      } catch (err) {
+        document.getElementById("content").innerHTML = `<div class="error">Kon data niet laden: ${err.message}</div>`;
+      }
+    }
+
+    function render({ sectors, macroEtfs, rotatieSignaal, cycScore, defScore, top3, bottom3 }) {
+      const badge = document.getElementById("rot-badge");
+      badge.className = `badge ${rotatieSignaal}`;
+      const rotLabels = { cyclisch: "🔵 Cyclisch momentum", defensief: "🟡 Defensief momentum", neutraal: "🟢 Neutraal" };
+      badge.textContent = rotLabels[rotatieSignaal];
+
+      const sorted1w = [...sectors].sort((a, b) => (b.pct1w ?? -99) - (a.pct1w ?? -99));
+      const t3 = sorted1w.slice(0, 3);
+      const b3 = sorted1w.slice(-3).reverse();
+
+      document.getElementById("content").innerHTML = `
+        <div class="section-title">Rotatie Signaal</div>
+        <div class="rot-row">
+          <div class="rot-card">
+            <div>
+              <div class="rot-label">Cyclisch RS Score</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">XLK, XLF, XLY, XLI, XLE, XLB, XLC</div>
+            </div>
+            <div class="rot-val" style="color:var(--cyc)">${cycScore >= 0 ? "+" : ""}${cycScore}</div>
+          </div>
+          <div class="rot-card">
+            <div>
+              <div class="rot-label">Defensief RS Score</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">XLV, XLP, XLU, XLRE</div>
+            </div>
+            <div class="rot-val" style="color:var(--def)">${defScore >= 0 ? "+" : ""}${defScore}</div>
+          </div>
+        </div>
+
+        <div class="section-title">Top 3 & Bottom 3 — Week Performance</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">
+          <div>
+            <div style="font-size:10px;color:var(--pos);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.5rem">▲ Top 3</div>
+            <div class="tb-row">
+              ${t3.map(s => `
+                <div class="tb-card" style="border-color:rgba(74,222,128,0.3)">
+                  <div class="tb-label">${s.symbol}</div>
+                  <div class="tb-name">${s.name}</div>
+                  <div class="tb-pct pos">${s.pct1w !== null ? (s.pct1w >= 0 ? "+" : "") + s.pct1w.toFixed(2) + "%" : "—"}</div>
+                  <div style="font-size:10px;color:var(--muted);margin-top:4px">${s.type === "cyclisch" ? '<span class="type-cyc">Cyclisch</span>' : '<span class="type-def">Defensief</span>'}</div>
+                </div>`).join("")}
+            </div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--neg);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.5rem">▼ Bottom 3</div>
+            <div class="tb-row">
+              ${b3.map(s => `
+                <div class="tb-card" style="border-color:rgba(248,113,113,0.3)">
+                  <div class="tb-label">${s.symbol}</div>
+                  <div class="tb-name">${s.name}</div>
+                  <div class="tb-pct neg">${s.pct1w !== null ? (s.pct1w >= 0 ? "+" : "") + s.pct1w.toFixed(2) + "%" : "—"}</div>
+                  <div style="font-size:10px;color:var(--muted);margin-top:4px">${s.type === "cyclisch" ? '<span class="type-cyc">Cyclisch</span>' : '<span class="type-def">Defensief</span>'}</div>
+                </div>`).join("")}
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title">Sector Heatmap</div>
+        <div class="hm-filters">
+          <button class="hf active" data-p="1W" onclick="renderHeatmap('1W')">1W</button>
+          <button class="hf" data-p="1M" onclick="renderHeatmap('1M')">1M</button>
+          <button class="hf" data-p="3M" onclick="renderHeatmap('3M')">3M</button>
+        </div>
+        <div class="heatmap">
+          ${sectors.map(s => `
+            <div class="hm-cell" style="background:${heatColor(s.pct1w)}">
+              <div class="hm-name">${s.name}</div>
+              <div class="hm-pct">${s.pct1w !== null ? (s.pct1w >= 0 ? "+" : "") + s.pct1w.toFixed(1) + "%" : "—"}</div>
+            </div>`).join("")}
+        </div>
+
+        <div class="section-title">Macro ETFs — Relative Strength vs S&P500</div>
+        <div class="macro-row">
+          ${macroEtfs.map(m => `
+            <div class="macro-card">
+              <div class="macro-sym">${m.symbol}</div>
+              <div class="macro-name">${m.name}</div>
+              <div class="macro-pcts">
+                <div><div class="macro-lbl">1W</div><div class="macro-pct ${pctClass(m.pct1w)}">${fmt(m.pct1w, 2, m.pct1w >= 0 ? "+" : "", "%")}</div></div>
+                <div><div class="macro-lbl">1M</div><div class="macro-pct ${pctClass(m.pct1m)}">${fmt(m.pct1m, 2, m.pct1m >= 0 ? "+" : "", "%")}</div></div>
+                <div><div class="macro-lbl">3M</div><div class="macro-pct ${pctClass(m.pct3m)}">${fmt(m.pct3m, 2, m.pct3m >= 0 ? "+" : "", "%")}</div></div>
+                <div><div class="macro-lbl">RS vs SPY</div><div class="macro-pct ${pctClass(m.rs20)}">${fmt(m.rs20, 2, m.rs20 >= 0 ? "+" : "", "%")}</div></div>
+              </div>
+              <div style="margin-top:0.5rem">${trendIcon(m.trend)}</div>
+            </div>`).join("")}
+        </div>
+
+        <div class="section-title">Relative Strength vs S&P500 (60 dagen)</div>
+        <div class="grid-2">
+          <div class="chart-wrap">
+            <div class="chart-top"><div class="chart-title">RS Lijn — Top 3 Sectoren</div></div>
+            <canvas id="rs-top-chart" height="140"></canvas>
+          </div>
+          <div class="chart-wrap">
+            <div class="chart-top"><div class="chart-title">RS Lijn — Bottom 3 Sectoren</div></div>
+            <canvas id="rs-bot-chart" height="140"></canvas>
+          </div>
+        </div>
+
+        <div class="section-title">Alle Sectoren — Volledig Overzicht</div>
+        <div class="chart-wrap" style="overflow-x:auto">
+          <table class="sector-table">
+            <thead>
+              <tr>
+                <th>Sector</th><th>1W</th><th>1M</th><th>3M</th>
+                <th>RS 20d</th><th>RS 60d</th><th>Vol ratio</th>
+                <th>MA20</th><th>MA50</th><th>52W positie</th><th>Trend</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${[...sectors].sort((a, b) => (b.pct1w ?? -99) - (a.pct1w ?? -99)).map(s => {
+                const isTop = top3.includes(s.symbol);
+                const isBot = bottom3.includes(s.symbol);
+                const w52pct = s.high52w && s.low52w ? ((s.last - s.low52w) / (s.high52w - s.low52w) * 100).toFixed(0) : 50;
+                return `<tr class="${isTop ? "top-row" : isBot ? "bot-row" : ""}">
+                  <td>
+                    <strong>${s.symbol}</strong>
+                    <span style="color:var(--muted);font-size:11px;margin-left:6px">${s.name}</span>
+                    <span class="${s.type === "cyclisch" ? "type-cyc" : "type-def"}" style="margin-left:6px">${s.type}</span>
+                  </td>
+                  <td class="${pctClass(s.pct1w)}">${fmt(s.pct1w, 2, s.pct1w >= 0 ? "+" : "", "%")}</td>
+                  <td class="${pctClass(s.pct1m)}">${fmt(s.pct1m, 2, s.pct1m >= 0 ? "+" : "", "%")}</td>
+                  <td class="${pctClass(s.pct3m)}">${fmt(s.pct3m, 2, s.pct3m >= 0 ? "+" : "", "%")}</td>
+                  <td class="${pctClass(s.rs20)}">${fmt(s.rs20, 2, s.rs20 >= 0 ? "+" : "", "%")}</td>
+                  <td class="${pctClass(s.rs60)}">${fmt(s.rs60, 2, s.rs60 >= 0 ? "+" : "", "%")}</td>
+                  <td class="${s.volRatio >= 1.5 ? "pos" : s.volRatio < 0.8 ? "neg" : "neu"}">${fmt(s.volRatio, 2)}x</td>
+                  <td class="${s.aboveMa20 ? "pos" : "neg"}">${s.aboveMa20 ? "▲" : "▼"} ${fmt(s.ma20, 2, "$")}</td>
+                  <td class="${s.aboveMa50 ? "pos" : "neg"}">${s.aboveMa50 ? "▲" : "▼"} ${fmt(s.ma50, 2, "$")}</td>
+                  <td>
+                    <span style="font-size:10px;color:var(--muted)">${fmt(s.pctFrom52High, 1, "", "%")} v high</span>
+                    <div class="w52-wrap"><div class="w52-fill" style="width:${w52pct}%"></div></div>
+                  </td>
+                  <td>${trendIcon(s.trend)}</td>
+                </tr>`;
+              }).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      const COLORS = ["#60a5fa","#4ade80","#fbbf24","#f472b6","#a78bfa","#fb923c"];
+
+      function makeRsChart(canvasId, sectorList) {
+        const ctx = document.getElementById(canvasId);
+        if (!ctx) return;
+        const datasets = sectorList.map((s, i) => ({
+          label: s.symbol,
+          data: s.rsSeries.map(p => ({ x: p.date, y: p.value })),
+          borderColor: COLORS[i % COLORS.length],
+          backgroundColor: "transparent",
+          borderWidth: 1.5, pointRadius: 0, tension: 0.3,
+        }));
+        new Chart(ctx, {
+          type: "line",
+          data: { datasets },
+          options: {
+            responsive: true,
+            interaction: { mode: "index", intersect: false },
+            plugins: {
+              legend: { labels: { color: "#5a5a7a", font: { family: "DM Mono", size: 10 } } },
+              tooltip: { backgroundColor: "#12121a", borderColor: "#1e1e2e", borderWidth: 1, titleColor: "#5a5a7a", bodyColor: "#e8e8f0" }
+            },
+            scales: {
+              x: { type: "category", grid: { color: "#1e1e2e" }, ticks: { color: "#5a5a7a", maxTicksLimit: 6, font: { family: "DM Mono", size: 10 } } },
+              y: { grid: { color: "#1e1e2e" }, ticks: { color: "#5a5a7a", font: { family: "DM Mono", size: 10 } } }
+            }
+          }
+        });
+      }
+
+      makeRsChart("rs-top-chart", t3);
+      makeRsChart("rs-bot-chart", b3);
+    }
+
+    load();
+  </script>
+</body>
+</html>
