@@ -15,31 +15,39 @@
       --risk-on: #4ade80; --risk-off: #f87171; --risk-neutral: #fbbf24;
     }
     body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; padding: 2rem; }
-    nav { display: flex; gap: 1rem; margin-bottom: 2rem; align-items: center; }
-    nav a { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); text-decoration: none; padding: 4px 10px; border: 1px solid var(--border); border-radius: 4px; transition: all 0.15s; }
+    nav { display: flex; gap: 0.75rem; margin-bottom: 2rem; align-items: center; flex-wrap: wrap; }
+    nav a { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); text-decoration: none; padding: 4px 12px; border: 1px solid var(--border); border-radius: 4px; transition: all 0.15s; }
     nav a:hover { color: var(--text); border-color: var(--muted); }
     nav a.active { color: var(--text); border-color: var(--neutral); background: rgba(96,165,250,0.1); }
-    header { display: flex; align-items: center; gap: 1.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
+    header { display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
     h1 { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.02em; }
     .risk-badge { padding: 6px 16px; border-radius: 20px; font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; }
     .risk-badge.risk-on  { background: rgba(74,222,128,0.15); color: var(--risk-on);      border: 1px solid rgba(74,222,128,0.4); }
     .risk-badge.risk-off { background: rgba(248,113,113,0.15); color: var(--risk-off);    border: 1px solid rgba(248,113,113,0.4); }
     .risk-badge.neutral  { background: rgba(251,191,36,0.15);  color: var(--risk-neutral); border: 1px solid rgba(251,191,36,0.4); }
-    .stats { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 2rem; }
-    .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.8rem 1.1rem; flex: 1; min-width: 120px; }
+    .risk-score { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); }
+    .global-tf { display: flex; gap: 4px; margin-bottom: 2rem; align-items: center; }
+    .global-tf-label { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; margin-right: 6px; }
+    .tf { background: none; border: 1px solid var(--border); color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px; padding: 3px 10px; border-radius: 4px; cursor: pointer; transition: all 0.15s; }
+    .tf:hover { color: var(--text); border-color: var(--muted); }
+    .tf.active { background: var(--neutral); border-color: var(--neutral); color: #0a0a0f; font-weight: 600; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.75rem; margin-bottom: 2rem; }
+    .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.8rem 1rem; }
     .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.3rem; }
-    .stat-value { font-family: 'DM Mono', monospace; font-size: 1.2rem; font-weight: 500; }
-    .stat-sub   { font-family: 'DM Mono', monospace; font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
-    .pos { color: var(--pos); } .neg { color: var(--neg); } .neutral-c { color: var(--neutral); }
-    .vix-low  { color: var(--pos); } .vix-mid { color: var(--risk-neutral); } .vix-high { color: var(--neg); }
+    .stat-value { font-family: 'DM Mono', monospace; font-size: 1.15rem; font-weight: 500; }
+    .stat-sub   { font-family: 'DM Mono', monospace; font-size: 0.7rem; color: var(--muted); margin-top: 3px; }
+    .pos { color: var(--pos); } .neg { color: var(--neg); } .neu { color: var(--neutral); }
+    .vix-low { color: var(--pos); } .vix-mid { color: var(--risk-neutral); } .vix-high { color: var(--neg); }
+    .section-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin: 2rem 0 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem; }
     .chart-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
     .chart-top  { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; }
-    .chart-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+    .chart-title  { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; }
     .chart-latest { font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500; }
     canvas { width: 100% !important; }
-    .vix-zones { display: flex; gap: 6px; margin-top: 6px; }
-    .vix-zone { font-size: 10px; padding: 2px 6px; border-radius: 3px; font-family: 'DM Mono', monospace; }
+    .vix-zones { display: flex; gap: 6px; margin-top: 5px; }
+    .vix-zone  { font-size: 10px; padding: 2px 6px; border-radius: 3px; font-family: 'DM Mono', monospace; }
     .vz-low  { background: rgba(74,222,128,0.15); color: var(--pos); }
     .vz-mid  { background: rgba(251,191,36,0.15);  color: var(--risk-neutral); }
     .vz-high { background: rgba(248,113,113,0.15); color: var(--neg); }
@@ -49,98 +57,112 @@
     .dot:nth-child(3) { animation-delay: 0.4s; }
     @keyframes blink { 0%,80%,100%{opacity:0} 40%{opacity:1} }
     .error { color: #f87171; font-family: 'DM Mono', monospace; font-size: 13px; padding: 2rem; text-align: center; }
-    @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+    @media (max-width: 900px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
   <nav>
-    <a href="/">📊 YTD</a>
+    <a href="/">📊 YTD Dashboard</a>
     <a href="/macro.html" class="active">🌍 Macro</a>
   </nav>
   <header>
     <h1>Macro Dashboard</h1>
     <div class="risk-badge" id="risk-badge">Laden...</div>
+    <div class="risk-score" id="risk-score"></div>
   </header>
+  <div class="global-tf" id="global-tf">
+    <span class="global-tf-label">Periode:</span>
+    <button class="tf" data-days="30">1M</button>
+    <button class="tf" data-days="90">3M</button>
+    <button class="tf" data-days="180">6M</button>
+    <button class="tf active" data-days="365">1J</button>
+    <button class="tf" data-days="730">2J</button>
+    <button class="tf" data-days="1460">4J</button>
+  </div>
   <div id="content">
     <div class="loading">Data laden<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>
   </div>
   <script>
-    function lineChart(canvasId, series, color, opts = {}) {
+    const CHARTS = {};
+    let ALL_SERIES = {};
+    let activeDays = 365;
+
+    function cutSeries(series, days) {
+      if (!series || !series.length) return [];
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - days);
+      const cutStr = cutoff.toISOString().slice(0, 10);
+      return series.filter(p => p.date >= cutStr);
+    }
+
+    function updateAllCharts(days) {
+      activeDays = days;
+      Object.entries(CHARTS).forEach(([id, { chart, seriesKey }]) => {
+        const sliced = cutSeries(ALL_SERIES[seriesKey], days);
+        chart.data.labels = sliced.map(p => p.date);
+        chart.data.datasets[0].data = sliced.map(p => p.value);
+        chart.update();
+      });
+    }
+
+    document.getElementById("global-tf").addEventListener("click", e => {
+      if (!e.target.classList.contains("tf")) return;
+      document.querySelectorAll(".tf").forEach(b => b.classList.remove("active"));
+      e.target.classList.add("active");
+      updateAllCharts(parseInt(e.target.dataset.days));
+    });
+
+    function makeChart(canvasId, seriesKey, color, opts = {}) {
       const ctx = document.getElementById(canvasId);
-      if (!ctx || !series.length) return;
-      const labels = series.map(p => p.date);
-      const values = series.map(p => p.value);
+      if (!ctx) return;
+      const series = cutSeries(ALL_SERIES[seriesKey], activeDays);
+      if (!series.length) return;
       const plugins = [];
       if (opts.zones) {
         plugins.push({
-          id: "zones",
+          id: "zones-" + canvasId,
           beforeDraw(chart) {
             const { ctx: c, chartArea, scales } = chart;
             if (!chartArea) return;
             opts.zones.forEach(z => {
               const y = scales.y.getPixelForValue(z.val);
-              c.save();
-              c.strokeStyle = z.color;
-              c.lineWidth = 1;
-              c.setLineDash([4, 4]);
-              c.beginPath();
-              c.moveTo(chartArea.left, y);
-              c.lineTo(chartArea.right, y);
-              c.stroke();
-              c.restore();
+              c.save(); c.strokeStyle = z.color; c.lineWidth = 1; c.setLineDash([4, 4]);
+              c.beginPath(); c.moveTo(chartArea.left, y); c.lineTo(chartArea.right, y); c.stroke(); c.restore();
             });
           }
         });
       }
-      return new Chart(ctx, {
-        type: "line",
-        plugins,
+      const chart = new Chart(ctx, {
+        type: "line", plugins,
         data: {
-          labels,
-          datasets: [{
-            data: values,
-            borderColor: color,
-            backgroundColor: opts.fill ? color.replace(")", ", 0.08)").replace("rgb", "rgba") : "transparent",
-            fill: opts.fill ?? false,
-            borderWidth: 1.5,
-            pointRadius: 0,
-            tension: 0.3,
-          }]
+          labels: series.map(p => p.date),
+          datasets: [{ data: series.map(p => p.value), borderColor: color, backgroundColor: opts.fill ? color + "15" : "transparent", fill: opts.fill ?? false, borderWidth: 1.5, pointRadius: 0, tension: 0.3 }]
         },
         options: {
           responsive: true,
           plugins: {
             legend: { display: false },
-            tooltip: {
-              backgroundColor: "#12121a", borderColor: "#1e1e2e", borderWidth: 1,
-              titleColor: "#5a5a7a", bodyColor: "#e8e8f0",
-              callbacks: { label: ctx => ` ${opts.prefix ?? ""}${ctx.parsed.y?.toFixed(opts.decimals ?? 2)}${opts.suffix ?? ""}` }
-            }
+            tooltip: { backgroundColor: "#12121a", borderColor: "#1e1e2e", borderWidth: 1, titleColor: "#5a5a7a", bodyColor: "#e8e8f0", callbacks: { label: ctx => ` ${opts.prefix ?? ""}${ctx.parsed.y?.toFixed(opts.decimals ?? 2)}${opts.suffix ?? ""}` } }
           },
           scales: {
             x: { grid: { color: "#1e1e2e" }, ticks: { color: "#5a5a7a", maxTicksLimit: 6, font: { family: "DM Mono", size: 10 } } },
-            y: { grid: { color: "#1e1e2e" }, min: opts.min, ticks: { color: "#5a5a7a", font: { family: "DM Mono", size: 10 }, callback: v => `${opts.prefix ?? ""}${v}${opts.suffix ?? ""}` } }
+            y: { grid: { color: "#1e1e2e" }, ticks: { color: "#5a5a7a", font: { family: "DM Mono", size: 10 }, callback: v => `${opts.prefix ?? ""}${typeof v === "number" ? v.toFixed(opts.decimals ?? 1) : v}${opts.suffix ?? ""}` } }
           }
         }
       });
+      CHARTS[canvasId] = { chart, seriesKey, color, opts };
     }
 
-    function fmt(v, decimals = 2, prefix = "", suffix = "") {
+    function fmt(v, d = 2, pre = "", suf = "") {
       if (v === null || v === undefined) return "—";
-      return `${prefix}${parseFloat(v).toFixed(decimals)}${suffix}`;
+      return `${pre}${parseFloat(v).toFixed(d)}${suf}`;
     }
-
-    function vixClass(v) {
-      if (v < 14) return "vix-low";
-      if (v > 20) return "vix-high";
-      return "vix-mid";
-    }
-
+    function vixClass(v) { return v < 14 ? "vix-low" : v > 20 ? "vix-high" : "vix-mid"; }
     function deltaClass(arr) {
-      if (!arr || arr.length < 2) return "neutral-c";
+      if (!arr || arr.length < 20) return "neu";
       const last = arr[arr.length - 1]?.value;
       const prev = arr[arr.length - 20]?.value;
-      return last > prev ? "pos" : last < prev ? "neg" : "neutral-c";
+      return last > prev ? "pos" : last < prev ? "neg" : "neu";
     }
 
     async function load() {
@@ -148,6 +170,7 @@
         const res  = await fetch("/api/macro");
         const json = await res.json();
         if (!json.ok) throw new Error(json.error);
+        ALL_SERIES = json.series;
         render(json);
       } catch (err) {
         document.getElementById("content").innerHTML = `<div class="error">Kon data niet laden: ${err.message}</div>`;
@@ -157,132 +180,165 @@
     function render({ riskSignal, series, latest }) {
       const badge = document.getElementById("risk-badge");
       badge.className = `risk-badge ${riskSignal}`;
-      const labels = { "risk-on": "🟢 Risk On", "risk-off": "🔴 Risk Off", neutral: "🟡 Neutraal" };
-      badge.textContent = labels[riskSignal] ?? riskSignal;
+      const riskLabels = { "risk-on": "🟢 Risk On", "risk-off": "🔴 Risk Off", neutral: "🟡 Neutraal" };
+      badge.textContent = riskLabels[riskSignal];
+      document.getElementById("risk-score").textContent = `Score: ${latest.riskScore > 0 ? "+" : ""}${latest.riskScore} / 8`;
 
       document.getElementById("content").innerHTML = `
         <div class="stats">
-          <div class="stat">
-            <div class="stat-label">VIX</div>
-            <div class="stat-value ${vixClass(latest.vix)}">${fmt(latest.vix, 1)}</div>
-            <div class="stat-sub">${latest.vix < 14 ? "Laag — risk on" : latest.vix > 20 ? "Hoog — risk off" : "Neutraal"}</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">DXY (Dollar)</div>
-            <div class="stat-value ${deltaClass(series.dxy)}">${fmt(latest.dxy, 2)}</div>
-            <div class="stat-sub">Dollar Index</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">WTI Crude</div>
-            <div class="stat-value ${deltaClass(series.wti)}">$${fmt(latest.wti, 2)}</div>
-            <div class="stat-sub">per vat</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">CPI YoY</div>
-            <div class="stat-value ${latest.cpiYoY > 3 ? "neg" : latest.cpiYoY < 2 ? "pos" : "neutral-c"}">${fmt(latest.cpiYoY, 2, "", "%")}</div>
-            <div class="stat-sub">MoM: ${fmt(latest.cpiMoM, 2, "", "%")}</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">SPX / Goud</div>
-            <div class="stat-value ${deltaClass(series.spxGold)}">${fmt(latest.spxGold, 3)}</div>
-            <div class="stat-sub">ratio</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">High Beta / Value</div>
-            <div class="stat-value ${deltaClass(series.betaValue)}">${fmt(latest.betaValue, 3)}</div>
-            <div class="stat-sub">SPHB / VTV</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">Credit Spread</div>
-            <div class="stat-value ${deltaClass(series.spreadSeries)}">${fmt(latest.spread, 3)}</div>
-            <div class="stat-sub">LQD/HYG proxy</div>
-          </div>
+          <div class="stat"><div class="stat-label">VIX</div><div class="stat-value ${vixClass(latest.vix)}">${fmt(latest.vix, 1)}</div><div class="stat-sub">${latest.vix < 14 ? "Laag — risk on" : latest.vix > 20 ? "Hoog — risk off" : "Neutraal"}</div></div>
+          <div class="stat"><div class="stat-label">DXY Dollar</div><div class="stat-value ${deltaClass(series.dxy)}">${fmt(latest.dxy)}</div><div class="stat-sub">Dollar Index</div></div>
+          <div class="stat"><div class="stat-label">WTI Crude</div><div class="stat-value ${deltaClass(series.wti)}">$${fmt(latest.wti)}</div><div class="stat-sub">per vat</div></div>
+          <div class="stat"><div class="stat-label">Fed Funds</div><div class="stat-value neu">${fmt(latest.fedFunds, 2, "", "%")}</div><div class="stat-sub">Huidige rente</div></div>
+          <div class="stat"><div class="stat-label">10Y Treasury</div><div class="stat-value ${deltaClass(series.treasury10y)}">${fmt(latest.treasury10y, 2, "", "%")}</div><div class="stat-sub">2Y: ${fmt(latest.treasury2y, 2, "", "%")}</div></div>
+          <div class="stat"><div class="stat-label">Yield Curve</div><div class="stat-value ${latest.yieldCurve > 0 ? "pos" : "neg"}">${fmt(latest.yieldCurve, 2, "", "%")}</div><div class="stat-sub">10Y - 2Y</div></div>
+          <div class="stat"><div class="stat-label">ERP</div><div class="stat-value ${latest.erp > 2 ? "pos" : latest.erp < 0 ? "neg" : "neu"}">${fmt(latest.erp, 2, "", "%")}</div><div class="stat-sub">Equity Risk Premium</div></div>
+          <div class="stat"><div class="stat-label">CPI YoY</div><div class="stat-value ${latest.cpiYoY > 3 ? "neg" : latest.cpiYoY < 2 ? "pos" : "neu"}">${fmt(latest.cpiYoY, 2, "", "%")}</div><div class="stat-sub">MoM: ${fmt(latest.cpiMoM, 2, "", "%")}</div></div>
+          <div class="stat"><div class="stat-label">High Beta/Value</div><div class="stat-value ${deltaClass(series.betaValue)}">${fmt(latest.betaValue, 3)}</div><div class="stat-sub">SPHB / VTV</div></div>
+          <div class="stat"><div class="stat-label">Copper/Gold</div><div class="stat-value ${deltaClass(series.copperGold)}">${fmt(latest.copperGold, 3)}</div><div class="stat-sub">Conjunctuur</div></div>
+          <div class="stat"><div class="stat-label">Jobless Claims</div><div class="stat-value ${deltaClass(series.jobless) === "pos" ? "neg" : "pos"}">${latest.jobless ? Math.round(latest.jobless).toLocaleString() : "—"}</div><div class="stat-sub">Wekelijks</div></div>
+          <div class="stat"><div class="stat-label">M2 Groei YoY</div><div class="stat-value ${latest.m2YoY > 0 ? "pos" : "neg"}">${fmt(latest.m2YoY, 1, "", "%")}</div><div class="stat-sub">Geldgroei</div></div>
         </div>
 
+        <div class="section-title">Volatiliteit & Sentiment</div>
         <div class="grid-2">
           <div class="chart-wrap">
             <div class="chart-top">
-              <div>
-                <div class="chart-title">VIX — Volatiliteitsindex (4 jaar)</div>
-                <div class="vix-zones">
-                  <span class="vix-zone vz-low">Laag &lt;14</span>
-                  <span class="vix-zone vz-mid">Neutraal 14-20</span>
-                  <span class="vix-zone vz-high">Hoog &gt;20</span>
-                </div>
-              </div>
+              <div><div class="chart-title">VIX — Volatiliteitsindex</div><div class="vix-zones"><span class="vix-zone vz-low">Laag &lt;14</span><span class="vix-zone vz-mid">Neutraal 14-20</span><span class="vix-zone vz-high">Hoog &gt;20</span></div></div>
               <div class="chart-latest ${vixClass(latest.vix)}">${fmt(latest.vix, 1)}</div>
             </div>
-            <canvas id="vix-chart" height="120"></canvas>
+            <canvas id="vix-chart" height="110"></canvas>
           </div>
           <div class="chart-wrap">
-            <div class="chart-top">
-              <div class="chart-title">DXY — Dollar Index (1 jaar)</div>
-              <div class="chart-latest ${deltaClass(series.dxy)}">${fmt(latest.dxy, 2)}</div>
-            </div>
-            <canvas id="dxy-chart" height="120"></canvas>
+            <div class="chart-top"><div class="chart-title">High Beta vs Value — SPHB/VTV</div><div class="chart-latest ${deltaClass(series.betaValue)}">${fmt(latest.betaValue, 3)}</div></div>
+            <canvas id="betavalue-chart" height="110"></canvas>
           </div>
         </div>
 
-        <div class="grid-2">
+        <div class="section-title">Rente & Obligaties</div>
+        <div class="grid-3">
           <div class="chart-wrap">
-            <div class="chart-top">
-              <div class="chart-title">CPI — Inflatie YoY % (3 jaar)</div>
-              <div class="chart-latest ${latest.cpiYoY > 3 ? "neg" : "pos"}">${fmt(latest.cpiYoY, 2, "", "%")}</div>
-            </div>
-            <canvas id="cpi-chart" height="120"></canvas>
+            <div class="chart-top"><div class="chart-title">Yield Curve (10Y - 2Y)</div><div class="chart-latest ${latest.yieldCurve > 0 ? "pos" : "neg"}">${fmt(latest.yieldCurve, 2, "", "%")}</div></div>
+            <canvas id="yieldcurve-chart" height="110"></canvas>
           </div>
           <div class="chart-wrap">
-            <div class="chart-top">
-              <div class="chart-title">PMI Trend (Manufacturing)</div>
-              <div class="chart-latest neutral-c">${series.pmi.length ? fmt(series.pmi[series.pmi.length-1]?.value, 1) : "—"}</div>
-            </div>
-            <canvas id="pmi-chart" height="120"></canvas>
+            <div class="chart-top"><div class="chart-title">ERP — Equity Risk Premium</div><div class="chart-latest ${latest.erp > 2 ? "pos" : latest.erp < 0 ? "neg" : "neu"}">${fmt(latest.erp, 2, "", "%")}</div></div>
+            <canvas id="erp-chart" height="110"></canvas>
+          </div>
+          <div class="chart-wrap">
+            <div class="chart-top"><div class="chart-title">Credit Spreads — LQD/HYG</div><div class="chart-latest ${deltaClass(series.spreadSeries)}">${fmt(latest.spread, 3)}</div></div>
+            <canvas id="spread-chart" height="110"></canvas>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="chart-wrap">
+            <div class="chart-top"><div class="chart-title">Fed Funds Rate</div><div class="chart-latest neu">${fmt(latest.fedFunds, 2, "", "%")}</div></div>
+            <canvas id="fedfunds-chart" height="110"></canvas>
+          </div>
+          <div class="chart-wrap">
+            <div class="chart-top"><div class="chart-title">10Y vs 2Y Treasury Yield</div><div class="chart-latest ${deltaClass(series.treasury10y)}">${fmt(latest.treasury10y, 2, "", "%")}</div></div>
+            <canvas id="treasury-chart" height="110"></canvas>
           </div>
         </div>
 
-        <div class="grid-2">
+        <div class="section-title">Inflatie & Economie</div>
+        <div class="grid-3">
           <div class="chart-wrap">
-            <div class="chart-top">
-              <div class="chart-title">SPX / Goud Ratio (1 jaar)</div>
-              <div class="chart-latest ${deltaClass(series.spxGold)}">${fmt(latest.spxGold, 3)}</div>
-            </div>
-            <canvas id="spxgold-chart" height="120"></canvas>
+            <div class="chart-top"><div class="chart-title">CPI Inflatie YoY %</div><div class="chart-latest ${latest.cpiYoY > 3 ? "neg" : "pos"}">${fmt(latest.cpiYoY, 2, "", "%")}</div></div>
+            <canvas id="cpi-chart" height="110"></canvas>
           </div>
           <div class="chart-wrap">
-            <div class="chart-top">
-              <div class="chart-title">High Beta vs Value — SPHB/VTV (1 jaar)</div>
-              <div class="chart-latest ${deltaClass(series.betaValue)}">${fmt(latest.betaValue, 3)}</div>
-            </div>
-            <canvas id="betavalue-chart" height="120"></canvas>
+            <div class="chart-top"><div class="chart-title">M2 Geldgroei YoY %</div><div class="chart-latest ${latest.m2YoY > 0 ? "pos" : "neg"}">${fmt(latest.m2YoY, 1, "", "%")}</div></div>
+            <canvas id="m2-chart" height="110"></canvas>
+          </div>
+          <div class="chart-wrap">
+            <div class="chart-top"><div class="chart-title">Initial Jobless Claims</div><div class="chart-latest ${deltaClass(series.jobless) === "pos" ? "neg" : "pos"}">${latest.jobless ? Math.round(latest.jobless).toLocaleString() : "—"}</div></div>
+            <canvas id="jobless-chart" height="110"></canvas>
           </div>
         </div>
 
-        <div class="grid-2">
+        <div class="section-title">Grondstoffen & Marktratios</div>
+        <div class="grid-3">
           <div class="chart-wrap">
-            <div class="chart-top">
-              <div class="chart-title">WTI Crude Oil (1 jaar)</div>
-              <div class="chart-latest ${deltaClass(series.wti)}">$${fmt(latest.wti, 2)}</div>
-            </div>
-            <canvas id="wti-chart" height="120"></canvas>
+            <div class="chart-top"><div class="chart-title">WTI Crude Oil</div><div class="chart-latest ${deltaClass(series.wti)}">$${fmt(latest.wti)}</div></div>
+            <canvas id="wti-chart" height="110"></canvas>
           </div>
           <div class="chart-wrap">
-            <div class="chart-top">
-              <div class="chart-title">Credit Spreads — LQD/HYG proxy (1 jaar)</div>
-              <div class="chart-latest ${deltaClass(series.spreadSeries)}">${fmt(latest.spread, 3)}</div>
+            <div class="chart-top"><div class="chart-title">SPX / Goud Ratio</div><div class="chart-latest ${deltaClass(series.spxGold)}">${fmt(latest.spxGold, 3)}</div></div>
+            <canvas id="spxgold-chart" height="110"></canvas>
+          </div>
+          <div class="chart-wrap">
+            <div class="chart-top"><div class="chart-title">Copper / Gold Ratio</div><div class="chart-latest ${deltaClass(series.copperGold)}">${fmt(latest.copperGold, 3)}</div></div>
+            <canvas id="coppergold-chart" height="110"></canvas>
+          </div>
+        </div>
+
+        <div class="section-title">Dollar</div>
+        <div class="grid-2">
+          <div class="chart-wrap">
+            <div class="chart-top"><div class="chart-title">DXY — Dollar Index</div><div class="chart-latest ${deltaClass(series.dxy)}">${fmt(latest.dxy)}</div></div>
+            <canvas id="dxy-chart" height="110"></canvas>
+          </div>
+          <div class="chart-wrap" style="display:flex;align-items:center;justify-content:center;flex-direction:column;gap:0.5rem;">
+            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;">Risk Score Breakdown</div>
+            <div style="font-family:'DM Mono',monospace;font-size:2.5rem;font-weight:500;color:${latest.riskScore >= 2 ? 'var(--pos)' : latest.riskScore <= -2 ? 'var(--neg)' : 'var(--risk-neutral)'}">
+              ${latest.riskScore > 0 ? "+" : ""}${latest.riskScore}
             </div>
-            <canvas id="spread-chart" height="120"></canvas>
+            <div style="font-size:11px;color:var(--muted);text-align:center;line-height:1.8">
+              VIX ${latest.vix < 14 ? "✅ Laag" : latest.vix > 20 ? "❌ Hoog" : "⚠️ Mid"}<br>
+              Beta/Value ${deltaClass(series.betaValue) === "pos" ? "✅ Stijgend" : "❌ Dalend"}<br>
+              Yield Curve ${latest.yieldCurve > 0.5 ? "✅ Positief" : latest.yieldCurve < -0.3 ? "❌ Invers" : "⚠️ Vlak"}<br>
+              ERP ${latest.erp > 2 ? "✅ Hoog" : latest.erp < 0 ? "❌ Negatief" : "⚠️ Mid"}<br>
+              Copper/Gold ${deltaClass(series.copperGold) === "pos" ? "✅ Stijgend" : "❌ Dalend"}<br>
+              Credit Spreads ${deltaClass(series.spreadSeries) === "neg" ? "✅ Dalend" : "❌ Stijgend"}
+            </div>
           </div>
         </div>
       `;
 
-      lineChart("vix-chart", series.vix, "#f472b6", { decimals: 1, zones: [{ val: 14, color: "rgba(74,222,128,0.5)" }, { val: 20, color: "rgba(248,113,113,0.5)" }] });
-      lineChart("dxy-chart",       series.dxy,          "#60a5fa", { decimals: 2 });
-      lineChart("cpi-chart",       series.cpiYoY,       "#fbbf24", { suffix: "%", decimals: 2, fill: true });
-      lineChart("pmi-chart",       series.pmi,          "#34d399", { decimals: 1, zones: [{ val: 50, color: "rgba(96,165,250,0.4)" }] });
-      lineChart("spxgold-chart",   series.spxGold,      "#a78bfa", { decimals: 3 });
-      lineChart("betavalue-chart", series.betaValue,    "#fb923c", { decimals: 3 });
-      lineChart("wti-chart",       series.wti,          "#22d3ee", { prefix: "$", decimals: 2 });
-      lineChart("spread-chart",    series.spreadSeries, "#f87171", { decimals: 3 });
+      makeChart("vix-chart",        "vix",          "#f472b6", { decimals: 1, zones: [{ val: 14, color: "rgba(74,222,128,0.5)" }, { val: 20, color: "rgba(248,113,113,0.5)" }] });
+      makeChart("betavalue-chart",  "betaValue",    "#fb923c", { decimals: 3 });
+      makeChart("yieldcurve-chart", "yieldCurve",   "#60a5fa", { decimals: 2, suffix: "%", zones: [{ val: 0, color: "rgba(96,165,250,0.4)" }] });
+      makeChart("erp-chart",        "erp",          "#4ade80", { decimals: 2, suffix: "%", zones: [{ val: 0, color: "rgba(248,113,113,0.4)" }, { val: 2, color: "rgba(74,222,128,0.4)" }] });
+      makeChart("spread-chart",     "spreadSeries", "#f87171", { decimals: 3 });
+      makeChart("fedfunds-chart",   "fedFunds",     "#a78bfa", { decimals: 2, suffix: "%" });
+      makeChart("cpi-chart",        "cpiYoY",       "#fbbf24", { decimals: 2, suffix: "%", fill: true });
+      makeChart("m2-chart",         "m2YoY",        "#22d3ee", { decimals: 1, suffix: "%" });
+      makeChart("jobless-chart",    "jobless",      "#e879f9", { decimals: 0 });
+      makeChart("wti-chart",        "wti",          "#34d399", { decimals: 2, prefix: "$" });
+      makeChart("spxgold-chart",    "spxGold",      "#a78bfa", { decimals: 3 });
+      makeChart("coppergold-chart", "copperGold",   "#fbbf24", { decimals: 3 });
+      makeChart("dxy-chart",        "dxy",          "#60a5fa", { decimals: 2 });
+
+      // Treasury dual line
+      const ctx10y = document.getElementById("treasury-chart");
+      if (ctx10y && series.treasury10y.length) {
+        const sliced10 = cutSeries(series.treasury10y, activeDays);
+        const sliced2  = cutSeries(series.treasury2y,  activeDays);
+        const chart = new Chart(ctx10y, {
+          type: "line",
+          data: {
+            labels: sliced10.map(p => p.date),
+            datasets: [
+              { label: "10Y", data: sliced10.map(p => p.value), borderColor: "#60a5fa", borderWidth: 1.5, pointRadius: 0, tension: 0.3, backgroundColor: "transparent" },
+              { label: "2Y",  data: sliced2.map(p => p.value),  borderColor: "#f472b6", borderWidth: 1.5, pointRadius: 0, tension: 0.3, backgroundColor: "transparent" },
+            ]
+          },
+          options: {
+            responsive: true,
+            interaction: { mode: "index", intersect: false },
+            plugins: {
+              legend: { labels: { color: "#5a5a7a", font: { family: "DM Mono", size: 10 } } },
+              tooltip: { backgroundColor: "#12121a", borderColor: "#1e1e2e", borderWidth: 1, titleColor: "#5a5a7a", bodyColor: "#e8e8f0" }
+            },
+            scales: {
+              x: { grid: { color: "#1e1e2e" }, ticks: { color: "#5a5a7a", maxTicksLimit: 6, font: { family: "DM Mono", size: 10 } } },
+              y: { grid: { color: "#1e1e2e" }, ticks: { color: "#5a5a7a", font: { family: "DM Mono", size: 10 }, callback: v => v + "%" } }
+            }
+          }
+        });
+        CHARTS["treasury-chart"] = { chart, seriesKey: "treasury10y", color: "#60a5fa", opts: {} };
+      }
     }
 
     load();
