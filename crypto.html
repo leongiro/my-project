@@ -1,1 +1,419 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Crypto Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;600&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0f; --surface: #12121a; --border: #1e1e2e;
+      --text: #e8e8f0; --muted: #5a5a7a;
+      --pos: #4ade80; --neg: #f87171; --neutral: #60a5fa;
+      --btc: #f7931a; --eth: #627eea;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; padding: 2rem; }
+    nav { display: flex; gap: 0.75rem; margin-bottom: 2rem; align-items: center; flex-wrap: wrap; }
+    nav a { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); text-decoration: none; padding: 4px 12px; border: 1px solid var(--border); border-radius: 4px; transition: all 0.15s; }
+    nav a:hover { color: var(--text); border-color: var(--muted); }
+    nav a.active { color: var(--text); border-color: var(--neutral); background: rgba(96,165,250,0.1); }
+    header { display: flex; align-items: center; gap: 1.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
+    h1 { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.02em; }
+    .badge { padding: 5px 14px; border-radius: 20px; font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; }
+    .badge.bullish  { background: rgba(74,222,128,0.15);  color: var(--pos); border: 1px solid rgba(74,222,128,0.4); }
+    .badge.bearish  { background: rgba(248,113,113,0.15); color: var(--neg); border: 1px solid rgba(248,113,113,0.4); }
+    .badge.neutraal { background: rgba(251,191,36,0.15);  color: #fbbf24;    border: 1px solid rgba(251,191,36,0.4); }
+    .section-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin: 2rem 0 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+    .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.75rem; margin-bottom: 2rem; }
+    .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.8rem 1rem; }
+    .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.3rem; }
+    .stat-value { font-family: 'DM Mono', monospace; font-size: 1.15rem; font-weight: 500; }
+    .stat-sub   { font-family: 'DM Mono', monospace; font-size: 0.7rem; color: var(--muted); margin-top: 3px; }
+    .pos { color: var(--pos); } .neg { color: var(--neg); } .neu { color: var(--neutral); }
+    .btc { color: var(--btc); } .eth-c { color: var(--eth); }
+    .fg-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+    .fg-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; align-self: flex-start; }
+    .fg-score { font-family: 'DM Mono', monospace; font-size: 3rem; font-weight: 500; }
+    .fg-label { font-size: 13px; color: var(--muted); font-family: 'DM Mono', monospace; }
+    .fg-bar-wrap { width: 100%; height: 12px; border-radius: 6px; background: linear-gradient(to right, #7f1d1d, #b91c1c, #fbbf24, #15803d, #166534); position: relative; }
+    .fg-needle { position: absolute; top: -4px; width: 4px; height: 20px; background: white; border-radius: 2px; transform: translateX(-50%); transition: left 0.5s; }
+    .fg-zones { display: flex; justify-content: space-between; width: 100%; font-size: 9px; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 4px; }
+    .halving-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
+    .halving-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1rem; }
+    .halving-bar-wrap { background: var(--border); border-radius: 4px; height: 8px; width: 100%; margin-bottom: 0.5rem; }
+    .halving-bar { height: 8px; border-radius: 4px; background: linear-gradient(to right, var(--btc), #fbbf24); transition: width 0.5s; }
+    .halving-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); font-family: 'DM Mono', monospace; }
+    .dom-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
+    .dom-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1rem; }
+    .dom-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.6rem; }
+    .dom-name { font-size: 12px; width: 80px; flex-shrink: 0; }
+    .dom-bar-wrap { flex: 1; background: var(--border); border-radius: 3px; height: 6px; }
+    .dom-bar { height: 6px; border-radius: 3px; }
+    .dom-pct { font-family: 'DM Mono', monospace; font-size: 12px; width: 45px; text-align: right; flex-shrink: 0; }
+    .alt-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
+    .alt-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.75rem; }
+    .alt-score { font-family: 'DM Mono', monospace; font-size: 2.5rem; font-weight: 500; }
+    .alt-label { font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 4px; }
+    .alt-bar-wrap { width: 100%; height: 8px; border-radius: 4px; background: linear-gradient(to right, var(--btc), #fbbf24, var(--eth)); margin-top: 0.75rem; position: relative; }
+    .alt-needle { position: absolute; top: -4px; width: 4px; height: 16px; background: white; border-radius: 2px; transform: translateX(-50%); }
+    .coin-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .coin-table th { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; padding: 6px 10px; text-align: right; border-bottom: 1px solid var(--border); }
+    .coin-table th:first-child { text-align: left; }
+    .coin-table td { padding: 8px 10px; text-align: right; border-bottom: 1px solid rgba(30,30,46,0.5); font-family: 'DM Mono', monospace; }
+    .coin-table td:first-child { text-align: left; font-family: 'DM Sans', sans-serif; }
+    .coin-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem; }
+    .chart-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.25rem; }
+    .chart-top  { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+    .chart-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; }
+    .chart-val   { font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500; }
+    canvas { width: 100% !important; }
+    .global-tf { display: flex; gap: 4px; margin-bottom: 2rem; align-items: center; }
+    .global-tf-label { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; margin-right: 6px; }
+    .tf { background: none; border: 1px solid var(--border); color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px; padding: 3px 10px; border-radius: 4px; cursor: pointer; transition: all 0.15s; }
+    .tf:hover { color: var(--text); border-color: var(--muted); }
+    .tf.active { background: var(--neutral); border-color: var(--neutral); color: #0a0a0f; font-weight: 600; }
+    .loading { text-align: center; padding: 6rem; color: var(--muted); font-family: 'DM Mono', monospace; }
+    .dot { display: inline-block; animation: blink 1.2s infinite; }
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes blink { 0%,80%,100%{opacity:0} 40%{opacity:1} }
+    .error { color: #f87171; font-family: 'DM Mono', monospace; font-size: 13px; padding: 2rem; text-align: center; }
+    @media (max-width: 900px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="/">📊 YTD Dashboard</a>
+    <a href="/macro.html">🌍 Macro</a>
+    <a href="/sector.html">🔄 Sector Rotatie</a>
+    <a href="/crypto.html" class="active">₿ Crypto</a>
+  </nav>
+  <header>
+    <h1>Crypto Dashboard</h1>
+    <div class="badge" id="momentum-badge">Laden...</div>
+    <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)" id="crypto-score"></div>
+  </header>
+  <div class="global-tf" id="global-tf">
+    <span class="global-tf-label">Periode:</span>
+    <button class="tf" data-days="30">1M</button>
+    <button class="tf" data-days="90">3M</button>
+    <button class="tf" data-days="180">6M</button>
+    <button class="tf active" data-days="365">1J</button>
+  </div>
+  <div id="content">
+    <div class="loading">Data laden<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>
+  </div>
+  <script>
+    const CHARTS = {};
+    let ALL_SERIES = {};
+    let activeDays = 365;
 
+    function cutSeries(series, days) {
+      if (!series || !series.length) return [];
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - days);
+      const cutStr = cutoff.toISOString().slice(0, 10);
+      return series.filter(p => p.date >= cutStr);
+    }
+
+    document.getElementById("global-tf").addEventListener("click", e => {
+      if (!e.target.classList.contains("tf")) return;
+      document.querySelectorAll(".tf").forEach(b => b.classList.remove("active"));
+      e.target.classList.add("active");
+      activeDays = parseInt(e.target.dataset.days);
+      Object.entries(CHARTS).forEach(([id, { chart, seriesKey, datasetIdx }]) => {
+        const sliced = cutSeries(ALL_SERIES[seriesKey], activeDays);
+        chart.data.labels = sliced.map(p => p.date);
+        chart.data.datasets[datasetIdx ?? 0].data = sliced.map(p => p.value);
+        chart.update();
+      });
+    });
+
+    function fmt(v, d = 2, pre = "", suf = "") {
+      if (v === null || v === undefined) return "—";
+      return `${pre}${parseFloat(v).toFixed(d)}${suf}`;
+    }
+    function fmtLarge(v) {
+      if (!v) return "—";
+      if (v >= 1e12) return "$" + (v / 1e12).toFixed(2) + "T";
+      if (v >= 1e9)  return "$" + (v / 1e9).toFixed(1) + "B";
+      if (v >= 1e6)  return "$" + (v / 1e6).toFixed(1) + "M";
+      return "$" + v.toFixed(0);
+    }
+    function pctClass(v) { return v > 0 ? "pos" : v < 0 ? "neg" : "neu"; }
+    function fgColor(score) {
+      if (score >= 75) return "#166534";
+      if (score >= 55) return "#15803d";
+      if (score >= 45) return "#fbbf24";
+      if (score >= 25) return "#b91c1c";
+      return "#7f1d1d";
+    }
+
+    function makeLineChart(canvasId, seriesKey, color, opts = {}) {
+      const ctx = document.getElementById(canvasId);
+      if (!ctx) return;
+      const series = cutSeries(ALL_SERIES[seriesKey], activeDays);
+      if (!series.length) return;
+      const plugins = [];
+      if (opts.zones) {
+        plugins.push({
+          id: "zones-" + canvasId,
+          beforeDraw(chart) {
+            const { ctx: c, chartArea, scales } = chart;
+            if (!chartArea) return;
+            opts.zones.forEach(z => {
+              const y = scales.y.getPixelForValue(z.val);
+              c.save(); c.strokeStyle = z.color; c.lineWidth = 1; c.setLineDash([4, 4]);
+              c.beginPath(); c.moveTo(chartArea.left, y); c.lineTo(chartArea.right, y); c.stroke(); c.restore();
+            });
+          }
+        });
+      }
+      const chart = new Chart(ctx, {
+        type: "line", plugins,
+        data: {
+          labels: series.map(p => p.date),
+          datasets: [{ data: series.map(p => p.value), borderColor: color, backgroundColor: opts.fill ? color + "18" : "transparent", fill: opts.fill ?? false, borderWidth: 1.5, pointRadius: 0, tension: 0.3 }]
+        },
+        options: {
+          responsive: true, interaction: { mode: "index", intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: { backgroundColor: "#12121a", borderColor: "#1e1e2e", borderWidth: 1, titleColor: "#5a5a7a", bodyColor: "#e8e8f0", callbacks: { label: ctx => ` ${opts.prefix ?? ""}${ctx.parsed.y?.toFixed(opts.decimals ?? 2)}${opts.suffix ?? ""}` } }
+          },
+          scales: {
+            x: { grid: { color: "#1e1e2e" }, ticks: { color: "#5a5a7a", maxTicksLimit: 6, font: { family: "DM Mono", size: 10 } } },
+            y: { grid: { color: "#1e1e2e" }, ticks: { color: "#5a5a7a", font: { family: "DM Mono", size: 10 }, callback: v => `${opts.prefix ?? ""}${typeof v === "number" ? v.toFixed(opts.yDecimals ?? 0) : v}${opts.suffix ?? ""}` } }
+          }
+        }
+      });
+      CHARTS[canvasId] = { chart, seriesKey, datasetIdx: 0 };
+    }
+
+    async function load() {
+      try {
+        const res  = await fetch("/api/crypto");
+        const json = await res.json();
+        if (!json.ok) throw new Error(json.error);
+        ALL_SERIES = json.series;
+        render(json);
+      } catch (err) {
+        document.getElementById("content").innerHTML = `<div class="error">Kon data niet laden: ${err.message}</div>`;
+      }
+    }
+
+    function render({ momentumSignaal, cryptoScore, latest, series, coinMarkets }) {
+      const badge = document.getElementById("momentum-badge");
+      badge.className = `badge ${momentumSignaal}`;
+      const mLabels = { bullish: "🟢 Bullish", bearish: "🔴 Bearish", neutraal: "🟡 Neutraal" };
+      badge.textContent = mLabels[momentumSignaal];
+      document.getElementById("crypto-score").textContent = `Score: ${cryptoScore > 0 ? "+" : ""}${cryptoScore} / 7`;
+
+      const fgScore = latest.fearGreed ?? 50;
+
+      document.getElementById("content").innerHTML = `
+        <div class="stats">
+          <div class="stat"><div class="stat-label">Bitcoin</div><div class="stat-value btc">$${latest.btcPrice ? latest.btcPrice.toLocaleString("nl-NL", {maximumFractionDigits:0}) : "—"}</div><div class="stat-sub ${latest.aboveMa200 ? "pos" : "neg"}">${latest.aboveMa200 ? "▲ Boven" : "▼ Onder"} MA200</div></div>
+          <div class="stat"><div class="stat-label">Ethereum</div><div class="stat-value eth-c">$${latest.ethPrice ? latest.ethPrice.toLocaleString("nl-NL", {maximumFractionDigits:0}) : "—"}</div><div class="stat-sub">ETH prijs</div></div>
+          <div class="stat"><div class="stat-label">Total Market Cap</div><div class="stat-value neu">${fmtLarge(latest.totalMarketCap)}</div><div class="stat-sub ${pctClass(latest.marketCapChange)}">${fmt(latest.marketCapChange, 2, latest.marketCapChange >= 0 ? "+" : "", "% 24h")}</div></div>
+          <div class="stat"><div class="stat-label">24h Volume</div><div class="stat-value neu">${fmtLarge(latest.totalVolume24h)}</div><div class="stat-sub">Totale markt</div></div>
+          <div class="stat"><div class="stat-label">BTC Dominance</div><div class="stat-value btc">${fmt(latest.btcDominance, 1, "", "%")}</div><div class="stat-sub">${latest.btcDominance > 55 ? "BTC seizoen" : latest.btcDominance < 45 ? "Altcoin druk" : "Neutraal"}</div></div>
+          <div class="stat"><div class="stat-label">Stablecoin Dom.</div><div class="stat-value ${latest.stableDominance < 10 ? "pos" : "neg"}">${fmt(latest.stableDominance, 1, "", "%")}</div><div class="stat-sub">${latest.stableDominance < 10 ? "Geld in markt" : "Geld aan zijlijn"}</div></div>
+          <div class="stat"><div class="stat-label">Funding Rate</div><div class="stat-value ${latest.funding > 0.05 ? "neg" : latest.funding < 0 ? "pos" : "neu"}">${fmt(latest.funding, 4, "", "%")}</div><div class="stat-sub">${latest.funding > 0.05 ? "Oververhit" : latest.funding < 0 ? "Bearish" : "Normaal"}</div></div>
+          <div class="stat"><div class="stat-label">BTC ETF (IBIT)</div><div class="stat-value ${latest.ibitVolRatio >= 1.5 ? "pos" : latest.ibitVolRatio < 0.8 ? "neg" : "neu"}">${fmt(latest.ibitVolRatio, 2)}x vol</div><div class="stat-sub">${latest.ibitVolRatio >= 1.5 ? "⚡ Verhoogd" : latest.ibitVolRatio < 0.8 ? "Laag volume" : "Normaal"}</div></div>
+        </div>
+
+        <div class="section-title">Sentiment & Dominantie</div>
+        <div class="grid-3">
+          <div class="fg-wrap">
+            <div class="fg-title">Fear & Greed Index</div>
+            <div class="fg-score" style="color:${fgColor(fgScore)}">${fgScore}</div>
+            <div class="fg-label">${latest.fearGreedLabel}</div>
+            <div style="width:100%">
+              <div class="fg-bar-wrap"><div class="fg-needle" style="left:${fgScore}%"></div></div>
+              <div class="fg-zones"><span>Extreme Fear</span><span>Fear</span><span>Neutral</span><span>Greed</span><span>Extreme Greed</span></div>
+            </div>
+          </div>
+          <div class="dom-wrap">
+            <div class="dom-title">Market Dominance</div>
+            <div class="dom-row">
+              <div class="dom-name" style="color:var(--btc)">BTC</div>
+              <div class="dom-bar-wrap"><div class="dom-bar" style="width:${latest.btcDominance}%;background:var(--btc)"></div></div>
+              <div class="dom-pct btc">${fmt(latest.btcDominance, 1, "", "%")}</div>
+            </div>
+            <div class="dom-row">
+              <div class="dom-name" style="color:var(--eth)">ETH</div>
+              <div class="dom-bar-wrap"><div class="dom-bar" style="width:${latest.ethDominance * 3}%;background:var(--eth)"></div></div>
+              <div class="dom-pct eth-c">${fmt(latest.ethDominance, 1, "", "%")}</div>
+            </div>
+            <div class="dom-row">
+              <div class="dom-name" style="color:var(--muted)">Stables</div>
+              <div class="dom-bar-wrap"><div class="dom-bar" style="width:${latest.stableDominance * 3}%;background:var(--muted)"></div></div>
+              <div class="dom-pct neu">${fmt(latest.stableDominance, 1, "", "%")}</div>
+            </div>
+            <div style="margin-top:1rem;font-size:10px;color:var(--muted)">
+              ${latest.btcDominance > 55 ? "🟠 Bitcoin Season — BTC leidt de markt" : latest.stableDominance > 12 ? "⚪ Risk off — geld aan zijlijn" : "🔵 Markt breed actief"}
+            </div>
+          </div>
+          <div class="alt-wrap">
+            <div class="alt-title">Altcoin Season Index</div>
+            <div class="alt-score" style="color:${latest.altcoinSeasonScore >= 75 ? 'var(--eth)' : latest.altcoinSeasonScore <= 25 ? 'var(--btc)' : '#fbbf24'}">${latest.altcoinSeasonScore}</div>
+            <div class="alt-label">${latest.altcoinSeason}</div>
+            <div class="alt-bar-wrap"><div class="alt-needle" style="left:${latest.altcoinSeasonScore}%"></div></div>
+            <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:6px"><span>BTC Season</span><span>Altcoin Season</span></div>
+            <div style="margin-top:1rem;font-size:10px;color:var(--muted);line-height:1.6">
+              ${latest.altcoinSeasonScore >= 75 ? "🔵 Altcoins outperformen BTC — laat bull cyclus" : latest.altcoinSeasonScore <= 25 ? "🟠 BTC domineert — vroeg bull of bear markt" : "🟡 Gemengd beeld — selectief momentum"}
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title">BTC Halving Cyclus</div>
+        <div class="halving-wrap">
+          <div class="halving-title">Positie in cyclus — Laatste halving: 19 april 2024 · Volgende: ~april 2028</div>
+          <div class="halving-bar-wrap"><div class="halving-bar" style="width:${latest.halvingPct}%"></div></div>
+          <div class="halving-labels">
+            <span>Apr 2024</span>
+            <span style="color:var(--btc)">${latest.halvingPct}% verstreken</span>
+            <span>Apr 2028</span>
+          </div>
+          <div style="margin-top:0.75rem;font-size:11px;color:var(--muted)">
+            ${latest.halvingPct < 25 ? "🟢 Vroeg cyclus — historisch sterkste bull fase" : latest.halvingPct < 50 ? "🟡 Mid cyclus — momentum opbouw fase" : latest.halvingPct < 75 ? "🟠 Laat cyclus — voorzichtigheid geboden" : "🔴 Pre-halving fase — historisch volatiel"}
+          </div>
+        </div>
+
+        <div class="section-title">Koersen & Momentum</div>
+        <div class="grid-2">
+          <div class="chart-wrap">
+            <div class="chart-top"><div class="chart-title">Bitcoin (BTC) + MA200</div><div class="chart-val btc">$${latest.btcPrice ? latest.btcPrice.toLocaleString("nl-NL", {maximumFractionDigits:0}) : "—"}</div></div>
+            <canvas id="btc-chart" height="130"></canvas>
+          </div>
+          <div class="chart-wrap">
+            <div class="chart-top"><div class="chart-title">Ethereum (ETH)</div><div class="chart-val eth-c">$${latest.ethPrice ? latest.ethPrice.toLocaleString("nl-NL", {maximumFractionDigits:0}) : "—"}</div></div>
+            <canvas id="eth-chart" height="130"></canvas>
+          </div>
+        </div>
+
+        <div class="grid-3">
+          <div class="chart-wrap">
+            <div class="chart-top"><div class="chart-title">Fear & Greed Historisch</div><div class="chart-val" style="color:${fgColor(fgScore)}">${fgScore}</div></div>
+            <canvas id="fg-chart" height="120"></canvas>
+          </div>
+          <div class="chart-wrap">
+            <div class="chart-top"><div class="chart-title">Funding Rate BTC Perp</div><div class="chart-val ${latest.funding > 0.05 ? "neg" : latest.funding < 0 ? "pos" : "neu"}">${fmt(latest.funding, 4, "", "%")}</div></div>
+            <canvas id="funding-chart" height="120"></canvas>
+          </div>
+          <div class="chart-wrap">
+            <div class="chart-top"><div class="chart-title">Stablecoin Supply (USDT+USDC)</div><div class="chart-val neu">${series.stablecoin.length ? fmtLarge(series.stablecoin[series.stablecoin.length-1]?.value * 1e9) : "—"}</div></div>
+            <canvas id="stable-chart" height="120"></canvas>
+          </div>
+        </div>
+
+        <div class="section-title">Institutionele Instroom — BTC ETF (IBIT)</div>
+        <div class="chart-wrap">
+          <div class="chart-top"><div class="chart-title">IBIT Volume vs Gemiddeld (proxy institutionele instroom)</div><div class="chart-val ${latest.ibitVolRatio >= 1.5 ? "pos" : "neu"}">${fmt(latest.ibitVolRatio, 2)}x gem. volume</div></div>
+          <canvas id="ibit-chart" height="100"></canvas>
+        </div>
+
+        <div class="section-title">Crypto Overzicht</div>
+        <div class="chart-wrap" style="overflow-x:auto">
+          <table class="coin-table">
+            <thead>
+              <tr><th>Coin</th><th>Prijs</th><th>1H</th><th>24H</th><th>7D</th><th>30D</th><th>Market Cap</th><th>Volume 24H</th></tr>
+            </thead>
+            <tbody>
+              ${coinMarkets.map(c => `
+                <tr>
+                  <td><strong>${c.symbol.toUpperCase()}</strong><span style="color:var(--muted);font-size:11px;margin-left:6px">${c.name}</span></td>
+                  <td>$${c.current_price?.toLocaleString("nl-NL", {maximumFractionDigits: c.current_price > 100 ? 0 : 4}) ?? "—"}</td>
+                  <td class="${pctClass(c.price_change_percentage_1h_in_currency)}">${fmt(c.price_change_percentage_1h_in_currency, 2, c.price_change_percentage_1h_in_currency >= 0 ? "+" : "", "%")}</td>
+                  <td class="${pctClass(c.price_change_percentage_24h)}">${fmt(c.price_change_percentage_24h, 2, c.price_change_percentage_24h >= 0 ? "+" : "", "%")}</td>
+                  <td class="${pctClass(c.price_change_percentage_7d_in_currency)}">${fmt(c.price_change_percentage_7d_in_currency, 2, c.price_change_percentage_7d_in_currency >= 0 ? "+" : "", "%")}</td>
+                  <td class="${pctClass(c.price_change_percentage_30d_in_currency)}">${fmt(c.price_change_percentage_30d_in_currency, 2, c.price_change_percentage_30d_in_currency >= 0 ? "+" : "", "%")}</td>
+                  <td>${fmtLarge(c.market_cap)}</td>
+                  <td>${fmtLarge(c.total_volume)}</td>
+                </tr>`).join("")}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="section-title">Momentum Score Breakdown</div>
+        <div class="chart-wrap" style="display:flex;align-items:center;gap:3rem;flex-wrap:wrap">
+          <div style="text-align:center">
+            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.5rem">Score</div>
+            <div style="font-family:'DM Mono',monospace;font-size:3rem;font-weight:500;color:${cryptoScore >= 2 ? 'var(--pos)' : cryptoScore <= -2 ? 'var(--neg)' : '#fbbf24'}">
+              ${cryptoScore > 0 ? "+" : ""}${cryptoScore}
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--muted);line-height:2">
+            Fear & Greed ${latest.fearGreed > 60 ? "✅ Greed" : latest.fearGreed < 30 ? "❌ Fear" : "⚠️ Neutraal"}<br>
+            BTC vs MA200 ${latest.aboveMa200 ? "✅ Boven MA200" : "❌ Onder MA200"}<br>
+            BTC Dominance ${latest.btcDominance > 55 ? "✅ Hoog — vroeg bull" : "⚠️ Mid/laag"}<br>
+            Altcoin Season ${latest.altcoinSeasonScore > 75 ? "✅ Altcoin season" : "⚠️ Niet actief"}<br>
+            Funding Rate ${latest.funding > 0.05 ? "❌ Oververhit" : latest.funding < 0 ? "✅ Bearish/contrair" : "⚠️ Normaal"}<br>
+            Stablecoin Dom. ${latest.stableDominance < 10 ? "✅ Geld in markt" : "❌ Geld aan zijlijn"}
+          </div>
+        </div>
+      `;
+
+      // BTC + MA200 chart
+      const btcCtx = document.getElementById("btc-chart");
+      if (btcCtx) {
+        const btcSliced   = cutSeries(series.btc, activeDays);
+        const ma200Sliced = cutSeries(series.btcMa200, activeDays);
+        const chart = new Chart(btcCtx, {
+          type: "line",
+          data: {
+            labels: btcSliced.map(p => p.date),
+            datasets: [
+              { label: "BTC", data: btcSliced.map(p => p.value), borderColor: "#f7931a", backgroundColor: "#f7931a18", fill: true, borderWidth: 2, pointRadius: 0, tension: 0.3 },
+              { label: "MA200", data: ma200Sliced.map(p => p.value), borderColor: "#60a5fa", backgroundColor: "transparent", borderWidth: 1.5, pointRadius: 0, borderDash: [5,3], tension: 0.3 },
+            ]
+          },
+          options: {
+            responsive: true, interaction: { mode: "index", intersect: false },
+            plugins: { legend: { labels: { color: "#5a5a7a", font: { family: "DM Mono", size: 10 } } }, tooltip: { backgroundColor: "#12121a", borderColor: "#1e1e2e", borderWidth: 1, titleColor: "#5a5a7a", bodyColor: "#e8e8f0" } },
+            scales: {
+              x: { grid: { color: "#1e1e2e" }, ticks: { color: "#5a5a7a", maxTicksLimit: 6, font: { family: "DM Mono", size: 10 } } },
+              y: { grid: { color: "#1e1e2e" }, ticks: { color: "#5a5a7a", font: { family: "DM Mono", size: 10 }, callback: v => "$" + v.toLocaleString() } }
+            }
+          }
+        });
+        CHARTS["btc-chart"] = { chart, seriesKey: "btc", datasetIdx: 0 };
+      }
+
+      makeLineChart("eth-chart",     "eth",       "#627eea", { prefix: "$", decimals: 0, yDecimals: 0, fill: true });
+      makeLineChart("fg-chart",      "fearGreed", "#fbbf24", { decimals: 0, zones: [{ val: 25, color: "rgba(248,113,113,0.4)" }, { val: 75, color: "rgba(74,222,128,0.4)" }] });
+      makeLineChart("funding-chart", "funding",   "#f472b6", { suffix: "%", decimals: 4, zones: [{ val: 0, color: "rgba(96,165,250,0.4)" }, { val: 0.05, color: "rgba(248,113,113,0.4)" }] });
+      makeLineChart("stable-chart",  "stablecoin","#22d3ee", { suffix: "B", decimals: 1 });
+
+      // IBIT volume bars
+      const ibitCtx = document.getElementById("ibit-chart");
+      if (ibitCtx && series.ibit.length) {
+        const ibitSliced = cutSeries(series.ibit, activeDays);
+        const avgVol = ibitSliced.slice(-20).reduce((a, b) => a + b.volume, 0) / 20;
+        new Chart(ibitCtx, {
+          type: "bar",
+          data: {
+            labels: ibitSliced.map(p => p.date),
+            datasets: [{ data: ibitSliced.map(p => p.volume), backgroundColor: ibitSliced.map(p => p.volume >= avgVol * 1.5 ? "#4ade80" : p.volume < avgVol * 0.8 ? "#f87171" : "#3b82f6"), borderRadius: 2 }]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: false }, tooltip: { backgroundColor: "#12121a", borderColor: "#1e1e2e", borderWidth: 1, titleColor: "#5a5a7a", bodyColor: "#e8e8f0", callbacks: { label: ctx => ` ${(ctx.parsed.y / 1e6).toFixed(1)}M` } } },
+            scales: {
+              x: { grid: { color: "#1e1e2e" }, ticks: { color: "#5a5a7a", maxTicksLimit: 6, font: { family: "DM Mono", size: 10 } } },
+              y: { grid: { color: "#1e1e2e" }, ticks: { color: "#5a5a7a", font: { family: "DM Mono", size: 10 }, callback: v => (v / 1e6).toFixed(0) + "M" } }
+            }
+          }
+        });
+      }
+    }
+
+    load();
+  </script>
+</body>
+</html>
