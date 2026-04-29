@@ -1,1 +1,335 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Grondstoffen Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;600&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0f; --surface: #12121a; --border: #1e1e2e;
+      --text: #e8e8f0; --muted: #5a5a7a;
+      --pos: #4ade80; --neg: #f87171; --neutral: #60a5fa;
+      --energy: #f97316; --industrial: #22d3ee; --transition: #4ade80;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; padding: 2rem; }
+    nav { display: flex; gap: 0.75rem; margin-bottom: 2rem; align-items: center; flex-wrap: wrap; }
+    nav a { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); text-decoration: none; padding: 4px 12px; border: 1px solid var(--border); border-radius: 4px; transition: all 0.15s; }
+    nav a:hover { color: var(--text); border-color: var(--muted); }
+    nav a.active { color: var(--text); border-color: var(--neutral); background: rgba(96,165,250,0.1); }
+    header { display: flex; align-items: center; gap: 1.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
+    h1 { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.02em; }
+    .regime-badge { padding: 6px 16px; border-radius: 20px; font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; }
+    .regime-badge.growth-cycle     { background: rgba(74,222,128,0.15);  color: var(--pos);      border: 1px solid rgba(74,222,128,0.4); }
+    .regime-badge.energy-stress    { background: rgba(249,115,22,0.15);  color: var(--energy);   border: 1px solid rgba(249,115,22,0.4); }
+    .regime-badge.scarcity-squeeze { background: rgba(96,165,250,0.15);  color: var(--neutral);  border: 1px solid rgba(96,165,250,0.4); }
+    .section-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin: 2rem 0 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+    .cluster-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 2rem; }
+    .cluster-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+    .cluster-name { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem; }
+    .cluster-score { font-family: 'DM Mono', monospace; font-size: 2rem; font-weight: 500; }
+    .cluster-items { font-size: 10px; color: var(--muted); margin-top: 0.5rem; line-height: 1.8; }
+    .cluster-bar-wrap { background: var(--border); border-radius: 3px; height: 4px; width: 100%; margin-top: 0.75rem; }
+    .cluster-bar { height: 4px; border-radius: 3px; }
+    .bubble-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.25rem; }
+    .bubble-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem; }
+    .bubble-sub { font-size: 10px; color: var(--muted); margin-bottom: 1rem; }
+    .bubble-legend { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-top: 0.75rem; }
+    .bubble-legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+    .bubble-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .kg-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .kg-table th { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; padding: 6px 10px; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .kg-table th:first-child { text-align: left; }
+    .kg-table th:nth-child(2) { text-align: left; }
+    .kg-table td { padding: 8px 10px; text-align: right; border-bottom: 1px solid rgba(30,30,46,0.5); font-family: 'DM Mono', monospace; white-space: nowrap; }
+    .kg-table td:first-child { text-align: left; font-family: 'DM Sans', sans-serif; font-weight: 600; }
+    .kg-table td:nth-child(2) { text-align: left; }
+    .kg-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .cluster-tag { font-size: 9px; padding: 2px 6px; border-radius: 3px; font-family: 'DM Mono', monospace; font-weight: 500; }
+    .tag-energy     { background: rgba(249,115,22,0.15);  color: var(--energy); }
+    .tag-industrial { background: rgba(34,211,238,0.15);  color: var(--industrial); }
+    .tag-transition { background: rgba(74,222,128,0.15);  color: var(--transition); }
+    .pos { color: var(--pos); } .neg { color: var(--neg); } .neu { color: var(--neutral); }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem; }
+    .chart-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+    .chart-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; }
+    .chart-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; }
+    .chart-sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
+    .chart-val { font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500; }
+    canvas { width: 100% !important; }
+    .loading { text-align: center; padding: 6rem; color: var(--muted); font-family: 'DM Mono', monospace; }
+    .dot { display: inline-block; animation: blink 1.2s infinite; }
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes blink { 0%,80%,100%{opacity:0} 40%{opacity:1} }
+    .error { color: #f87171; font-family: 'DM Mono', monospace; font-size: 13px; padding: 2rem; text-align: center; }
+    @media (max-width: 900px) { .cluster-row, .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="/">📊 YTD</a>
+    <a href="/macro.html">🌍 Macro</a>
+    <a href="/sector.html">🔄 Sectoren</a>
+    <a href="/crypto.html">₿ Crypto</a>
+    <a href="/metals.html">🥇 Edelmetalen</a>
+    <a href="/commodities.html" class="active">⚡ Grondstoffen</a>
+  </nav>
+  <header>
+    <h1>Grondstoffen Dashboard</h1>
+    <div class="regime-badge" id="regime-badge">Laden...</div>
+  </header>
+  <div id="content">
+    <div class="loading">Data laden<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>
+  </div>
+  <script>
+    let ALL_SERIES = {};
 
+    function fmt(v, d = 2, pre = "", suf = "") {
+      if (v === null || v === undefined) return "—";
+      return `${pre}${parseFloat(v).toFixed(d)}${suf}`;
+    }
+    function pctClass(v) { return v > 0 ? "pos" : v < 0 ? "neg" : "neu"; }
+    function sign(v) { return v >= 0 ? "+" : ""; }
+
+    function makeLineChart(canvasId, seriesKey, color, opts = {}) {
+      const ctx = document.getElementById(canvasId);
+      if (!ctx || !ALL_SERIES[seriesKey]?.length) return;
+      const series = ALL_SERIES[seriesKey];
+      new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: series.map(p => p.date),
+          datasets: [{ data: series.map(p => p.value), borderColor: color, backgroundColor: "transparent", borderWidth: 1.5, pointRadius: 0, tension: 0.3 }]
+        },
+        options: {
+          responsive: true, interaction: { mode: "index", intersect: false },
+          plugins: { legend: { display: false }, tooltip: { backgroundColor: "#12121a", borderColor: "#1e1e2e", borderWidth: 1, titleColor: "#5a5a7a", bodyColor: "#e8e8f0",
+            callbacks: { label: ctx => ` ${opts.prefix ?? ""}${ctx.parsed.y?.toFixed(opts.d ?? 2)}${opts.suffix ?? ""}` }
+          }},
+          scales: {
+            x: { grid: { color: "#1e1e2e" }, ticks: { color: "#5a5a7a", maxTicksLimit: 6, font: { family: "DM Mono", size: 10 } } },
+            y: { grid: { color: "#1e1e2e" }, ticks: { color: "#5a5a7a", font: { family: "DM Mono", size: 10 },
+              callback: v => `${opts.prefix ?? ""}${typeof v === "number" ? v.toFixed(opts.yd ?? 2) : v}${opts.suffix ?? ""}` } }
+          }
+        }
+      });
+    }
+
+    function makeBubbleChart(canvasId, commodities) {
+      const ctx = document.getElementById(canvasId);
+      if (!ctx) return;
+      const clusterColors = { energy: "#f97316", industrial: "#22d3ee", transition: "#4ade80" };
+      const maxAum = Math.max(...commodities.map(c => c.aum));
+      const datasets = commodities.map(c => ({
+        label: c.name,
+        data: [{ x: c.rs ?? 0, y: c.pct6m ?? 0, r: Math.max(6, Math.sqrt(c.aum / maxAum) * 30) }],
+        backgroundColor: clusterColors[c.cluster] + "99",
+        borderColor: clusterColors[c.cluster],
+        borderWidth: 1.5,
+      }));
+      new Chart(ctx, {
+        type: "bubble",
+        data: { datasets },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            tooltip: { backgroundColor: "#12121a", borderColor: "#1e1e2e", borderWidth: 1, titleColor: "#e8e8f0", bodyColor: "#5a5a7a",
+              callbacks: {
+                title: ctx => ctx[0].dataset.label,
+                label: ctx => [` RS vs S&P: ${sign(ctx.parsed.x)}${ctx.parsed.x.toFixed(1)}%`, ` 6M perf: ${sign(ctx.parsed.y)}${ctx.parsed.y.toFixed(1)}%`]
+              }
+            }
+          },
+          scales: {
+            x: { title: { display: true, text: "Relative Strength vs S&P500 (3M) →", color: "#5a5a7a", font: { family: "DM Mono", size: 10 } }, grid: { color: "#1e1e2e" }, ticks: { color: "#5a5a7a", font: { family: "DM Mono", size: 10 }, callback: v => v + "%" } },
+            y: { title: { display: true, text: "↑ 6M Momentum %", color: "#5a5a7a", font: { family: "DM Mono", size: 10 } }, grid: { color: "#1e1e2e" }, ticks: { color: "#5a5a7a", font: { family: "DM Mono", size: 10 }, callback: v => v + "%" } }
+          }
+        },
+        plugins: [{
+          id: "zeroline",
+          beforeDraw(chart) {
+            const { ctx: c, chartArea, scales } = chart;
+            if (!chartArea) return;
+            const x0 = scales.x.getPixelForValue(0);
+            c.save(); c.strokeStyle = "rgba(255,255,255,0.15)"; c.lineWidth = 1; c.setLineDash([4,4]);
+            c.beginPath(); c.moveTo(x0, chartArea.top); c.lineTo(x0, chartArea.bottom); c.stroke();
+            const y0 = scales.y.getPixelForValue(0);
+            c.beginPath(); c.moveTo(chartArea.left, y0); c.lineTo(chartArea.right, y0); c.stroke();
+            c.restore();
+            c.save(); c.font = "10px DM Mono, monospace"; c.fillStyle = "rgba(255,255,255,0.12)";
+            c.fillText("MOMENTUM", chartArea.right - 80, chartArea.top + 16);
+            c.fillText("LAGGING", chartArea.left + 4, chartArea.bottom - 8);
+            c.restore();
+          }
+        }, {
+          id: "bubblelabels",
+          afterDatasetsDraw(chart) {
+            const { ctx: c } = chart;
+            chart.data.datasets.forEach((ds, i) => {
+              const meta = chart.getDatasetMeta(i);
+              if (!meta.data[0]) return;
+              const { x, y } = meta.data[0].getProps(["x", "y"]);
+              c.save(); c.font = "bold 10px DM Sans, sans-serif"; c.fillStyle = "#e8e8f0";
+              c.textAlign = "center"; c.textBaseline = "middle";
+              const label = ds.label.length > 8 ? ds.label.slice(0, 7) + "…" : ds.label;
+              c.fillText(label, x, y); c.restore();
+            });
+          }
+        }]
+      });
+    }
+
+    async function load() {
+      try {
+        const res  = await fetch("/api/commodities");
+        const json = await res.json();
+        if (!json.ok) throw new Error(json.error);
+        ALL_SERIES = json.series;
+        render(json);
+      } catch (err) {
+        document.getElementById("content").innerHTML = `<div class="error">Kon data niet laden: ${err.message}</div>`;
+      }
+    }
+
+    function render({ regime, scores, commodities, series }) {
+      const badge = document.getElementById("regime-badge");
+      badge.className = `regime-badge ${regime}`;
+      const regimeLabels = { "growth-cycle": "🟢 Growth Cycle", "energy-stress": "🟠 Energy Stress", "scarcity-squeeze": "🔵 Scarcity / Supply Squeeze" };
+      badge.textContent = regimeLabels[regime];
+
+      const energy     = commodities.filter(c => c.cluster === "energy");
+      const industrial = commodities.filter(c => c.cluster === "industrial");
+      const transition = commodities.filter(c => c.cluster === "transition");
+      const maxScore   = Math.max(Math.abs(scores.energy), Math.abs(scores.industrial), Math.abs(scores.transition), 1);
+
+      document.getElementById("content").innerHTML = `
+        <div class="section-title">Cluster RS Scores vs S&P500</div>
+        <div class="cluster-row">
+          <div class="cluster-card" style="border-color:rgba(249,115,22,0.3)">
+            <div class="cluster-name" style="color:var(--energy)">⚡ Energy</div>
+            <div class="cluster-score" style="color:${scores.energy > 0 ? 'var(--pos)' : 'var(--neg)'}">${scores.energy > 0 ? "+" : ""}${scores.energy}</div>
+            <div class="cluster-items">${energy.map(c => `${c.name}: <span class="${pctClass(c.rs)}">${sign(c.rs ?? 0)}${fmt(c.rs, 1)}%</span>`).join("<br>")}</div>
+            <div class="cluster-bar-wrap"><div class="cluster-bar" style="width:${Math.min(Math.abs(scores.energy)/maxScore*100,100)}%;background:var(--energy)"></div></div>
+          </div>
+          <div class="cluster-card" style="border-color:rgba(34,211,238,0.3)">
+            <div class="cluster-name" style="color:var(--industrial)">🏭 Industrial</div>
+            <div class="cluster-score" style="color:${scores.industrial > 0 ? 'var(--pos)' : 'var(--neg)'}">${scores.industrial > 0 ? "+" : ""}${scores.industrial}</div>
+            <div class="cluster-items">${industrial.map(c => `${c.name}: <span class="${pctClass(c.rs)}">${sign(c.rs ?? 0)}${fmt(c.rs, 1)}%</span>`).join("<br>")}</div>
+            <div class="cluster-bar-wrap"><div class="cluster-bar" style="width:${Math.min(Math.abs(scores.industrial)/maxScore*100,100)}%;background:var(--industrial)"></div></div>
+          </div>
+          <div class="cluster-card" style="border-color:rgba(74,222,128,0.3)">
+            <div class="cluster-name" style="color:var(--transition)">🔋 Transition</div>
+            <div class="cluster-score" style="color:${scores.transition > 0 ? 'var(--pos)' : 'var(--neg)'}">${scores.transition > 0 ? "+" : ""}${scores.transition}</div>
+            <div class="cluster-items">${transition.map(c => `${c.name}: <span class="${pctClass(c.rs)}">${sign(c.rs ?? 0)}${fmt(c.rs, 1)}%</span>`).join("<br>")}</div>
+            <div class="cluster-bar-wrap"><div class="cluster-bar" style="width:${Math.min(Math.abs(scores.transition)/maxScore*100,100)}%;background:var(--transition)"></div></div>
+          </div>
+        </div>
+
+        <div class="chart-wrap" style="margin-bottom:1.25rem;padding:1rem 1.5rem">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.5rem">Regime interpretatie</div>
+          <div style="font-size:12px;line-height:1.8;color:var(--text)">
+            ${regime === "growth-cycle"     ? "🟢 <strong>Growth Cycle</strong> — Industriële grondstoffen leiden. Economische expansie. Kapitaal roteert naar cyclische assets." : ""}
+            ${regime === "energy-stress"    ? "🟠 <strong>Energy Stress</strong> — Energie outperformt. Mogelijke supply shock of inflatiedruk. Defensieve positionering in energy aanbevolen." : ""}
+            ${regime === "scarcity-squeeze" ? "🔵 <strong>Scarcity / Supply Squeeze</strong> — Transitiemetalen leiden. Structurele vraag van energietransitie. Vroeg cycle signaal voor lithium/uranium." : ""}
+          </div>
+        </div>
+
+        <div class="section-title">Bubble Chart — RS vs Momentum (bubble = ETF grootte)</div>
+        <div class="bubble-wrap">
+          <div class="bubble-title">Relative Strength vs S&P500 (X) · 6M Momentum (Y) · ETF AUM (grootte)</div>
+          <div class="bubble-sub">Rechtsboven = momentum + outperformance · Linksonder = lagging · Nul-lijnen = S&P500 benchmark</div>
+          <canvas id="bubble-chart" height="350"></canvas>
+          <div class="bubble-legend">
+            <div class="bubble-legend-item"><div class="bubble-dot" style="background:var(--energy)"></div>Energy</div>
+            <div class="bubble-legend-item"><div class="bubble-dot" style="background:var(--industrial)"></div>Industrial</div>
+            <div class="bubble-legend-item"><div class="bubble-dot" style="background:var(--transition)"></div>Transition</div>
+          </div>
+        </div>
+
+        <div class="section-title">Kengetallen per Grondstof</div>
+        <div class="chart-wrap" style="overflow-x:auto;margin-bottom:1.25rem">
+          <table class="kg-table">
+            <thead>
+              <tr><th>Naam</th><th>Cluster</th><th>3M</th><th>6M</th><th>12M / YTD</th><th>MA200</th><th>RS vs S&P</th><th>Miners Leverage</th></tr>
+            </thead>
+            <tbody>
+              ${commodities.map(c => `
+                <tr>
+                  <td>${c.name}</td>
+                  <td><span class="cluster-tag tag-${c.cluster}">${c.cluster}</span></td>
+                  <td class="${pctClass(c.pct3m)}">${fmt(c.pct3m, 1, sign(c.pct3m ?? 0), "%")}</td>
+                  <td class="${pctClass(c.pct6m)}">${fmt(c.pct6m, 1, sign(c.pct6m ?? 0), "%")}</td>
+                  <td class="${pctClass(c.pct12m)}">${fmt(c.pct12m, 1, sign(c.pct12m ?? 0), "%")}</td>
+                  <td>${c.ma200 === null ? "—" : c.ma200 ? "✅" : "❌"}</td>
+                  <td class="${pctClass(c.rs)}">${fmt(c.rs, 1, sign(c.rs ?? 0), "%")}</td>
+                  <td style="font-size:14px">${c.leverageSignal} ${c.leverage !== null ? `<span style="color:var(--muted);font-size:10px">${fmt(c.leverage, 2)}x</span>` : ""}</td>
+                </tr>`).join("")}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="section-title">Leverage & Ratio Analyse</div>
+        <div class="grid-3">
+          <div class="chart-wrap">
+            <div class="chart-top"><div><div class="chart-title">Copper / Gold Ratio</div><div class="chart-sub">Conjunctuurbarometer — stijgend = groei</div></div></div>
+            <canvas id="cugold-chart" height="110"></canvas>
+          </div>
+          <div class="chart-wrap">
+            <div class="chart-top"><div><div class="chart-title">Uranium / Oil Ratio</div><div class="chart-sub">Nucleair vs fossiel — stijgend = energietransitie</div></div></div>
+            <canvas id="uraoil-chart" height="110"></canvas>
+          </div>
+          <div class="chart-wrap">
+            <div class="chart-top"><div><div class="chart-title">Lithium / Koper Ratio</div><div class="chart-sub">Transitiemetalen vs industrieel — stijgend = EV vraag</div></div></div>
+            <canvas id="litcu-chart" height="110"></canvas>
+          </div>
+        </div>
+        <div class="grid-3">
+          <div class="chart-wrap">
+            <div class="chart-top"><div><div class="chart-title">Energy (XLE) vs S&P500</div><div class="chart-sub">Sector RS — stijgend = energie outperformt</div></div></div>
+            <canvas id="xlespx-chart" height="110"></canvas>
+          </div>
+          <div class="chart-wrap">
+            <div class="chart-top"><div><div class="chart-title">COPX / HG — Copper Miners vs Spot</div><div class="chart-sub">Miners leverage — stijgend = bullish koper</div></div></div>
+            <canvas id="copxhg-chart" height="110"></canvas>
+          </div>
+          <div class="chart-wrap">
+            <div class="chart-top"><div><div class="chart-title">URA / URNM — Uranium Spot vs Miners</div><div class="chart-sub">Stijgend = spot leidt miners</div></div></div>
+            <canvas id="uraurnm-chart" height="110"></canvas>
+          </div>
+        </div>
+
+        <div class="section-title">Koersgrafieken</div>
+        <div class="grid-3">
+          <div class="chart-wrap"><div class="chart-top"><div class="chart-title">WTI Olie (USO)</div></div><canvas id="uso-chart" height="110"></canvas></div>
+          <div class="chart-wrap"><div class="chart-top"><div class="chart-title">Nat. Gas (UNG)</div></div><canvas id="ung-chart" height="110"></canvas></div>
+          <div class="chart-wrap"><div class="chart-top"><div class="chart-title">Uranium (URA)</div></div><canvas id="ura-chart" height="110"></canvas></div>
+        </div>
+        <div class="grid-2">
+          <div class="chart-wrap"><div class="chart-top"><div class="chart-title">Koper Futures (HG=F)</div></div><canvas id="hg-chart" height="110"></canvas></div>
+          <div class="chart-wrap"><div class="chart-top"><div class="chart-title">Lithium ETF (LIT)</div></div><canvas id="lit-chart" height="110"></canvas></div>
+        </div>
+      `;
+
+      makeBubbleChart("bubble-chart", commodities);
+      makeLineChart("cugold-chart",  "copperGoldRatio",    "#22d3ee", { d: 4, yd: 4 });
+      makeLineChart("uraoil-chart",  "uraniumOilRatio",    "#a78bfa", { d: 4, yd: 4 });
+      makeLineChart("litcu-chart",   "lithiumCopperRatio", "#4ade80", { d: 4, yd: 4 });
+      makeLineChart("xlespx-chart",  "energyVsSpx",        "#f97316", { d: 4, yd: 4 });
+      makeLineChart("copxhg-chart",  "copxVsHg",           "#22d3ee", { d: 4, yd: 4 });
+      makeLineChart("uraurnm-chart", "uraVsUrnm",          "#a78bfa", { d: 4, yd: 4 });
+      makeLineChart("uso-chart",     "uso",                "#f97316", { prefix: "$", d: 2, yd: 2 });
+      makeLineChart("ung-chart",     "ung",                "#fb923c", { prefix: "$", d: 2, yd: 2 });
+      makeLineChart("ura-chart",     "ura",                "#a78bfa", { prefix: "$", d: 2, yd: 2 });
+      makeLineChart("hg-chart",      "hg",                 "#22d3ee", { prefix: "$", d: 3, yd: 3 });
+      makeLineChart("lit-chart",     "lit",                "#4ade80", { prefix: "$", d: 2, yd: 2 });
+    }
+
+    load();
+  </script>
+</body>
+</html>
