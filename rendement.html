@@ -1,1 +1,134 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Portfolio Rendement</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;600&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0f; --surface: #12121a; --border: #1e1e2e;
+      --text: #e8e8f0; --muted: #5a5a7a;
+      --pos: #4ade80; --neg: #f87171; --neutral: #60a5fa;
+      --gold: #fbbf24; --gold-bg: rgba(251,191,36,0.1); --gold-border: rgba(251,191,36,0.35);
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; padding: 2rem; }
 
+    nav { display: flex; gap: 0.75rem; margin-bottom: 2rem; align-items: center; flex-wrap: wrap; }
+    nav a { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); text-decoration: none; padding: 4px 12px; border: 1px solid var(--border); border-radius: 4px; transition: all 0.15s; }
+    nav a:hover { color: var(--text); border-color: var(--muted); }
+    nav a.active { color: var(--text); border-color: var(--neutral); background: rgba(96,165,250,0.1); }
+
+    header { display: flex; align-items: center; gap: 1.5rem; margin-bottom: 2rem; flex-wrap: wrap; }
+    h1 { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.02em; }
+    .badge { padding: 5px 14px; border-radius: 20px; font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; background: var(--gold-bg); color: var(--gold); border: 1px solid var(--gold-border); }
+    .last-update { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); margin-left: auto; }
+    .btn-refresh { background: none; border: 1px solid var(--border); color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px; padding: 4px 12px; border-radius: 4px; cursor: pointer; transition: all 0.15s; }
+    .btn-refresh:hover { color: var(--text); border-color: var(--muted); }
+
+    .section-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin: 2rem 0 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+
+    .kpi-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.75rem; margin-bottom: 1.5rem; }
+    .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; }
+    .kpi-card.gold-accent { border-top: 2px solid var(--gold); }
+    .kpi-card.pos-accent  { border-top: 2px solid var(--pos); }
+    .kpi-card.neg-accent  { border-top: 2px solid var(--neg); }
+    .kpi-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem; }
+    .kpi-value { font-family: 'DM Mono', monospace; font-size: 1.25rem; font-weight: 500; margin-bottom: 2px; }
+    .kpi-sub   { font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+    .period-filters { display: flex; gap: 4px; }
+    .pf { background: none; border: 1px solid var(--border); color: var(--muted); font-family: 'DM Mono', monospace; font-size: 11px; padding: 3px 10px; border-radius: 4px; cursor: pointer; transition: all 0.15s; }
+    .pf:hover { color: var(--text); border-color: var(--muted); }
+    .pf.active { background: var(--neutral); border-color: var(--neutral); color: #0a0a0f; font-weight: 600; }
+
+    .chart-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem; }
+    .chart-top  { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem; }
+    .chart-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; }
+    .chart-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 1rem; }
+    .leg-item { display: flex; align-items: center; gap: 6px; font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); }
+    .leg-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    canvas { width: 100% !important; }
+
+    .bm-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-bottom: 1.5rem; }
+    .bm-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; }
+    .bm-name   { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.3rem; }
+    .bm-return { font-family: 'DM Mono', monospace; font-size: 1.25rem; font-weight: 500; }
+    .bm-vs     { font-family: 'DM Mono', monospace; font-size: 11px; margin-top: 6px; }
+    .bm-vs span { font-size: 10px; color: var(--muted); margin-right: 4px; }
+
+    .pos-table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 1.5rem; }
+    .pos-table-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
+    .pos-table-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; }
+    .pos-count { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); background: var(--border); border-radius: 4px; padding: 2px 8px; }
+    table.positions { width: 100%; border-collapse: collapse; font-size: 12px; }
+    table.positions th { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; padding: 8px 14px; text-align: right; border-bottom: 1px solid var(--border); }
+    table.positions th:first-child { text-align: left; }
+    table.positions td { padding: 10px 14px; text-align: right; border-bottom: 1px solid rgba(30,30,46,0.5); font-family: 'DM Mono', monospace; }
+    table.positions td:first-child { text-align: left; font-family: 'DM Sans', sans-serif; }
+    table.positions tr:last-child td { border-bottom: none; }
+    table.positions tr:hover td { background: rgba(255,255,255,0.02); }
+    .prod-name { font-weight: 600; font-size: 13px; }
+    .prod-isin { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); }
+    .gewicht-bar { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+    .bar-track { background: var(--border); border-radius: 3px; height: 4px; width: 50px; }
+    .bar-fill  { height: 4px; border-radius: 3px; background: var(--neutral); }
+
+    .cf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1.5rem; }
+    .cf-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; }
+    .cf-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem; }
+    .cf-val   { font-family: 'DM Mono', monospace; font-size: 1.1rem; }
+
+    .method-box { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--gold); border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; font-size: 12px; color: var(--muted); line-height: 1.7; }
+    .method-box strong { color: var(--text); }
+
+    .pos { color: var(--pos); } .neg { color: var(--neg); } .neu { color: var(--neutral); } .gold { color: var(--gold); }
+    .loading { text-align: center; padding: 6rem; color: var(--muted); font-family: 'DM Mono', monospace; }
+    .dot { display: inline-block; animation: blink 1.2s infinite; }
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes blink { 0%,80%,100%{opacity:0} 40%{opacity:1} }
+    .error { color: var(--neg); font-family: 'DM Mono', monospace; font-size: 13px; padding: 2rem; text-align: center; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+    .warn-box { background: rgba(251,191,36,0.07); border: 1px solid var(--gold-border); border-radius: 8px; padding: 0.75rem 1rem; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--gold); margin-bottom: 1rem; }
+
+    @media (max-width: 1100px) { .kpi-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 800px)  { .kpi-grid { grid-template-columns: repeat(2, 1fr); } .bm-grid { grid-template-columns: 1fr; } .cf-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 500px)  { .kpi-grid { grid-template-columns: 1fr 1fr; } body { padding: 1rem; } }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a href="/">📊 YTD Dashboard</a>
+    <a href="/macro.html">🌍 Macro</a>
+    <a href="/sector.html">🔄 Sector Rotatie</a>
+    <a href="/crypto.html">₿ Crypto</a>
+    <a href="/metals.html">🥇 Edelmetalen</a>
+    <a href="/commodities.html">⚡ Grondstoffen</a>
+    <a href="/rendement.html" class="active">📈 Rendement</a>
+  </nav>
+
+  <header>
+    <h1>Portfolio Rendement</h1>
+    <div class="badge" id="twr-badge">TWR laden…</div>
+    <span class="last-update" id="last-update"></span>
+    <button class="btn-refresh" onclick="Rendement.refresh()">↻ Vernieuwen</button>
+  </header>
+
+  <div id="content">
+    <div class="loading">Data laden<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>
+  </div>
+
+  <script src="rendement.js"></script>
+  <script>
+    Rendement.init({
+      sheetsUrl:     "JOUW_SHEETS_WEBAPP_URL_HIER",
+      benchmarks:    ["SPX", "MSCI_WORLD", "AEX"],
+      defaultPeriod: "1J",
+    });
+  </script>
+
+</body>
+</html>
