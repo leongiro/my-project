@@ -566,17 +566,46 @@ function showDemoMode() {
 // ══════════════════════════════════════════════════════════════
 // SIGNAL LOGICA (client-side)
 // ══════════════════════════════════════════════════════════════
-function computeSignal(seg) {
-  const cross  = ["bull","bull-cross"].includes(seg.ema21x50) ? 1 : 0;
-  const struct = seg.structure === "HH/HL"                   ? 1 : 0;
-  const vol    = (seg.volFlow || 0) >= 1.5                   ? 1 : 0;
-  const score  = cross + struct + vol;
+// ── VROEG SIGNAAL (max 5 punten) ──────────────────────────────────
+function computeEarlySignal(seg) {
+  // EMA8 S-Bull + W-Trend UP = 2 punten
+  const ema8ok   = seg.ema8align === "strong-bull" ? 1 : 0;
+  const wTrendOk = seg.weeklyTrend === "UP"        ? 1 : 0;
+  const ema8pts  = (ema8ok && wTrendOk) ? 2 : (ema8ok || wTrendOk) ? 1 : 0;
+
+  // RS Breuk Up + RS score > 0 = 2 punten
+  const rsBreakOk = seg.rsBreak === "up" ? 1 : 0;
+  const rsPosOk   = (seg.rs || 0) > 0   ? 1 : 0;
+  const rsPts     = (rsBreakOk && rsPosOk) ? 2 : rsBreakOk ? 1 : 0;
+
+  // Volume dubbel filter = 1 punt
+  const vol5ok  = (seg.volFlow   || 0) >= 1.5 ? 1 : 0;
+  const vol10ok = (seg.volFlow30 || 0) >= 1.3 ? 1 : 0;
+  const volPts  = (vol5ok && vol10ok) ? 1 : 0;
+
+  const score = ema8pts + rsPts + volPts;
   return {
-    cross, struct, vol, score,
-    label: score === 3 ? "KOOP" : score === 2 ? "WATCH" : "GEEN",
-    cls:   score === 3 ? "sig-buy" : score === 2 ? "sig-watch" : "sig-none",
+    score, ema8pts, rsPts, volPts,
+    label: score >= 4 ? "VROEG" : score === 3 ? "WATCH" : "GEEN",
+    cls:   score >= 4 ? "sig-buy" : score === 3 ? "sig-watch" : "sig-none",
   };
 }
+
+// ── BEVESTIGD SIGNAAL (max 4 punten) ───────────────────────────────
+function computeConfSignal(seg) {
+  const cross  = ["bull","bull-cross"].includes(seg.ema21x50) ? 1 : 0;
+  const struct = seg.structure === "HH/HL"  ? 1 : 0;
+  const wTrend = seg.weeklyTrend === "UP"   ? 1 : 0;
+  const vol2x  = (seg.volFlow || 0) >= 2.0  ? 1 : 0;
+  const score  = cross + struct + wTrend + vol2x;
+  return {
+    score, cross, struct, wTrend, vol2x,
+    label: score >= 3 ? "KOOP" : score === 2 ? "WATCH" : "GEEN",
+    cls:   score >= 3 ? "sig-buy" : score === 2 ? "sig-watch" : "sig-none",
+  };
+}
+
+function computeSignal(seg) { return computeEarlySignal(seg); }
 
 // ══════════════════════════════════════════════════════════════
 // RENDER ALLES
