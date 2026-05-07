@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+]<!DOCTYPE html>
 <html lang="nl">
 <head>
 <meta charset="UTF-8">
@@ -604,12 +604,15 @@ const TABLE_HEADER = `<thead><tr>
   <th class="num" data-col="perf1w"      data-tip="Performance afgelopen week">1W% <span class="sort-icon">↕</span></th>
   <th class="num" data-col="perf1m"      data-tip="Performance afgelopen maand">1M% <span class="sort-icon">↕</span></th>
   <th data-col="rs"          data-tip="Relative Strength vs SPY — kwartaal, schaal -5/+5">RS vs SPY <span class="sort-icon">↕</span></th>
+  <th data-col="rsBreak"     data-tip="RS Breuk: doorbreekt de RS-lijn een 20-daags hoogte (🔼) of dieptepunt (🔽)? Vroeg momentum signaal">RS Breuk <span class="sort-icon">↕</span></th>
   <th data-col="rsi"         data-tip="RSI(14) — Wilder's Relative Strength Index">RSI(14) <span class="sort-icon">↕</span></th>
   <th data-col="mansfield"   data-tip="Mansfield RS vs SPX — 52-week genormaliseerd, schaal -5/+5">Mansfield <span class="sort-icon">↕</span></th>
   <th data-col="volFlow"     data-tip="Volume Flow: 5d avg / 20d avg — >1.5× triggert signaal ③">Vol Flow <span class="sort-icon">↕</span></th>
   <th data-col="breadth"     data-tip="Breadth: % van holdings boven SMA50">Breadth <span class="sort-icon">↕</span></th>
-  <th data-col="trend"       data-tip="Trend: close > SMA21 > SMA50 = UP; omgekeerd = DOWN">Trend <span class="sort-icon">↕</span></th>
+  <th data-col="weeklyTrend" data-tip="Wekelijkse trend op basis van SMA10w en SMA20w (10/20 weken) — hogere timeframe context">W-Trend <span class="sort-icon">↕</span></th>
+  <th data-col="trend"       data-tip="Dagelijkse trend: close > SMA21 > SMA50 = UP; omgekeerd = DOWN">D-Trend <span class="sort-icon">↕</span></th>
   <th data-col="structure"   data-tip="Swing structuur: HH/HL = bullish; LH/LL = bearish">Structuur <span class="sort-icon">↕</span></th>
+  <th data-col="ema8align"   data-tip="EMA8 alignment: strong-bull = EMA8>EMA21>EMA50 (vroeg momentum); bull = EMA8>EMA21 maar trend nog niet bevestigd">EMA8 Align <span class="sort-icon">↕</span></th>
   <th data-col="sma21x50"    data-tip="SMA21 positie t.o.v. SMA50">SMA21/50 <span class="sort-icon">↕</span></th>
   <th data-col="ema21x50"    data-tip="EMA21 cross EMA50 — triggert signaalcriterium ①; NEW = verse cross">EMA21/50 <span class="sort-icon">↕</span></th>
   <th data-col="atr"         data-tip="ATR% — Average True Range als % van koers (volatiliteit proxy)">ATR% <span class="sort-icon">↕</span></th>
@@ -626,12 +629,15 @@ function rowHTML(s) {
     <td class="num">${pct(s.perf1w)}</td>
     <td class="num">${pct(s.perf1m)}</td>
     <td>${rsCell(s.rs, s.rsTrend)}</td>
+    <td>${rsBreakCell(s.rsBreak)}</td>
     <td>${rsiCell(s.rsi)}</td>
     <td>${msfCell(s.mansfield)}</td>
     <td>${volCell(s.volFlow)}</td>
     <td>${brdCell(s.breadth)}</td>
+    <td>${trendCell(s.weeklyTrend)}</td>
     <td>${trendCell(s.trend)}</td>
     <td>${strCell(s.structure)}</td>
+    <td>${ema8Cell(s.ema8align)}</td>
     <td>${smaCell(s.sma21x50)}</td>
     <td>${emaCell(s.ema21x50)}</td>
     <td class="num neu">${s.atr != null ? s.atr.toFixed(1)+"%" : "—"}</td>
@@ -688,6 +694,13 @@ function volCell(v) {
   return `<span style="color:${c}">${v.toFixed(1)}× ${emoji}</span>`;
 }
 
+function rsBreakCell(v) {
+  if (!v || v === "none") return `<span class="neu">—</span>`;
+  if (v === "up")   return `<span style="color:var(--green);font-weight:700;font-size:14px" data-tip="RS-lijn breekt 20-daags hoogtepunt — sector begint te leiden vs SPY">🔼 Break Up</span>`;
+  if (v === "down") return `<span style="color:var(--red);font-weight:700;font-size:14px" data-tip="RS-lijn breekt 20-daags dieptepunt — sector begint achter te blijven vs SPY">🔽 Break Down</span>`;
+  return `<span class="neu">—</span>`;
+}
+
 function brdCell(v) {
   if (v == null) return '<span class="neu">—</span>';
   const c = v>=70?"var(--green)":v>=40?"var(--yellow)":"var(--red)";
@@ -711,6 +724,15 @@ function smaCell(v) {
   if (!v||v==="flat") return `<span class="x-flat">— Vlak</span>`;
   if (v==="bull")     return `<span class="x-bull">▲ Bull</span>`;
   if (v==="bear")     return `<span class="x-bear">▼ Bear</span>`;
+  return `<span class="neu">${v}</span>`;
+}
+
+function ema8Cell(v) {
+  if (!v || v === "flat") return `<span class="x-flat">—</span>`;
+  if (v === "strong-bull") return `<span style="color:var(--green);font-weight:700" data-tip="EMA8 > EMA21 > EMA50 — volledige alignment">⚡ S-Bull</span>`;
+  if (v === "bull")        return `<span style="color:#4ade80;font-weight:600" data-tip="EMA8 > EMA21 maar EMA21 nog onder EMA50 — momentum keert">↑ Bull</span>`;
+  if (v === "strong-bear") return `<span style="color:var(--red);font-weight:700" data-tip="EMA8 < EMA21 < EMA50 — volledige negatieve alignment">⚡ S-Bear</span>`;
+  if (v === "bear")        return `<span style="color:#f87171;font-weight:600" data-tip="EMA8 < EMA21 maar EMA21 nog boven EMA50 — momentum zwakt">↓ Bear</span>`;
   return `<span class="neu">${v}</span>`;
 }
 
@@ -799,35 +821,35 @@ function wireFilters() {
 // ══════════════════════════════════════════════════════════════
 function getDemoData() {
   return [
-    {id:"ai-infra",    name:"AI Infrastructuur",  icon:"🖥️", sector:"Technology",        proxy:"NVDA, AMD, SMCI, MRVL", perf1w:3.8,  perf1m:11.2, rs:2.4,  rsTrend:"up",   rsi:68,mansfield:1.8, volFlow:2.1,breadth:80,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       atr:3.2},
-    {id:"ai-hyper",   name:"AI Hyperscalers",    icon:"☁️", sector:"Technology",        proxy:"MSFT, GOOGL, META",    perf1w:1.9,  perf1m:6.4,  rs:1.2,  rsTrend:"up",   rsi:61,mansfield:0.9, volFlow:1.6,breadth:75,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull-cross", atr:2.1},
-    {id:"ai-apps",    name:"AI Applicaties",     icon:"🤖", sector:"Technology",        proxy:"PLTR, AI, SNOW",       perf1w:2.3,  perf1m:8.7,  rs:1.5,  rsTrend:"up",   rsi:65,mansfield:1.2, volFlow:1.8,breadth:70,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       atr:4.1},
-    {id:"semis",      name:"Halfgeleiders",      icon:"⚡", sector:"Technology",        proxy:"AMAT, LRCX, KLAC",    perf1w:0.4,  perf1m:-2.1, rs:-0.3, rsTrend:"flat", rsi:48,mansfield:-0.2,volFlow:0.9,breadth:45,trend:"RANGE",structure:"LH/HL",sma21x50:"flat",ema21x50:"flat",       atr:2.8},
-    {id:"cybersec",   name:"Cybersecurity",      icon:"🛡️", sector:"Technology",        proxy:"PANW, CRWD, FTNT",    perf1w:1.6,  perf1m:5.2,  rs:0.9,  rsTrend:"up",   rsi:60,mansfield:0.7, volFlow:1.4,breadth:65,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       atr:2.4},
-    {id:"software",   name:"Software / SaaS",    icon:"💾", sector:"Technology",        proxy:"NOW, ORCL, ADBE",     perf1w:1.1,  perf1m:3.8,  rs:0.6,  rsTrend:"up",   rsi:57,mansfield:0.5, volFlow:1.2,breadth:60,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"flat",       atr:2.0},
-    {id:"nuclear",    name:"Kernenergie",        icon:"☢️", sector:"Energy",            proxy:"CEG, VST, NNE, SMR",  perf1w:4.8,  perf1m:14.2, rs:3.5,  rsTrend:"up",   rsi:74,mansfield:2.8, volFlow:3.1,breadth:90,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull-cross", atr:5.3},
-    {id:"oil-majors", name:"Olie Majors",        icon:"🛢️", sector:"Energy",            proxy:"XOM, CVX, COP",       perf1w:4.2,  perf1m:8.9,  rs:2.8,  rsTrend:"up",   rsi:69,mansfield:2.1, volFlow:2.4,breadth:85,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       atr:2.2},
-    {id:"nat-gas",    name:"Aardgas",            icon:"🔥", sector:"Energy",            proxy:"LNG, AR, EQT",        perf1w:5.1,  perf1m:12.3, rs:3.2,  rsTrend:"up",   rsi:72,mansfield:2.5, volFlow:2.8,breadth:88,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       atr:4.8},
-    {id:"midstream",  name:"Pipelines",          icon:"🔧", sector:"Energy",            proxy:"ET, ENB, KMI",        perf1w:2.8,  perf1m:5.6,  rs:1.4,  rsTrend:"up",   rsi:60,mansfield:1.1, volFlow:1.6,breadth:72,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       atr:1.9},
-    {id:"solar",      name:"Solar",              icon:"☀️", sector:"Energy",            proxy:"ENPH, SEDG, FSLR",    perf1w:-2.1, perf1m:-5.8, rs:-1.6, rsTrend:"down", rsi:36,mansfield:-1.4,volFlow:0.8,breadth:20,trend:"DOWN", structure:"LH/LL",sma21x50:"bear",ema21x50:"bear-cross", atr:4.4},
-    {id:"gold",       name:"Goudmijnen",         icon:"⛏️", sector:"Materials",         proxy:"GDX, NEM, GOLD",      perf1w:3.4,  perf1m:10.6, rs:2.3,  rsTrend:"up",   rsi:70,mansfield:2.2, volFlow:2.6,breadth:85,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       atr:3.9},
-    {id:"silver",     name:"Zilver & Edelmetalen",icon:"🥈",sector:"Materials",         proxy:"SIL, AG, PAAS",       perf1w:2.9,  perf1m:8.4,  rs:1.8,  rsTrend:"up",   rsi:67,mansfield:1.9, volFlow:2.2,breadth:80,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       atr:4.5},
-    {id:"lithium",    name:"Lithium",            icon:"🔋", sector:"Materials",         proxy:"ALB, SQM, LTHM",      perf1w:-3.1, perf1m:-9.2, rs:-2.4, rsTrend:"down", rsi:31,mansfield:-2.1,volFlow:0.9,breadth:15,trend:"DOWN", structure:"LH/LL",sma21x50:"bear",ema21x50:"bear",       atr:5.2},
-    {id:"copper",     name:"Koper",              icon:"🔩", sector:"Materials",         proxy:"FCX, SCCO, BHP",      perf1w:-1.8, perf1m:-5.4, rs:-1.4, rsTrend:"down", rsi:38,mansfield:-1.2,volFlow:1.1,breadth:24,trend:"DOWN", structure:"LH/LL",sma21x50:"bear",ema21x50:"bear",       atr:3.3},
-    {id:"def-tech",   name:"Defensie Tech",      icon:"🛸", sector:"Industrials",       proxy:"KTOS, RKLB, JOBY",    perf1w:3.2,  perf1m:9.8,  rs:2.1,  rsTrend:"up",   rsi:66,mansfield:1.6, volFlow:2.3,breadth:78,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull-cross", atr:6.1},
-    {id:"space",      name:"Space Economy",      icon:"🛰️", sector:"Industrials",       proxy:"RKLB, LHX, BA",       perf1w:2.8,  perf1m:8.2,  rs:1.7,  rsTrend:"up",   rsi:63,mansfield:1.4, volFlow:2.0,breadth:72,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       atr:5.8},
-    {id:"ecommerce",  name:"E-Commerce",         icon:"🛒", sector:"Consumer Discret.", proxy:"AMZN, SHOP, ETSY",    perf1w:1.5,  perf1m:4.2,  rs:0.7,  rsTrend:"up",   rsi:58,mansfield:0.6, volFlow:1.3,breadth:62,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       atr:2.6},
-    {id:"ev-auto",    name:"EV & Auto",          icon:"🚗", sector:"Consumer Discret.", proxy:"TSLA, GM, F",         perf1w:-1.8, perf1m:-6.3, rs:-1.5, rsTrend:"down", rsi:37,mansfield:-1.3,volFlow:1.2,breadth:22,trend:"DOWN", structure:"LH/LL",sma21x50:"bear",ema21x50:"bear",       atr:5.6},
-    {id:"travel",     name:"Reizen & Vrije Tijd",icon:"✈️", sector:"Consumer Discret.", proxy:"BKNG, MAR, HLT",      perf1w:2.2,  perf1m:7.1,  rs:1.3,  rsTrend:"up",   rsi:64,mansfield:1.1, volFlow:1.9,breadth:74,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       atr:2.9},
-    {id:"alt-asset",  name:"Alt. Vermogensbeheer",icon:"📈",sector:"Financials",        proxy:"BX, KKR, APO",        perf1w:1.8,  perf1m:5.6,  rs:1.1,  rsTrend:"up",   rsi:63,mansfield:0.9, volFlow:1.6,breadth:72,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       atr:2.7},
-    {id:"megabanks",  name:"Mega Banken",        icon:"🏦", sector:"Financials",        proxy:"JPM, BAC, WFC",       perf1w:-0.3, perf1m:-1.8, rs:-0.5, rsTrend:"down", rsi:45,mansfield:-0.4,volFlow:1.1,breadth:40,trend:"RANGE",structure:"LH/HL",sma21x50:"flat",ema21x50:"flat",       atr:1.8},
-    {id:"fintech",    name:"Fintech & Payments", icon:"💳", sector:"Financials",        proxy:"V, MA, SQ, PYPL",     perf1w:1.2,  perf1m:3.7,  rs:0.6,  rsTrend:"up",   rsi:58,mansfield:0.5, volFlow:1.3,breadth:62,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       atr:2.2},
-    {id:"dc-reits",   name:"Data Center REITs",  icon:"🏢", sector:"Real Estate",       proxy:"EQIX, DLR, AMT",      perf1w:2.1,  perf1m:5.8,  rs:1.2,  rsTrend:"up",   rsi:62,mansfield:1.0, volFlow:1.6,breadth:72,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       atr:2.3},
-    {id:"social",     name:"Social Media",       icon:"📲", sector:"Communication",     proxy:"META, SNAP, PINS",    perf1w:1.7,  perf1m:5.1,  rs:0.9,  rsTrend:"up",   rsi:61,mansfield:0.8, volFlow:1.5,breadth:70,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       atr:2.8},
-    {id:"food-bev",   name:"Voeding & Drank",    icon:"🥤", sector:"Consumer Staples",  proxy:"KO, PEP, GIS",        perf1w:1.8,  perf1m:3.4,  rs:0.5,  rsTrend:"up",   rsi:56,mansfield:0.4, volFlow:1.2,breadth:63,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       atr:1.2},
-    {id:"elec-util",  name:"Elektrische Nutsbedr.",icon:"💡",sector:"Utilities",        proxy:"NEE, DUK, SO",        perf1w:0.6,  perf1m:2.1,  rs:0.2,  rsTrend:"flat", rsi:52,mansfield:0.2, volFlow:1.0,breadth:55,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"flat",       atr:1.1},
-    {id:"quantum",    name:"Quantum Computing",    icon:"⚛️",sector:"Technology",        proxy:"IONQ, RGTI, QUBT, IBM",perf1w:4.2, perf1m:13.6, rs:2.9,  rsTrend:"up",   rsi:71,mansfield:2.3, volFlow:2.5,breadth:76,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull-cross", atr:8.2},
-    {id:"hydrogen",   name:"Waterstof / Hydrogen", icon:"🫧",sector:"Energy",            proxy:"PLUG, BE, FCEL, BLDP", perf1w:-1.4,perf1m:-4.8, rs:-1.2, rsTrend:"down", rsi:39,mansfield:-1.1,volFlow:1.1,breadth:28,trend:"DOWN", structure:"LH/LL",sma21x50:"bear",ema21x50:"bear",       atr:6.4},
+    {id:"ai-infra",    name:"AI Infrastructuur",  icon:"🖥️", sector:"Technology",        proxy:"NVDA, AMD, SMCI, MRVL", perf1w:3.8,  perf1m:11.2, rs:2.4,  rsTrend:"up",   rsBreak:"up",   rsi:68,mansfield:1.8, volFlow:2.1,breadth:80,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"strong-bull", weeklyTrend:"UP",   atr:3.2},
+    {id:"ai-hyper",   name:"AI Hyperscalers",    icon:"☁️", sector:"Technology",        proxy:"MSFT, GOOGL, META",    perf1w:1.9,  perf1m:6.4,  rs:1.2,  rsTrend:"up",   rsBreak:"up",   rsBreak:"up",   rsi:61,mansfield:0.9, volFlow:1.6,breadth:75,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull-cross", ema8align:"bull",        weeklyTrend:"UP",   atr:2.1},
+    {id:"ai-apps",    name:"AI Applicaties",     icon:"🤖", sector:"Technology",        proxy:"PLTR, AI, SNOW",       perf1w:2.3,  perf1m:8.7,  rs:1.5,  rsTrend:"up",   rsBreak:"up",   rsi:65,mansfield:1.2, volFlow:1.8,breadth:70,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"strong-bull", weeklyTrend:"UP",   atr:4.1},
+    {id:"semis",      name:"Halfgeleiders",      icon:"⚡", sector:"Technology",        proxy:"AMAT, LRCX, KLAC",    perf1w:0.4,  perf1m:-2.1, rs:-0.3, rsTrend:"flat", rsBreak:"none", rsi:48,mansfield:-0.2,volFlow:0.9,breadth:45,trend:"RANGE",structure:"LH/HL",sma21x50:"flat",ema21x50:"flat",       ema8align:"bear",        weeklyTrend:"RANGE",atr:2.8},
+    {id:"cybersec",   name:"Cybersecurity",      icon:"🛡️", sector:"Technology",        proxy:"PANW, CRWD, FTNT",    perf1w:1.6,  perf1m:5.2,  rs:0.9,  rsTrend:"up",   rsBreak:"up",   rsBreak:"up",   rsi:60,mansfield:0.7, volFlow:1.4,breadth:65,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"bull",        weeklyTrend:"UP",   atr:2.4},
+    {id:"software",   name:"Software / SaaS",    icon:"💾", sector:"Technology",        proxy:"NOW, ORCL, ADBE",     perf1w:1.1,  perf1m:3.8,  rs:0.6,  rsTrend:"up",   rsBreak:"none",   rsBreak:"none",   rsi:57,mansfield:0.5, volFlow:1.2,breadth:60,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"flat",       atr:2.0},
+    {id:"nuclear",    name:"Kernenergie",        icon:"☢️", sector:"Energy",            proxy:"CEG, VST, NNE, SMR",  perf1w:4.8,  perf1m:14.2, rs:3.5,  rsTrend:"up",   rsBreak:"up",   rsi:74,mansfield:2.8, volFlow:3.1,breadth:90,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull-cross", ema8align:"strong-bull", weeklyTrend:"UP",   atr:5.3},
+    {id:"oil-majors", name:"Olie Majors",        icon:"🛢️", sector:"Energy",            proxy:"XOM, CVX, COP",       perf1w:4.2,  perf1m:8.9,  rs:2.8,  rsTrend:"up",   rsBreak:"up",   rsi:69,mansfield:2.1, volFlow:2.4,breadth:85,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"strong-bull", weeklyTrend:"UP",   atr:2.2},
+    {id:"nat-gas",    name:"Aardgas",            icon:"🔥", sector:"Energy",            proxy:"LNG, AR, EQT",        perf1w:5.1,  perf1m:12.3, rs:3.2,  rsTrend:"up",   rsBreak:"up",   rsi:72,mansfield:2.5, volFlow:2.8,breadth:88,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"strong-bull", weeklyTrend:"UP",   atr:4.8},
+    {id:"midstream",  name:"Pipelines",          icon:"🔧", sector:"Energy",            proxy:"ET, ENB, KMI",        perf1w:2.8,  perf1m:5.6,  rs:1.4,  rsTrend:"up",   rsBreak:"none",   rsi:60,mansfield:1.1, volFlow:1.6,breadth:72,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"bull",        weeklyTrend:"UP",   atr:1.9},
+    {id:"solar",      name:"Solar",              icon:"☀️", sector:"Energy",            proxy:"ENPH, SEDG, FSLR",    perf1w:-2.1, perf1m:-5.8, rs:-1.6, rsTrend:"down", rsBreak:"down", rsi:36,mansfield:-1.4,volFlow:0.8,breadth:20,trend:"DOWN", structure:"LH/LL",sma21x50:"bear",ema21x50:"bear-cross", ema8align:"strong-bear", weeklyTrend:"DOWN", atr:4.4},
+    {id:"gold",       name:"Goudmijnen",         icon:"⛏️", sector:"Materials",         proxy:"GDX, NEM, GOLD",      perf1w:3.4,  perf1m:10.6, rs:2.3,  rsTrend:"up",   rsBreak:"up",   rsi:70,mansfield:2.2, volFlow:2.6,breadth:85,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"strong-bull", weeklyTrend:"UP",   atr:3.9},
+    {id:"silver",     name:"Zilver & Edelmetalen",icon:"🥈",sector:"Materials",         proxy:"SIL, AG, PAAS",       perf1w:2.9,  perf1m:8.4,  rs:1.8,  rsTrend:"up",   rsBreak:"up",   rsi:67,mansfield:1.9, volFlow:2.2,breadth:80,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"strong-bull", weeklyTrend:"UP",   atr:4.5},
+    {id:"lithium",    name:"Lithium",            icon:"🔋", sector:"Materials",         proxy:"ALB, SQM, LTHM",      perf1w:-3.1, perf1m:-9.2, rs:-2.4, rsTrend:"down", rsBreak:"down", rsi:31,mansfield:-2.1,volFlow:0.9,breadth:15,trend:"DOWN", structure:"LH/LL",sma21x50:"bear",ema21x50:"bear",       ema8align:"strong-bear", weeklyTrend:"DOWN", atr:5.2},
+    {id:"copper",     name:"Koper",              icon:"🔩", sector:"Materials",         proxy:"FCX, SCCO, BHP",      perf1w:-1.8, perf1m:-5.4, rs:-1.4, rsTrend:"down", rsBreak:"down", rsi:38,mansfield:-1.2,volFlow:1.1,breadth:24,trend:"DOWN", structure:"LH/LL",sma21x50:"bear",ema21x50:"bear",       ema8align:"strong-bear", weeklyTrend:"DOWN", atr:3.3},
+    {id:"def-tech",   name:"Defensie Tech",      icon:"🛸", sector:"Industrials",       proxy:"KTOS, RKLB, JOBY",    perf1w:3.2,  perf1m:9.8,  rs:2.1,  rsTrend:"up",   rsBreak:"up",   rsi:66,mansfield:1.6, volFlow:2.3,breadth:78,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull-cross", ema8align:"strong-bull", weeklyTrend:"UP",   atr:6.1},
+    {id:"space",      name:"Space Economy",      icon:"🛰️", sector:"Industrials",       proxy:"RKLB, LHX, BA",       perf1w:2.8,  perf1m:8.2,  rs:1.7,  rsTrend:"up",   rsBreak:"up",   rsi:63,mansfield:1.4, volFlow:2.0,breadth:72,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"strong-bull", weeklyTrend:"UP",   atr:5.8},
+    {id:"ecommerce",  name:"E-Commerce",         icon:"🛒", sector:"Consumer Discret.", proxy:"AMZN, SHOP, ETSY",    perf1w:1.5,  perf1m:4.2,  rs:0.7,  rsTrend:"up",   rsBreak:"none",   rsi:58,mansfield:0.6, volFlow:1.3,breadth:62,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"bull",        weeklyTrend:"UP",   atr:2.6},
+    {id:"ev-auto",    name:"EV & Auto",          icon:"🚗", sector:"Consumer Discret.", proxy:"TSLA, GM, F",         perf1w:-1.8, perf1m:-6.3, rs:-1.5, rsTrend:"down", rsBreak:"down", rsi:37,mansfield:-1.3,volFlow:1.2,breadth:22,trend:"DOWN", structure:"LH/LL",sma21x50:"bear",ema21x50:"bear",       ema8align:"strong-bear", weeklyTrend:"DOWN", atr:5.6},
+    {id:"travel",     name:"Reizen & Vrije Tijd",icon:"✈️", sector:"Consumer Discret.", proxy:"BKNG, MAR, HLT",      perf1w:2.2,  perf1m:7.1,  rs:1.3,  rsTrend:"up",   rsBreak:"up",   rsi:64,mansfield:1.1, volFlow:1.9,breadth:74,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"strong-bull", weeklyTrend:"UP",   atr:2.9},
+    {id:"alt-asset",  name:"Alt. Vermogensbeheer",icon:"📈",sector:"Financials",        proxy:"BX, KKR, APO",        perf1w:1.8,  perf1m:5.6,  rs:1.1,  rsTrend:"up",   rsBreak:"up",   rsi:63,mansfield:0.9, volFlow:1.6,breadth:72,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"bull",        weeklyTrend:"UP",   atr:2.7},
+    {id:"megabanks",  name:"Mega Banken",        icon:"🏦", sector:"Financials",        proxy:"JPM, BAC, WFC",       perf1w:-0.3, perf1m:-1.8, rs:-0.5, rsTrend:"down", rsBreak:"none", rsi:45,mansfield:-0.4,volFlow:1.1,breadth:40,trend:"RANGE",structure:"LH/HL",sma21x50:"flat",ema21x50:"flat",       ema8align:"bear",        weeklyTrend:"RANGE",atr:1.8},
+    {id:"fintech",    name:"Fintech & Payments", icon:"💳", sector:"Financials",        proxy:"V, MA, SQ, PYPL",     perf1w:1.2,  perf1m:3.7,  rs:0.6,  rsTrend:"up",   rsi:58,mansfield:0.5, volFlow:1.3,breadth:62,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"strong-bull", weeklyTrend:"UP",   atr:2.2},
+    {id:"dc-reits",   name:"Data Center REITs",  icon:"🏢", sector:"Real Estate",       proxy:"EQIX, DLR, AMT",      perf1w:2.1,  perf1m:5.8,  rs:1.2,  rsTrend:"up",   rsi:62,mansfield:1.0, volFlow:1.6,breadth:72,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"strong-bull", weeklyTrend:"UP",   atr:2.3},
+    {id:"social",     name:"Social Media",       icon:"📲", sector:"Communication",     proxy:"META, SNAP, PINS",    perf1w:1.7,  perf1m:5.1,  rs:0.9,  rsTrend:"up",   rsi:61,mansfield:0.8, volFlow:1.5,breadth:70,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"bull",        weeklyTrend:"UP",   atr:2.8},
+    {id:"food-bev",   name:"Voeding & Drank",    icon:"🥤", sector:"Consumer Staples",  proxy:"KO, PEP, GIS",        perf1w:1.8,  perf1m:3.4,  rs:0.5,  rsTrend:"up",   rsBreak:"none",   rsi:56,mansfield:0.4, volFlow:1.2,breadth:63,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       atr:1.2},
+    {id:"elec-util",  name:"Elektrische Nutsbedr.",icon:"💡",sector:"Utilities",        proxy:"NEE, DUK, SO",        perf1w:0.6,  perf1m:2.1,  rs:0.2,  rsTrend:"flat", rsBreak:"none", rsi:52,mansfield:0.2, volFlow:1.0,breadth:55,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"flat",       ema8align:"flat",        weeklyTrend:"RANGE",atr:1.1},
+    {id:"quantum",    name:"Quantum Computing",    icon:"⚛️",sector:"Technology",        proxy:"IONQ, RGTI, QUBT, IBM",perf1w:4.2, perf1m:13.6, rs:2.9,  rsTrend:"up",   rsBreak:"up",   rsi:71,mansfield:2.3, volFlow:2.5,breadth:76,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull-cross", ema8align:"strong-bull", weeklyTrend:"UP",   atr:8.2},
+    {id:"hydrogen",   name:"Waterstof / Hydrogen", icon:"🫧",sector:"Energy",            proxy:"PLUG, BE, FCEL, BLDP", perf1w:-1.4,perf1m:-4.8, rs:-1.2, rsTrend:"down", rsBreak:"down", rsi:39,mansfield:-1.1,volFlow:1.1,breadth:28,trend:"DOWN", structure:"LH/LL",sma21x50:"bear",ema21x50:"bear",       ema8align:"strong-bear", weeklyTrend:"DOWN", atr:6.4},
   ];
 }
 </script>
