@@ -1,4 +1,4 @@
-]<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="nl">
 <head>
 <meta charset="UTF-8">
@@ -48,6 +48,7 @@
   .fp-cross{background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.3);color:var(--green)}
   .fp-struct{background:rgba(6,182,212,.1);border-color:rgba(6,182,212,.3);color:var(--cyan)}
   .fp-vol{background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.3);color:var(--purple)}
+  .fp-early{background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.3);color:var(--purple)}
   .fp-op{color:var(--muted);font-size:13px}
 
   /* STATS */
@@ -176,7 +177,7 @@
   .sig-buy{color:var(--green)}.sig-watch{color:var(--yellow)}.sig-none{color:var(--muted)}
   .cond-dots{display:flex;gap:3px;margin-left:1px}
   .cd{width:6px;height:6px;border-radius:50%}
-  .cd-ok{background:var(--green)}.cd-no{background:var(--border2)}
+  .cd-ok{background:var(--green)}.cd-no{background:var(--border2)}.cd-warn{background:var(--yellow)}
 
   /* TOOLTIP */
   [data-tip]{position:relative;cursor:help}
@@ -237,18 +238,124 @@
     </div>
   </div>
 
-  <!-- FORMULA BAR -->
-  <div class="formula-bar">
-    <div class="formula-label">Signaallogica</div>
-    <div class="formula-parts">
-      <div class="fp fp-cross" data-tip="EMA21 boven EMA50 (bull of verse bull-cross)">① EMA21 &gt; EMA50</div>
-      <div class="fp-op">+</div>
-      <div class="fp fp-struct" data-tip="Swing structuur: Higher Highs + Higher Lows">② HH/HL Structuur</div>
-      <div class="fp-op">+</div>
-      <div class="fp fp-vol" data-tip="5-daags volume gemiddelde &gt; 1.5× het 20-daags gemiddelde">③ Vol &gt;1.5× avg</div>
-      <div class="fp-op">=</div>
-      <div class="fp fp-cross">🟢 KOOP</div>
-      <div style="color:var(--muted);font-size:11px;margin-left:4px">| 2/3 = 🟡 WATCH | ≤1 = 🔴 GEEN</div>
+  <!-- FORMULA BAR + UITKLAPBARE LEGENDA -->
+  <div class="formula-bar" style="flex-direction:column;align-items:stretch;gap:10px">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <div class="formula-label">Signalen</div>
+        <div class="formula-parts">
+          <div class="fp fp-early" data-tip="EMA8 S-Bull + W-Trend UP = 2pt | RS Breuk Up + RS>0 = 2pt | Vol 5d/20d≥1.5× + 10d/30d≥1.3× = 1pt">⚡ VROEG (max 5pt)</div>
+          <div class="fp-op">|</div>
+          <div class="fp fp-cross" data-tip="EMA21/50 cross = 1pt | HH/HL structuur = 1pt | W-Trend UP = 1pt | Vol≥2.0× = 1pt">✓ BEVESTIGD (max 4pt)</div>
+          <div class="fp-op">→</div>
+          <div style="font-size:11px;color:var(--muted)">VROEG🟢+BEV🟢 = <span style="color:var(--green)">Sterk instap</span> &nbsp;|&nbsp; VROEG🟢+BEV🟡 = <span style="color:#4ade80">Opbouwen</span> &nbsp;|&nbsp; VROEG🟢+BEV🔴 = <span style="color:var(--yellow)">Watchlist</span></div>
+        </div>
+      </div>
+      <button onclick="toggleLegend()" class="btn" id="legendBtn" style="white-space:nowrap">📖 Legenda</button>
+    </div>
+
+    <!-- UITKLAPBARE LEGENDA -->
+    <div id="legendPanel" style="display:none;border-top:1px solid var(--border);padding-top:14px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;font-size:11px">
+
+        <!-- LINKER KOLOM: Hoe lees je een rij -->
+        <div>
+          <div style="color:var(--accent2);font-weight:700;font-size:12px;margin-bottom:10px;text-transform:uppercase;letter-spacing:.6px">📊 Hoe lees je een rij (links → rechts)</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="background:var(--bg4);border-radius:7px;padding:10px 12px">
+              <div style="color:var(--text);font-weight:600;margin-bottom:4px">Stap 1 — W-Trend (wekelijks)</div>
+              <div style="color:var(--muted);line-height:1.7">
+                <span style="color:var(--green)">↑ UP</span> = hogere timeframe intact → zoek instap<br>
+                <span style="color:var(--muted)">↔ RANGE</span> = zijwaarts → wacht af<br>
+                <span style="color:var(--red)">↓ DOWN</span> = vermijd nieuwe posities
+              </div>
+            </div>
+            <div style="background:var(--bg4);border-radius:7px;padding:10px 12px">
+              <div style="color:var(--text);font-weight:600;margin-bottom:4px">Stap 2 — D-Trend (dagelijks)</div>
+              <div style="color:var(--muted);line-height:1.7">
+                W↑ + D↔ RANGE = <span style="color:var(--green)">dip in uptrend → koopkans</span><br>
+                W↑ + D↑ UP = <span style="color:var(--green)">trend versnelt → momentum</span><br>
+                W↓ + D↑ UP = <span style="color:var(--red)">pullback rally → niet instappen</span>
+              </div>
+            </div>
+            <div style="background:var(--bg4);border-radius:7px;padding:10px 12px">
+              <div style="color:var(--text);font-weight:600;margin-bottom:4px">Stap 3 — VROEG Signaal</div>
+              <div style="color:var(--muted);line-height:1.7">
+                RS Breuk Up + EMA8 S-Bull = sector begint te leiden<br>
+                <span style="color:var(--yellow)">2-5 dagen eerder dan de massa</span>
+              </div>
+            </div>
+            <div style="background:var(--bg4);border-radius:7px;padding:10px 12px">
+              <div style="color:var(--text);font-weight:600;margin-bottom:4px">Stap 4 — BEVESTIGD Signaal</div>
+              <div style="color:var(--muted);line-height:1.7">
+                EMA21/50 cross + HH/HL + Vol ≥2× = lager risico<br>
+                <span style="color:var(--yellow)">Later instap maar hogere zekerheid</span>
+              </div>
+            </div>
+            <div style="background:var(--bg4);border-radius:7px;padding:10px 12px">
+              <div style="color:var(--text);font-weight:600;margin-bottom:4px">Stap 5 — Trend gevorderd?</div>
+              <div style="color:var(--muted);line-height:1.7">
+                RSI &gt;70 + Mansfield &gt;2.5 = <span style="color:var(--red)">te laat, risico/rendement verslechterd</span><br>
+                RSI &lt;50 + Mansfield &lt;0 = <span style="color:var(--muted)">nog geen momentum</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RECHTER KOLOM: Puntentelling -->
+        <div>
+          <div style="color:var(--accent2);font-weight:700;font-size:12px;margin-bottom:10px;text-transform:uppercase;letter-spacing:.6px">🎯 Puntentelling Signalen</div>
+
+          <div style="background:var(--bg4);border-radius:7px;padding:10px 12px;margin-bottom:10px">
+            <div style="color:var(--purple);font-weight:700;margin-bottom:8px">⚡ VROEG SIGNAAL (max 5 punten)</div>
+            <div style="display:flex;flex-direction:column;gap:4px;color:var(--muted);line-height:1.7">
+              <div><span style="color:var(--text)">EMA8 S-Bull + W-Trend UP</span> = 2 pts &nbsp;<span style="color:var(--muted);font-size:10px">← vroegst signaal</span></div>
+              <div><span style="color:var(--text)">RS Breuk Up + RS score &gt;0</span> = 2 pts &nbsp;<span style="color:var(--muted);font-size:10px">← sector leidt al</span></div>
+              <div><span style="color:var(--text)">Vol 5d/20d ≥1.5× + 10d/30d ≥1.3×</span> = 1 pt &nbsp;<span style="color:var(--muted);font-size:10px">← institutioneel</span></div>
+              <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">
+                <span style="color:var(--red)">🔴 GEEN</span> = 0-2 pts &nbsp;
+                <span style="color:var(--yellow)">🟡 WATCH</span> = 3 pts &nbsp;
+                <span style="color:var(--green)">🟢 VROEG</span> = 4-5 pts
+              </div>
+            </div>
+          </div>
+
+          <div style="background:var(--bg4);border-radius:7px;padding:10px 12px;margin-bottom:10px">
+            <div style="color:var(--cyan);font-weight:700;margin-bottom:8px">✓ BEVESTIGD SIGNAAL (max 4 punten)</div>
+            <div style="display:flex;flex-direction:column;gap:4px;color:var(--muted);line-height:1.7">
+              <div><span style="color:var(--text)">EMA21/50 bull of bull-cross</span> = 1 pt &nbsp;<span style="color:var(--muted);font-size:10px">← trend bevestigd</span></div>
+              <div><span style="color:var(--text)">HH/HL structuur</span> = 1 pt &nbsp;<span style="color:var(--muted);font-size:10px">← swing intact</span></div>
+              <div><span style="color:var(--text)">W-Trend UP</span> = 1 pt &nbsp;<span style="color:var(--muted);font-size:10px">← hogere timeframe ok</span></div>
+              <div><span style="color:var(--text)">Vol 5d/20d ≥2.0×</span> = 1 pt &nbsp;<span style="color:var(--muted);font-size:10px">← uitbraakvolume</span></div>
+              <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">
+                <span style="color:var(--red)">🔴 GEEN</span> = 0-1 pt &nbsp;
+                <span style="color:var(--yellow)">🟡 WATCH</span> = 2 pts &nbsp;
+                <span style="color:var(--green)">🟢 KOOP</span> = 3-4 pts
+              </div>
+            </div>
+          </div>
+
+          <div style="background:var(--bg4);border-radius:7px;padding:10px 12px">
+            <div style="color:var(--text);font-weight:700;margin-bottom:8px">🔀 Combinatie lezen</div>
+            <div style="display:grid;grid-template-columns:auto auto 1fr;gap:4px 10px;align-items:center;color:var(--muted);font-size:11px">
+              <span>VROEG🟢</span><span>+ BEV🟢</span><span style="color:var(--green)">→ Sterk instap — alles aligned</span>
+              <span>VROEG🟢</span><span>+ BEV🟡</span><span style="color:#4ade80">→ Opbouwen — vroeg maar bewust</span>
+              <span>VROEG🟢</span><span>+ BEV🔴</span><span style="color:var(--yellow)">→ Watchlist — te vroeg nog</span>
+              <span>VROEG🟡</span><span>+ BEV🟢</span><span style="color:var(--muted)">→ Gemiste trein — wacht reset</span>
+              <span>VROEG🔴</span><span>+ BEV🔴</span><span style="color:var(--red)">→ Vermijd — geen alignment</span>
+            </div>
+          </div>
+
+          <div style="margin-top:10px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:7px;padding:10px 12px">
+            <div style="color:var(--yellow);font-weight:700;margin-bottom:6px">⚠️ Trend al ver gevorderd?</div>
+            <div style="color:var(--muted);line-height:1.7;font-size:11px">
+              RSI &gt;70 <span style="color:var(--muted)">+</span> Mansfield &gt;2.5 <span style="color:var(--muted)">+</span> EMA8 vlakt af<br>
+              → risico/rendement verslechterd, overweeg wachten op reset<br>
+              <span style="font-size:10px">Volume: 5d/20d ≥1.5× én 10d/30d ≥1.3× = echt institutioneel (niet event-gedreven)</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -271,7 +378,7 @@
     </div>
     <span class="filter-label" style="margin-left:6px">Signaal:</span>
     <button class="btn btn-g active" data-sig="all">Alle</button>
-    <button class="btn btn-g" data-sig="KOOP">🟢 Koop</button>
+    <button class="btn btn-g" data-sig="VROEG">⚡ Vroeg</button>
     <button class="btn btn-y" data-sig="WATCH">🟡 Watch</button>
     <button class="btn btn-r" data-sig="GEEN">🔴 Geen</button>
     <span class="filter-label" style="margin-left:6px">Trend:</span>
@@ -475,7 +582,14 @@ function computeSignal(seg) {
 // RENDER ALLES
 // ══════════════════════════════════════════════════════════════
 function renderAll(data, lastUpdated, isDemo = false) {
-  RAW_DATA = data.map(s => ({ ...s, _sig: computeSignal(s) }));
+  RAW_DATA = data.map(s => ({
+    ...s,
+    _sig:   computeEarlySignal(s),
+    _early: computeEarlySignal(s),
+    _conf:  computeConfSignal(s),
+    _earlyScore: computeEarlySignal(s).score,
+    _confScore:  computeConfSignal(s).score,
+  }));
   applyFiltersAndSort();
   updateStats();
   buildSectorFilter();
@@ -503,7 +617,11 @@ function setPulse(color, label) {
 // ══════════════════════════════════════════════════════════════
 function applyFiltersAndSort() {
   DATA = RAW_DATA.filter(s => {
-    if (activeSignal !== "all" && s._sig.label !== activeSignal) return false;
+    if (activeSignal !== "all") {
+      const earlyMatch = s._early?.label === activeSignal;
+      const confMatch  = s._conf?.label  === activeSignal || (activeSignal === "VROEG" && s._early?.label === "VROEG");
+      if (!earlyMatch && !confMatch) return false;
+    }
     if (activeTrend  !== "all" && s.trend !== activeTrend)        return false;
     if (activeSector !== "all" && s.sector !== activeSector)       return false;
     if (searchTerm) {
@@ -526,9 +644,9 @@ function applyFiltersAndSort() {
 }
 
 function updateStats() {
-  const buy   = RAW_DATA.filter(s => s._sig.label === "KOOP").length;
-  const watch = RAW_DATA.filter(s => s._sig.label === "WATCH").length;
-  const none  = RAW_DATA.filter(s => s._sig.label === "GEEN").length;
+  const buy   = RAW_DATA.filter(s => s._early?.label === "VROEG").length;
+  const watch = RAW_DATA.filter(s => s._early?.label === "WATCH" || s._conf?.label === "KOOP").length;
+  const none  = RAW_DATA.filter(s => s._early?.label === "GEEN" && s._conf?.label === "GEEN").length;
   const topRS  = [...RAW_DATA].sort((a,b)=>(b.rs||0)-(a.rs||0))[0];
   const topRSI = [...RAW_DATA].sort((a,b)=>(b.rsi||0)-(a.rsi||0))[0];
   const topVol = [...RAW_DATA].sort((a,b)=>(b.volFlow||0)-(a.volFlow||0))[0];
@@ -616,7 +734,8 @@ const TABLE_HEADER = `<thead><tr>
   <th data-col="sma21x50"    data-tip="SMA21 positie t.o.v. SMA50">SMA21/50 <span class="sort-icon">↕</span></th>
   <th data-col="ema21x50"    data-tip="EMA21 cross EMA50 — triggert signaalcriterium ①; NEW = verse cross">EMA21/50 <span class="sort-icon">↕</span></th>
   <th data-col="atr"         data-tip="ATR% — Average True Range als % van koers (volatiliteit proxy)">ATR% <span class="sort-icon">↕</span></th>
-  <th data-col="_sig.score"  data-tip="Composiet signaal: 3 gekleurde stippen = (①Cross ②Structuur ③Volume)">SIGNAAL <span class="sort-icon">↕</span></th>
+  <th data-col="_earlyScore" data-tip="VROEG SIGNAAL (max 5pt): EMA8 S-Bull+W-Trend UP=2pt | RS Breuk Up+RS>0=2pt | Vol 5d/20d≥1.5×+10d/30d≥1.3×=1pt → 🔴GEEN=0-2 | 🟡WATCH=3 | 🟢VROEG=4-5">⚡ VROEG <span class="sort-icon">↕</span></th>
+  <th data-col="_confScore" data-tip="BEVESTIGD SIGNAAL (max 4pt): EMA21/50 cross=1pt | HH/HL structuur=1pt | W-Trend UP=1pt | Vol≥2.0×=1pt → 🔴GEEN=0-1 | 🟡WATCH=2 | 🟢KOOP=3-4">✓ BEVESTIGD <span class="sort-icon">↕</span></th>
 </tr></thead>`;
 
 // ══════════════════════════════════════════════════════════════
@@ -641,7 +760,8 @@ function rowHTML(s) {
     <td>${smaCell(s.sma21x50)}</td>
     <td>${emaCell(s.ema21x50)}</td>
     <td class="num neu">${s.atr != null ? s.atr.toFixed(1)+"%" : "—"}</td>
-    <td>${sigCell(sig)}</td>
+    <td>${earlySignalCell(s._early)}</td>
+    <td>${confSignalCell(s._conf)}</td>
   </tr>`;
 }
 
@@ -745,17 +865,36 @@ function emaCell(v) {
   return `<span class="neu">${v}</span>`;
 }
 
-function sigCell(sig) {
+function earlySignalCell(sig) {
+  if (!sig) return '<span class="neu">—</span>';
   return `<div class="sig-cell ${sig.cls}">
     <div class="sig-dot"></div>
     <span>${sig.label}</span>
+    <div style="margin-left:3px;font-size:10px;color:var(--muted)">${sig.score}/5</div>
     <div class="cond-dots">
-      <div class="cd ${sig.cross ?"cd-ok":"cd-no"}" data-tip="① EMA Cross ${sig.cross?"✓":"✗"}"></div>
-      <div class="cd ${sig.struct?"cd-ok":"cd-no"}" data-tip="② Structuur ${sig.struct?"✓":"✗"}"></div>
-      <div class="cd ${sig.vol  ?"cd-ok":"cd-no"}" data-tip="③ Volume ${sig.vol?"✓":"✗"}"></div>
+      <div class="cd ${sig.ema8pts>=2?"cd-ok":sig.ema8pts===1?"cd-warn":"cd-no"}" data-tip="EMA8 S-Bull + W-Trend UP (${sig.ema8pts}/2)"></div>
+      <div class="cd ${sig.rsPts>=2?"cd-ok":sig.rsPts===1?"cd-warn":"cd-no"}"   data-tip="RS Breuk Up + RS>0 (${sig.rsPts}/2)"></div>
+      <div class="cd ${sig.volPts?"cd-ok":"cd-no"}"  data-tip="Vol 5d/20d≥1.5× + 10d/30d≥1.3× (${sig.volPts}/1)"></div>
     </div>
   </div>`;
 }
+
+function confSignalCell(sig) {
+  if (!sig) return '<span class="neu">—</span>';
+  return `<div class="sig-cell ${sig.cls}">
+    <div class="sig-dot"></div>
+    <span>${sig.label}</span>
+    <div style="margin-left:3px;font-size:10px;color:var(--muted)">${sig.score}/4</div>
+    <div class="cond-dots">
+      <div class="cd ${sig.cross ?"cd-ok":"cd-no"}" data-tip="EMA21/50 Cross (${sig.cross?"✓":"✗"})"></div>
+      <div class="cd ${sig.struct?"cd-ok":"cd-no"}" data-tip="HH/HL Structuur (${sig.struct?"✓":"✗"})"></div>
+      <div class="cd ${sig.wTrend?"cd-ok":"cd-no"}" data-tip="W-Trend UP (${sig.wTrend?"✓":"✗"})"></div>
+      <div class="cd ${sig.vol2x ?"cd-ok":"cd-no"}" data-tip="Vol ≥2.0× (${sig.vol2x?"✓":"✗"})"></div>
+    </div>
+  </div>`;
+}
+
+function sigCell(sig) { return earlySignalCell(sig); }
 
 // ══════════════════════════════════════════════════════════════
 // SORTERING
@@ -784,6 +923,15 @@ document.addEventListener("click", e => {
 // ══════════════════════════════════════════════════════════════
 // FILTER WIRING
 // ══════════════════════════════════════════════════════════════
+function toggleLegend() {
+  const panel = document.getElementById("legendPanel");
+  const btn   = document.getElementById("legendBtn");
+  const open  = panel.style.display === "none";
+  panel.style.display = open ? "" : "none";
+  btn.textContent = open ? "📖 Legenda verbergen" : "📖 Legenda";
+  btn.classList.toggle("active", open);
+}
+
 function wireFilters() {
   document.querySelectorAll("[data-sig]").forEach(btn => btn.addEventListener("click", () => {
     document.querySelectorAll("[data-sig]").forEach(b=>b.classList.remove("active"));
