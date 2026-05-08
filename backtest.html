@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Backtest — Sector Deep Dive</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:#0a0b0e; --bg2:#111318; --bg3:#181c23; --bg4:#1e2330;
+    --border:#252b38; --border2:#2e3647;
+    --text:#e8eaf0; --muted:#6b7591;
+    --accent:#3d82f6; --accent2:#5b9cf8;
+    --green:#22c55e; --green-bg:rgba(34,197,94,.12);
+    --yellow:#f59e0b; --yellow-bg:rgba(245,158,11,.12);
+    --red:#ef4444; --red-bg:rgba(239,68,68,.12);
+    --cyan:#06b6d4; --purple:#a78bfa;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;min-height:100vh}
+
+  nav{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 20px;display:flex;gap:4px;align-items:center;height:52px;position:sticky;top:0;z-index:100;overflow-x:auto}
+  nav a{color:var(--muted);text-decoration:none;padding:6px 14px;border-radius:6px;font-size:12px;font-family:'Syne',sans-serif;font-weight:600;transition:all .15s;white-space:nowrap}
+  nav a:hover{color:var(--text);background:var(--bg3)}
+  nav a.active{color:#fff;background:var(--accent)}
+
+  .page{max-width:1600px;margin:0 auto;padding:24px 20px}
+  .page-title{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;letter-spacing:-.5px;margin-bottom:4px}
+  .page-title span{color:var(--accent2)}
+  .page-sub{color:var(--muted);font-size:11px;margin-bottom:24px}
+
+  /* CONTROLS */
+  .controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:24px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:18px}
+  .ctrl-group{display:flex;flex-direction:column;gap:6px}
+  .ctrl-label{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.7px}
+  .ctrl-select,.ctrl-input{background:var(--bg4);border:1px solid var(--border2);border-radius:6px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12px;padding:7px 10px;outline:none;transition:border-color .15s;width:100%}
+  .ctrl-select:focus,.ctrl-input:focus{border-color:var(--accent)}
+  .ctrl-range{width:100%;accent-color:var(--accent);height:4px;margin-top:6px}
+  .ctrl-val{color:var(--accent2);font-size:11px;font-weight:700}
+
+  .run-btn{padding:10px 24px;border-radius:8px;background:var(--accent);border:none;color:#fff;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;cursor:pointer;transition:opacity .15s;white-space:nowrap;align-self:flex-end}
+  .run-btn:hover{opacity:.85}
+  .run-btn:disabled{opacity:.5;cursor:wait}
+
+  /* WARNING BANNER */
+  .warning-bar{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:8px;padding:10px 16px;margin-bottom:20px;font-size:11px;color:var(--yellow);line-height:1.7}
+
+  /* TRAIN/TEST BADGE */
+  .split-badge{display:inline-flex;gap:8px;align-items:center;background:var(--bg4);border:1px solid var(--border2);border-radius:6px;padding:4px 10px;font-size:10px;margin-bottom:20px}
+  .train-dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+  .test-dot{width:8px;height:8px;border-radius:50%;background:var(--green)}
+
+  /* STATS GRID */
+  .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+  .stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+  .stat-label{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.7px;margin-bottom:6px}
+  .stat-value{font-size:20px;font-weight:700;font-family:'Syne',sans-serif}
+  .stat-sub{color:var(--muted);font-size:10px;margin-top:3px}
+  .green{color:var(--green)}.red{color:var(--red)}.yellow{color:var(--yellow)}.accent{color:var(--accent2)}.purple{color:var(--purple)}
+
+  /* HORIZON TABS */
+  .horizon-tabs{display:flex;gap:6px;margin-bottom:16px}
+  .h-tab{padding:5px 14px;border-radius:6px;border:1px solid var(--border2);background:var(--bg3);color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:11px;cursor:pointer;transition:all .15s}
+  .h-tab:hover{border-color:var(--accent);color:var(--text)}
+  .h-tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
+
+  /* HORIZON STATS ROW */
+  .horizon-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px}
+  .h-stat{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;cursor:pointer;transition:border-color .15s}
+  .h-stat:hover{border-color:var(--accent2)}
+  .h-stat.active{border-color:var(--accent);background:rgba(61,130,246,.08)}
+  .h-stat-label{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px}
+  .h-stat-main{font-size:18px;font-weight:700;font-family:'Syne',sans-serif}
+  .h-stat-rows{margin-top:8px;display:flex;flex-direction:column;gap:3px}
+  .h-stat-row{display:flex;justify-content:space-between;font-size:10px;color:var(--muted)}
+  .h-stat-row span:last-child{color:var(--text)}
+
+  /* CHARTS */
+  .charts-grid{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:24px}
+  .chart-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:18px}
+  .chart-title{font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:4px}
+  .chart-sub{color:var(--muted);font-size:10px;margin-bottom:16px}
+  .chart-wrap{position:relative;height:280px}
+
+  /* TRAIN vs TEST */
+  .split-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px}
+  .split-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+  .split-title{font-family:'Syne',sans-serif;font-weight:700;font-size:12px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .split-rows{display:flex;flex-direction:column;gap:6px}
+  .split-row{display:flex;justify-content:space-between;font-size:11px;padding:5px 0;border-bottom:1px solid var(--border)}
+  .split-row:last-child{border-bottom:none}
+  .split-row-label{color:var(--muted)}
+
+  /* WEEKLY TABLE */
+  .table-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:24px}
+  .table-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+  .table-title{font-family:'Syne',sans-serif;font-weight:700;font-size:13px}
+  .filter-btns{display:flex;gap:6px}
+  .filter-btn{padding:4px 10px;border-radius:5px;border:1px solid var(--border2);background:var(--bg3);color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:10px;cursor:pointer;transition:all .15s}
+  .filter-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+  .table-wrap{overflow-x:auto;max-height:380px;overflow-y:auto}
+  table{width:100%;border-collapse:collapse;min-width:700px}
+  thead th{padding:7px 10px;text-align:left;font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid var(--border2);position:sticky;top:0;background:var(--bg2)}
+  tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
+  tbody tr:hover{background:var(--bg3)}
+  tbody td{padding:7px 10px;font-size:11px;white-space:nowrap}
+  .sig-vroeg{color:var(--green);font-weight:700}
+  .sig-watch{color:var(--yellow);font-weight:700}
+  .sig-geen{color:var(--muted)}
+  .pos{color:var(--green)}.neg{color:var(--red)}.neu{color:var(--muted)}
+
+  /* PARAMS OPTIMIZER */
+  .optimizer{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:24px}
+  .opt-title{font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:14px}
+  .opt-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+  .param-card{background:var(--bg4);border-radius:8px;padding:12px}
+  .param-label{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+  .param-val{font-size:16px;font-weight:700;font-family:'Syne',sans-serif;color:var(--accent2)}
+  .param-sub{color:var(--muted);font-size:10px;margin-top:2px}
+
+  /* STATE PANELS */
+  .state-panel{text-align:center;padding:60px 20px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;margin-bottom:20px}
+  .state-icon{font-size:48px;margin-bottom:16px}
+  .state-title{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin-bottom:8px}
+  .state-sub{color:var(--muted);font-size:12px;max-width:440px;margin:0 auto;line-height:1.7}
+  .progress-bar{width:200px;height:4px;background:var(--bg4);border-radius:2px;margin:20px auto 0;overflow:hidden}
+  .progress-fill{height:100%;background:var(--accent);border-radius:2px;animation:prog 2s ease-in-out infinite}
+  @keyframes prog{0%{width:0;opacity:1}70%{width:90%}100%{width:100%;opacity:0}}
+
+  @media(max-width:900px){
+    .stats-grid{grid-template-columns:repeat(2,1fr)}
+    .horizon-stats{grid-template-columns:repeat(2,1fr)}
+    .charts-grid{grid-template-columns:1fr}
+    .split-grid{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="index.html">📊 YTD Dashboard</a>
+  <a href="macro.html">🌍 Macro</a>
+  <a href="sector.html">🔄 Sector Rotatie</a>
+  <a href="sector-deep.html">🔬 Deep Dive</a>
+  <a href="backtest.html" class="active">🧪 Backtest</a>
+  <a href="crypto.html">₿ Crypto</a>
+  <a href="metals.html">🥇 Edelmetalen</a>
+  <a href="rendement.html">📋 Rendement</a>
+</nav>
+
+<div class="page">
+
+  <div class="page-title">Sector <span>Backtest</span></div>
+  <div class="page-sub">Historische signaalvalidatie · T+5 / T+10 / T+15 / T+20 · Train 2023-2024 vs Test 2025</div>
+
+  <!-- WARNING -->
+  <div class="warning-bar">
+    ⚠️ <strong>Backtest waarschuwing:</strong> Historische resultaten zijn geen garantie voor de toekomst.
+    Parameters aanpassen op basis van backtest-resultaten kan leiden tot <strong>overfitting</strong> — het systeem werkt dan perfect op het verleden maar faalt in de toekomst.
+    Gebruik de <strong>Train periode (2023-2024)</strong> om parameters te verfijnen en valideer altijd op de <strong>Test periode (2025+)</strong>.
+  </div>
+
+  <!-- CONTROLS -->
+  <div class="controls">
+    <div class="ctrl-group">
+      <div class="ctrl-label">Subsegment</div>
+      <select class="ctrl-select" id="segmentSelect">
+        <optgroup label="Technology">
+          <option value="NVDA|ai-infra">AI Infrastructuur (NVDA)</option>
+          <option value="MSFT|ai-hyperscalers">AI Hyperscalers (MSFT)</option>
+          <option value="PLTR|ai-apps">AI Applicaties (PLTR)</option>
+          <option value="AMAT|semis">Halfgeleiders (AMAT)</option>
+          <option value="NOW|software-saas">Software / SaaS (NOW)</option>
+          <option value="PANW|cybersec">Cybersecurity (PANW)</option>
+          <option value="NET|cloud-net">Cloud & Netwerken (NET)</option>
+          <option value="ROK|robotics">Robotica (ROK)</option>
+          <option value="IONQ|quantum">Quantum Computing (IONQ)</option>
+        </optgroup>
+        <optgroup label="Energy">
+          <option value="XOM|oil-majors">Olie Majors (XOM)</option>
+          <option value="SLB|oil-services">Olie Diensten (SLB)</option>
+          <option value="LNG|nat-gas">Aardgas (LNG)</option>
+          <option value="ET|midstream">Pipelines (ET)</option>
+          <option value="ENPH|solar">Solar (ENPH)</option>
+          <option value="CEG|nuclear">Kernenergie (CEG)</option>
+          <option value="PLUG|hydrogen">Waterstof (PLUG)</option>
+        </optgroup>
+        <optgroup label="Materials">
+          <option value="NEM|gold-miners">Goudmijnen (NEM)</option>
+          <option value="PAAS|silver-pm">Zilver (PAAS)</option>
+          <option value="FCX|copper-metals">Koper (FCX)</option>
+          <option value="NUE|steel">Staal (NUE)</option>
+          <option value="LIN|chemicals">Chemicaliën (LIN)</option>
+          <option value="ALB|lithium">Lithium (ALB)</option>
+        </optgroup>
+        <optgroup label="Financials">
+          <option value="JPM|mega-banks">Mega Banken (JPM)</option>
+          <option value="BX|alt-asset-mgr">Alt. Vermogen (BX)</option>
+          <option value="V|fintech">Fintech (V)</option>
+        </optgroup>
+        <optgroup label="Industrials">
+          <option value="LMT|aero-defense">Defensie (LMT)</option>
+          <option value="KTOS|defense-tech">Defensie Tech (KTOS)</option>
+          <option value="RKLB|space">Space (RKLB)</option>
+          <option value="ETN|electrical-eq">Elektrische Apparatuur (ETN)</option>
+        </optgroup>
+        <optgroup label="Healthcare">
+          <option value="LLY|pharma-lc">Large Cap Farma (LLY)</option>
+          <option value="BIIB|biotech">Biotech (BIIB)</option>
+          <option value="VEEV|health-it">Healthcare IT (VEEV)</option>
+        </optgroup>
+        <optgroup label="Communication">
+          <option value="META|social-media">Social Media (META)</option>
+          <option value="NFLX|streaming">Streaming (NFLX)</option>
+          <option value="GOOGL|digital-ads">Digitale Ads (GOOGL)</option>
+        </optgroup>
+        <optgroup label="Consumer">
+          <option value="BKNG|travel-leisure">Reizen (BKNG)</option>
+          <option value="AMZN|ecommerce">E-Commerce (AMZN)</option>
+          <option value="NKE|luxury-apparel">Luxe & Kleding (NKE)</option>
+        </optgroup>
+        <optgroup label="Real Estate">
+          <option value="EQIX|dc-reits">Data Center REITs (EQIX)</option>
+          <option value="PLD|ind-reits">Industriële REITs (PLD)</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <div class="ctrl-group">
+      <div class="ctrl-label">Min. VROEG score</div>
+      <input type="range" class="ctrl-range" id="minScore" min="3" max="6" value="4" oninput="document.getElementById('minScoreVal').textContent=this.value">
+      <div style="display:flex;justify-content:space-between;margin-top:4px">
+        <span style="color:var(--muted);font-size:10px">3 (ruimer)</span>
+        <span class="ctrl-val" id="minScoreVal">4</span>
+        <span style="color:var(--muted);font-size:10px">6 (strenger)</span>
+      </div>
+    </div>
+
+    <div class="ctrl-group">
+      <div class="ctrl-label">Vol 5d/20d drempel</div>
+      <input type="range" class="ctrl-range" id="volFast" min="1.1" max="2.5" step="0.1" value="1.5" oninput="document.getElementById('volFastVal').textContent=parseFloat(this.value).toFixed(1)+'×'">
+      <div style="display:flex;justify-content:space-between;margin-top:4px">
+        <span style="color:var(--muted);font-size:10px">1.1×</span>
+        <span class="ctrl-val" id="volFastVal">1.5×</span>
+        <span style="color:var(--muted);font-size:10px">2.5×</span>
+      </div>
+    </div>
+
+    <div class="ctrl-group">
+      <div class="ctrl-label">Vol 10d/30d drempel</div>
+      <input type="range" class="ctrl-range" id="volSlow" min="1.0" max="2.0" step="0.1" value="1.3" oninput="document.getElementById('volSlowVal').textContent=parseFloat(this.value).toFixed(1)+'×'">
+      <div style="display:flex;justify-content:space-between;margin-top:4px">
+        <span style="color:var(--muted);font-size:10px">1.0×</span>
+        <span class="ctrl-val" id="volSlowVal">1.3×</span>
+        <span style="color:var(--muted);font-size:10px">2.0×</span>
+      </div>
+    </div>
+
+    <div class="ctrl-group">
+      <div class="ctrl-label">Filters</div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:11px;cursor:pointer;margin-top:4px">
+        <input type="checkbox" id="reqWTrend" checked style="accent-color:var(--accent)"> W-Trend UP vereist
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:11px;cursor:pointer;margin-top:6px">
+        <input type="checkbox" id="reqRSBreak" checked style="accent-color:var(--accent)"> RS Breuk Up vereist
+      </label>
+    </div>
+
+    <div class="ctrl-group" style="justify-content:flex-end">
+      <button class="run-btn" id="runBtn" onclick="runBacktest()">▶ Backtest uitvoeren</button>
+    </div>
+  </div>
+
+  <!-- LOADING -->
+  <div id="loadingState" class="state-panel" style="display:none">
+    <div class="state-icon">🧮</div>
+    <div class="state-title">Backtest berekenen...</div>
+    <div class="state-sub">2 jaar dagelijkse data ophalen en wekelijkse signalen simuleren.<br>Dit duurt 20-40 seconden.</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+
+  <!-- ERROR -->
+  <div id="errorState" class="state-panel" style="display:none">
+    <div class="state-icon">⚠️</div>
+    <div class="state-title">Backtest mislukt</div>
+    <div class="state-sub" id="errorMsg">Controleer de Apps Script URL en probeer opnieuw.</div>
+  </div>
+
+  <!-- EMPTY START STATE -->
+  <div id="emptyState" class="state-panel">
+    <div class="state-icon">🧪</div>
+    <div class="state-title">Kies een subsegment</div>
+    <div class="state-sub">Selecteer een segment en klik op <strong>▶ Backtest uitvoeren</strong> om historische signalen te valideren op T+5, T+10, T+15 en T+20 horizonten.</div>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="results" style="display:none">
+
+    <!-- TRAIN/TEST SPLIT INDICATOR -->
+    <div class="split-badge">
+      <div class="train-dot"></div> Train: 2023–2024
+      <div style="width:1px;height:12px;background:var(--border2);margin:0 4px"></div>
+      <div class="test-dot"></div> Test: 2025+
+      <span style="color:var(--muted);font-size:10px;margin-left:4px">— valideer parameters alleen op test periode</span>
+    </div>
+
+    <!-- SUMMARY STATS -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Signaalweken</div>
+        <div class="stat-value accent" id="r-signalWeeks">—</div>
+        <div class="stat-sub" id="r-signalRate">van totaal weken</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Win Rate T+10</div>
+        <div class="stat-value" id="r-winRate10">—</div>
+        <div class="stat-sub">% signaalweken positief na 2 weken</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Gem. Alpha T+10</div>
+        <div class="stat-value" id="r-alpha10">—</div>
+        <div class="stat-sub">vs SPY in zelfde signaalweken</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Max Drawdown</div>
+        <div class="stat-value red" id="r-maxDD">—</div>
+        <div class="stat-sub">grootste verlies na signaal (T+10)</div>
+      </div>
+    </div>
+
+    <!-- HORIZON STATS -->
+    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:10px">Rendement per horizon — bij VROEG signaal</div>
+    <div class="horizon-stats">
+      <div class="h-stat active" id="hstat-t5" onclick="selectHorizon('t5')">
+        <div class="h-stat-label">T+5 (1 week)</div>
+        <div class="h-stat-main" id="h-avg-t5">—</div>
+        <div class="h-stat-rows">
+          <div class="h-stat-row"><span>Win rate</span><span id="h-win-t5">—</span></div>
+          <div class="h-stat-row"><span>vs SPY</span><span id="h-alpha-t5">—</span></div>
+          <div class="h-stat-row"><span>Mediaan</span><span id="h-med-t5">—</span></div>
+          <div class="h-stat-row"><span>Max win</span><span id="h-max-t5">—</span></div>
+          <div class="h-stat-row"><span>Max loss</span><span id="h-min-t5">—</span></div>
+        </div>
+      </div>
+      <div class="h-stat" id="hstat-t10" onclick="selectHorizon('t10')">
+        <div class="h-stat-label">T+10 (2 weken)</div>
+        <div class="h-stat-main" id="h-avg-t10">—</div>
+        <div class="h-stat-rows">
+          <div class="h-stat-row"><span>Win rate</span><span id="h-win-t10">—</span></div>
+          <div class="h-stat-row"><span>vs SPY</span><span id="h-alpha-t10">—</span></div>
+          <div class="h-stat-row"><span>Mediaan</span><span id="h-med-t10">—</span></div>
+          <div class="h-stat-row"><span>Max win</span><span id="h-max-t10">—</span></div>
+          <div class="h-stat-row"><span>Max loss</span><span id="h-min-t10">—</span></div>
+        </div>
+      </div>
+      <div class="h-stat" id="hstat-t15" onclick="selectHorizon('t15')">
+        <div class="h-stat-label">T+15 (3 weken)</div>
+        <div class="h-stat-main" id="h-avg-t15">—</div>
+        <div class="h-stat-rows">
+          <div class="h-stat-row"><span>Win rate</span><span id="h-win-t15">—</span></div>
+          <div class="h-stat-row"><span>vs SPY</span><span id="h-alpha-t15">—</span></div>
+          <div class="h-stat-row"><span>Mediaan</span><span id="h-med-t15">—</span></div>
+          <div class="h-stat-row"><span>Max win</span><span id="h-max-t15">—</span></div>
+          <div class="h-stat-row"><span>Max loss</span><span id="h-min-t15">—</span></div>
+        </div>
+      </div>
+      <div class="h-stat" id="hstat-t20" onclick="selectHorizon('t20')">
+        <div class="h-stat-label">T+20 (4 weken)</div>
+        <div class="h-stat-main" id="h-avg-t20">—</div>
+        <div class="h-stat-rows">
+          <div class="h-stat-row"><span>Win rate</span><span id="h-win-t20">—</span></div>
+          <div class="h-stat-row"><span>vs SPY</span><span id="h-alpha-t20">—</span></div>
+          <div class="h-stat-row"><span>Mediaan</span><span id="h-med-t20">—</span></div>
+          <div class="h-stat-row"><span>Max win</span><span id="h-max-t20">—</span></div>
+          <div class="h-stat-row"><span>Max loss</span><span id="h-min-t20">—</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Equity Curve</div>
+        <div class="chart-sub">Cumulatief rendement: Signaal strategie vs Buy &amp; Hold vs SPY (basis 100)</div>
+        <div class="chart-wrap"><canvas id="equityChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Rendement distributie</div>
+        <div class="chart-sub">Spreiding van rendementen na signaalweken (T+10)</div>
+        <div class="chart-wrap"><canvas id="distChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- TRAIN vs TEST -->
+    <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:10px">Train vs Test — robuustheidscheck</div>
+    <div class="split-grid">
+      <div class="split-card">
+        <div class="split-title"><div class="train-dot"></div> Train periode: 2023–2024</div>
+        <div class="split-rows" id="trainStats"></div>
+      </div>
+      <div class="split-card">
+        <div class="split-title"><div class="test-dot"></div> Test periode: 2025+</div>
+        <div class="split-rows" id="testStats"></div>
+      </div>
+    </div>
+
+    <!-- WEEKLY TABLE -->
+    <div class="table-card">
+      <div class="table-header">
+        <div class="table-title">Alle weken — signaalgeschiedenis</div>
+        <div class="filter-btns">
+          <button class="filter-btn active" onclick="filterTable('all',this)">Alle</button>
+          <button class="filter-btn" onclick="filterTable('signal',this)">⚡ Signaal</button>
+          <button class="filter-btn" onclick="filterTable('nosignal',this)">Geen signaal</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Week</th>
+              <th>Koers</th>
+              <th>VROEG score</th>
+              <th>EMA8</th>
+              <th>W-Trend</th>
+              <th>RS Breuk</th>
+              <th>Vol 5d</th>
+              <th>+1W (T+5)</th>
+              <th>+2W (T+10)</th>
+              <th>+3W (T+15)</th>
+              <th>+4W (T+20)</th>
+              <th>Alpha T+10</th>
+            </tr>
+          </thead>
+          <tbody id="weeklyTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /results -->
+
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════════════════════════════════
+const LS_URL = "deepdive_appsscript_url";
+let currentData  = null;
+let selectedHorizon = "t10";
+let equityChart  = null;
+let distChart    = null;
+
+// ══════════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════════
+window.addEventListener("DOMContentLoaded", () => {
+  // Check URL params (voor deep dive klik-door)
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("segment")) {
+    const sel = document.getElementById("segmentSelect");
+    for (const opt of sel.options) {
+      if (opt.value.includes(params.get("segment"))) { sel.value = opt.value; break; }
+    }
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════
+// RUN BACKTEST
+// ══════════════════════════════════════════════════════════════════
+async function runBacktest() {
+  const url = localStorage.getItem(LS_URL);
+  if (!url) {
+    alert("Voer eerst de Apps Script URL in op de Deep Dive pagina.");
+    return;
+  }
+
+  const [proxy, segId] = document.getElementById("segmentSelect").value.split("|");
+  const minScore = document.getElementById("minScore").value;
+  const volFast  = document.getElementById("volFast").value;
+  const volSlow  = document.getElementById("volSlow").value;
+  const reqWT    = document.getElementById("reqWTrend").checked;
+  const reqRS    = document.getElementById("reqRSBreak").checked;
+
+  setLoading(true);
+
+  try {
+    const endpoint = `${url}?tab=backtest&segment=${segId}&proxy=${proxy}`
+      + `&minEarlyScore=${minScore}&volFast=${volFast}&volSlow=${volSlow}`
+      + `&requireWTrend=${reqWT}&requireRSBreak=${reqRS}&_t=${Date.now()}`;
+
+    const res = await fetch(endpoint);
+    if (!res.ok) throw new Error("HTTP " + res.status);
+
+    const json = await res.json();
+    if (json.error) throw new Error(json.error);
+
+    currentData = json;
+    renderResults(json);
+
+  } catch(err) {
+    showError(err.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// RENDER RESULTS
+// ══════════════════════════════════════════════════════════════════
+function renderResults(data) {
+  document.getElementById("emptyState").style.display   = "none";
+  document.getElementById("errorState").style.display   = "none";
+  document.getElementById("results").style.display      = "";
+
+  const s = data.stats;
+  if (!s) return;
+
+  // Summary stats
+  set("r-signalWeeks", s.signalWeeks);
+  set("r-signalRate",  `${s.signalWeeks} van ${s.totalWeeks} weken (${s.signalRate}%)`);
+
+  const s10 = s.signal_t10;
+  if (s10) {
+    setColored("r-winRate10", s10.winRate + "%", s10.winRate >= 55 ? "green" : s10.winRate >= 45 ? "yellow" : "red");
+    setColored("r-alpha10",   (s10.avgAlpha > 0 ? "+" : "") + s10.avgAlpha + "%", s10.avgAlpha > 0 ? "green" : "red");
+    setColored("r-maxDD",     "-" + s10.maxDrawdown + "%", "red");
+  }
+
+  // Horizon stats
+  for (const h of ["t5","t10","t15","t20"]) {
+    const hs = s["signal_" + h];
+    const spy = s["spy_" + h];
+    if (!hs) continue;
+    const avgColor = hs.avgReturn > 0 ? "green" : "red";
+    document.getElementById("h-avg-" + h).textContent = (hs.avgReturn > 0 ? "+" : "") + hs.avgReturn + "%";
+    document.getElementById("h-avg-" + h).className = "h-stat-main " + avgColor;
+    set("h-win-" + h,   hs.winRate + "%");
+    set("h-alpha-" + h, (hs.avgAlpha > 0 ? "+" : "") + hs.avgAlpha + "%");
+    set("h-med-" + h,   (hs.medReturn > 0 ? "+" : "") + hs.medReturn + "%");
+    setColored("h-max-" + h, "+" + hs.maxReturn + "%", "green");
+    setColored("h-min-" + h, hs.minReturn + "%", "red");
+  }
+
+  // Train vs Test
+  renderSplitStats("trainStats", data.trainStats);
+  renderSplitStats("testStats",  data.testStats);
+
+  // Charts
+  renderEquityChart(data.equityCurves);
+  renderDistChart(data.weeks);
+
+  // Table
+  renderTable(data.weeks);
+}
+
+function renderSplitStats(elId, stats) {
+  const el = document.getElementById(elId);
+  if (!stats || !stats.signal_t10) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:11px">Onvoldoende data</div>';
+    return;
+  }
+  const s = stats.signal_t10;
+  el.innerHTML = `
+    <div class="split-row"><span class="split-row-label">Signaalweken</span><span>${stats.signalWeeks} / ${stats.totalWeeks} (${stats.signalRate}%)</span></div>
+    <div class="split-row"><span class="split-row-label">Win rate T+10</span><span class="${s.winRate >= 55 ? 'green' : s.winRate >= 45 ? 'yellow' : 'red'}">${s.winRate}%</span></div>
+    <div class="split-row"><span class="split-row-label">Gem. rendement T+10</span><span class="${s.avgReturn >= 0 ? 'green' : 'red'}">${s.avgReturn > 0 ? '+' : ''}${s.avgReturn}%</span></div>
+    <div class="split-row"><span class="split-row-label">Gem. alpha T+10</span><span class="${s.avgAlpha >= 0 ? 'green' : 'red'}">${s.avgAlpha > 0 ? '+' : ''}${s.avgAlpha}%</span></div>
+    <div class="split-row"><span class="split-row-label">Max drawdown</span><span class="red">-${s.maxDrawdown}%</span></div>
+    <div class="split-row"><span class="split-row-label">Beste week</span><span class="green">+${s.maxReturn}%</span></div>
+    <div class="split-row"><span class="split-row-label">Slechtste week</span><span class="red">${s.minReturn}%</span></div>
+  `;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// CHARTS
+// ══════════════════════════════════════════════════════════════════
+function renderEquityChart(curves) {
+  if (equityChart) equityChart.destroy();
+  const ctx = document.getElementById("equityChart").getContext("2d");
+  equityChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: curves.signal.map(d => d.date),
+      datasets: [
+        {
+          label: "⚡ Signaal strategie",
+          data:  curves.signal.map(d => d.value),
+          borderColor: "#22c55e", backgroundColor: "rgba(34,197,94,.08)",
+          borderWidth: 2, pointRadius: 0, fill: true, tension: 0.3,
+        },
+        {
+          label: "📈 Buy & Hold",
+          data:  curves.buyHold.map(d => d.value),
+          borderColor: "#3d82f6", backgroundColor: "transparent",
+          borderWidth: 1.5, pointRadius: 0, borderDash: [4,4], tension: 0.3,
+        },
+        {
+          label: "🏦 SPY",
+          data:  curves.spy.map(d => d.value),
+          borderColor: "#6b7591", backgroundColor: "transparent",
+          borderWidth: 1.5, pointRadius: 0, borderDash: [2,4], tension: 0.3,
+        },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: "#e8eaf0", font: { family: "JetBrains Mono", size: 11 } } },
+        tooltip: { mode: "index", intersect: false,
+          callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}` }
+        }
+      },
+      scales: {
+        x: { ticks: { color: "#6b7591", maxTicksLimit: 8, font: { size: 10 } }, grid: { color: "#252b38" } },
+        y: { ticks: { color: "#6b7591", callback: v => v.toFixed(0), font: { size: 10 } }, grid: { color: "#252b38" } }
+      }
+    }
+  });
+}
+
+function renderDistChart(weeks) {
+  if (distChart) distChart.destroy();
+  const signalRets = weeks.filter(w => w.isSignal).map(w => w.returns.t10 || 0);
+  const noSigRets  = weeks.filter(w => !w.isSignal).map(w => w.returns.t10 || 0);
+
+  // Bucket in ranges van 2%
+  const buckets = Array.from({length:20}, (_,i) => (i-10)*2); // -20% to +18%
+  const sigCounts  = buckets.map(b => signalRets.filter(r => r >= b && r < b+2).length);
+  const noSigCounts= buckets.map(b => noSigRets.filter(r => r >= b && r < b+2).length);
+
+  const ctx = document.getElementById("distChart").getContext("2d");
+  distChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: buckets.map(b => b + "%"),
+      datasets: [
+        {
+          label: "⚡ Bij signaal",
+          data: sigCounts,
+          backgroundColor: "rgba(34,197,94,.5)", borderColor: "#22c55e", borderWidth: 1,
+        },
+        {
+          label: "Geen signaal",
+          data: noSigCounts,
+          backgroundColor: "rgba(107,117,145,.3)", borderColor: "#6b7591", borderWidth: 1,
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: "#e8eaf0", font: { family: "JetBrains Mono", size: 11 } } }
+      },
+      scales: {
+        x: { ticks: { color: "#6b7591", maxTicksLimit: 10, font: { size: 9 } }, grid: { color: "#252b38" } },
+        y: { ticks: { color: "#6b7591", font: { size: 10 } }, grid: { color: "#252b38" } }
+      }
+    }
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// WEEKLY TABLE
+// ══════════════════════════════════════════════════════════════════
+let tableFilter = "all";
+
+function renderTable(weeks) {
+  const tbody = document.getElementById("weeklyTable");
+  const toShow = weeks.filter(w => {
+    if (tableFilter === "signal")   return w.isSignal;
+    if (tableFilter === "nosignal") return !w.isSignal;
+    return true;
+  }).slice().reverse(); // nieuwste eerst
+
+  tbody.innerHTML = toShow.map(w => {
+    const sig = w.signal;
+    const sc  = w.earlyScore;
+    const sigCls = sc >= 4 ? "sig-vroeg" : sc === 3 ? "sig-watch" : "sig-geen";
+    const sigLbl = sc >= 4 ? "⚡ VROEG" : sc === 3 ? "🟡 WATCH" : "—";
+
+    const r = w.returns, a = w.alpha;
+    return `<tr>
+      <td>${w.date}</td>
+      <td>${w.close}</td>
+      <td class="${sigCls}">${sigLbl} (${sc}/6)</td>
+      <td>${sig.ema8align || "—"}</td>
+      <td>${trendTag(sig.weeklyTrend)}</td>
+      <td>${rsBreakTag(sig.rsBreak)}</td>
+      <td>${sig.volFlow != null ? sig.volFlow + "×" : "—"}</td>
+      <td class="${colorClass(r.t5)}">${fmtPct(r.t5)}</td>
+      <td class="${colorClass(r.t10)}">${fmtPct(r.t10)}</td>
+      <td class="${colorClass(r.t15)}">${fmtPct(r.t15)}</td>
+      <td class="${colorClass(r.t20)}">${fmtPct(r.t20)}</td>
+      <td class="${colorClass(a.t10)}">${fmtPct(a.t10)}</td>
+    </tr>`;
+  }).join("");
+}
+
+function filterTable(type, btn) {
+  tableFilter = type;
+  document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  if (currentData) renderTable(currentData.weeks);
+}
+
+function selectHorizon(h) {
+  selectedHorizon = h;
+  document.querySelectorAll(".h-stat").forEach(el => el.classList.remove("active"));
+  document.getElementById("hstat-" + h).classList.add("active");
+}
+
+// ══════════════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════════════
+function fmtPct(v) {
+  if (v == null) return "—";
+  return (v > 0 ? "+" : "") + v.toFixed(1) + "%";
+}
+function colorClass(v) {
+  if (v == null) return "neu";
+  return v > 0 ? "pos" : v < 0 ? "neg" : "neu";
+}
+function trendTag(v) {
+  if (!v) return "—";
+  const c = v==="UP"?"green":v==="DOWN"?"red":"neu";
+  return `<span class="${c}">${v==="UP"?"↑ UP":v==="DOWN"?"↓ DOWN":"↔ RANGE"}</span>`;
+}
+function rsBreakTag(v) {
+  if (!v || v==="none") return '<span class="neu">—</span>';
+  return v==="up" ? '<span class="green">🔼 Break Up</span>' : '<span class="red">🔽 Break Down</span>';
+}
+function set(id, v) { const el=document.getElementById(id); if(el) el.textContent=v; }
+function setColored(id, v, cls) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = v;
+  el.className = "stat-value " + cls;
+}
+
+function setLoading(loading) {
+  document.getElementById("loadingState").style.display = loading ? "" : "none";
+  document.getElementById("runBtn").disabled = loading;
+  document.getElementById("runBtn").textContent = loading ? "⏳ Berekenen..." : "▶ Backtest uitvoeren";
+  if (loading) {
+    document.getElementById("results").style.display = "none";
+    document.getElementById("emptyState").style.display = "none";
+  }
+}
+
+function showError(msg) {
+  document.getElementById("loadingState").style.display = "none";
+  document.getElementById("errorState").style.display   = "";
+  document.getElementById("results").style.display      = "none";
+  document.getElementById("errorMsg").textContent = msg;
+}
+</script>
+</body>
+</html>
