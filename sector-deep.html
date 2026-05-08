@@ -212,7 +212,7 @@
   <div class="page-header">
     <div>
       <div class="page-title">Sector <span>Deep Dive</span></div>
-      <div class="page-sub">69 subsegmenten · 11 sectoren · EMA Cross + Structuur + Volume &gt;1.5×</div>
+      <div class="page-sub">69 subsegmenten · 11 sectoren · Vroeg (max 6pt) + Bevestigd (max 4pt)</div>
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:10px">
       <div class="last-upd">
@@ -311,11 +311,12 @@
             <div style="display:flex;flex-direction:column;gap:4px;color:var(--muted);line-height:1.7">
               <div><span style="color:var(--text)">EMA8 S-Bull + W-Trend UP</span> = 2 pts &nbsp;<span style="color:var(--muted);font-size:10px">← vroegst signaal</span></div>
               <div><span style="color:var(--text)">RS Breuk Up + RS score &gt;0</span> = 2 pts &nbsp;<span style="color:var(--muted);font-size:10px">← sector leidt al</span></div>
-              <div><span style="color:var(--text)">Vol 5d/20d ≥1.5× + 10d/30d ≥1.3×</span> = 1 pt &nbsp;<span style="color:var(--muted);font-size:10px">← institutioneel</span></div>
+              <div><span style="color:var(--text)">Vol 5d/20d ≥1.5×</span> = 1 pt &nbsp;<span style="color:var(--muted);font-size:10px">← snel momentum</span></div>
+              <div><span style="color:var(--text)">Vol 10d/30d ≥1.3×</span> = 1 pt &nbsp;<span style="color:var(--muted);font-size:10px">← structurele instroom</span></div>
               <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">
                 <span style="color:var(--red)">🔴 GEEN</span> = 0-2 pts &nbsp;
                 <span style="color:var(--yellow)">🟡 WATCH</span> = 3 pts &nbsp;
-                <span style="color:var(--green)">🟢 VROEG</span> = 4-5 pts
+                <span style="color:var(--green)">🟢 VROEG</span> = 4-6 pts
               </div>
             </div>
           </div>
@@ -566,26 +567,27 @@ function showDemoMode() {
 // ══════════════════════════════════════════════════════════════
 // SIGNAL LOGICA (client-side)
 // ══════════════════════════════════════════════════════════════
-// ── VROEG SIGNAAL (max 5 punten) ──────────────────────────────────
+// ── VROEG SIGNAAL (max 6 punten) ──────────────────────────────────
 function computeEarlySignal(seg) {
-  // EMA8 S-Bull + W-Trend UP = 2 punten
+  // EMA8 S-Bull + W-Trend UP = 2 punten (gewicht 2 — vroegst signaal)
   const ema8ok   = seg.ema8align === "strong-bull" ? 1 : 0;
   const wTrendOk = seg.weeklyTrend === "UP"        ? 1 : 0;
   const ema8pts  = (ema8ok && wTrendOk) ? 2 : (ema8ok || wTrendOk) ? 1 : 0;
 
-  // RS Breuk Up + RS score > 0 = 2 punten
+  // RS Breuk Up + RS score > 0 = 2 punten (gewicht 2 — sector leidt al)
   const rsBreakOk = seg.rsBreak === "up" ? 1 : 0;
   const rsPosOk   = (seg.rs || 0) > 0   ? 1 : 0;
   const rsPts     = (rsBreakOk && rsPosOk) ? 2 : rsBreakOk ? 1 : 0;
 
-  // Volume dubbel filter = 1 punt
-  const vol5ok  = (seg.volFlow   || 0) >= 1.5 ? 1 : 0;
-  const vol10ok = (seg.volFlow30 || 0) >= 1.3 ? 1 : 0;
-  const volPts  = (vol5ok && vol10ok) ? 1 : 0;
+  // Vol 5d/20d ≥ 1.5× = 1 punt (snel momentum)
+  const vol5pts  = (seg.volFlow   || 0) >= 1.5 ? 1 : 0;
 
-  const score = ema8pts + rsPts + volPts;
+  // Vol 10d/30d ≥ 1.3× = 1 punt (structurele instroom — apart punt)
+  const vol10pts = (seg.volFlow30 || 0) >= 1.3 ? 1 : 0;
+
+  const score = ema8pts + rsPts + vol5pts + vol10pts;
   return {
-    score, ema8pts, rsPts, volPts,
+    score, ema8pts, rsPts, vol5pts, vol10pts,
     label: score >= 4 ? "VROEG" : score === 3 ? "WATCH" : "GEEN",
     cls:   score >= 4 ? "sig-buy" : score === 3 ? "sig-watch" : "sig-none",
   };
@@ -763,7 +765,7 @@ const TABLE_HEADER = `<thead><tr>
   <th data-col="sma21x50"    data-tip="SMA21 positie t.o.v. SMA50">SMA21/50 <span class="sort-icon">↕</span></th>
   <th data-col="ema21x50"    data-tip="EMA21 cross EMA50 — triggert signaalcriterium ①; NEW = verse cross">EMA21/50 <span class="sort-icon">↕</span></th>
   <th data-col="atr"         data-tip="ATR% — Average True Range als % van koers (volatiliteit proxy)">ATR% <span class="sort-icon">↕</span></th>
-  <th data-col="_earlyScore" data-tip="VROEG SIGNAAL (max 5pt): EMA8 S-Bull+W-Trend UP=2pt | RS Breuk Up+RS>0=2pt | Vol 5d/20d≥1.5×+10d/30d≥1.3×=1pt → 🔴GEEN=0-2 | 🟡WATCH=3 | 🟢VROEG=4-5">⚡ VROEG <span class="sort-icon">↕</span></th>
+  <th data-col="_earlyScore" data-tip="VROEG SIGNAAL (max 6pt): EMA8 S-Bull+W-Trend UP=2pt | RS Breuk Up+RS>0=2pt | Vol 5d/20d≥1.5×=1pt | Vol 10d/30d≥1.3×=1pt → 🔴GEEN=0-2 | 🟡WATCH=3 | 🟢VROEG=4-6">⚡ VROEG <span class="sort-icon">↕</span></th>
   <th data-col="_confScore" data-tip="BEVESTIGD SIGNAAL (max 4pt): EMA21/50 cross=1pt | HH/HL structuur=1pt | W-Trend UP=1pt | Vol≥2.0×=1pt → 🔴GEEN=0-1 | 🟡WATCH=2 | 🟢KOOP=3-4">✓ BEVESTIGD <span class="sort-icon">↕</span></th>
 </tr></thead>`;
 
@@ -899,11 +901,12 @@ function earlySignalCell(sig) {
   return `<div class="sig-cell ${sig.cls}">
     <div class="sig-dot"></div>
     <span>${sig.label}</span>
-    <div style="margin-left:3px;font-size:10px;color:var(--muted)">${sig.score}/5</div>
+    <div style="margin-left:3px;font-size:10px;color:var(--muted)">${sig.score}/6</div>
     <div class="cond-dots">
-      <div class="cd ${sig.ema8pts>=2?"cd-ok":sig.ema8pts===1?"cd-warn":"cd-no"}" data-tip="EMA8 S-Bull + W-Trend UP (${sig.ema8pts}/2)"></div>
-      <div class="cd ${sig.rsPts>=2?"cd-ok":sig.rsPts===1?"cd-warn":"cd-no"}"   data-tip="RS Breuk Up + RS>0 (${sig.rsPts}/2)"></div>
-      <div class="cd ${sig.volPts?"cd-ok":"cd-no"}"  data-tip="Vol 5d/20d≥1.5× + 10d/30d≥1.3× (${sig.volPts}/1)"></div>
+      <div class="cd ${sig.ema8pts>=2?"cd-ok":sig.ema8pts===1?"cd-warn":"cd-no"}" data-tip="EMA8 S-Bull + W-Trend UP (${sig.ema8pts}/2 pt)"></div>
+      <div class="cd ${sig.rsPts>=2?"cd-ok":sig.rsPts===1?"cd-warn":"cd-no"}"    data-tip="RS Breuk Up + RS>0 (${sig.rsPts}/2 pt)"></div>
+      <div class="cd ${sig.vol5pts?"cd-ok":"cd-no"}"                              data-tip="Vol 5d/20d ≥1.5× — snel momentum (${sig.vol5pts}/1 pt)"></div>
+      <div class="cd ${sig.vol10pts?"cd-ok":"cd-no"}"                             data-tip="Vol 10d/30d ≥1.3× — structurele instroom (${sig.vol10pts}/1 pt)"></div>
     </div>
   </div>`;
 }
