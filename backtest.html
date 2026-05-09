@@ -493,65 +493,70 @@ function loadDemoData(minScore=4, volFast=1.5, volSlow=1.3, reqWT=true, reqRS=tr
   document.getElementById("results").insertAdjacentElement("beforebegin", banner);
 }
 
-function generateDemoBacktest(minScore=4, volFastThresh=1.5, volSlowThresh=1.3, reqWTrend=true, reqRSBreak=true) {
-  const weeks = [];
-  const startDate = new Date("2023-01-06");
-  let price = 145;
-  let sigEquity = 100, bhEquity = 100, spyEquity = 100;
-  const equityCurves = { signal: [], buyHold: [], spy: [] };
+function generateDemoBacktest(minScore, volFastThresh, volSlowThresh, reqWTrend, reqRSBreak) {
+  if (minScore === undefined)     minScore = 3;
+  if (volFastThresh === undefined) volFastThresh = 1.3;
+  if (volSlowThresh === undefined) volSlowThresh = 1.1;
+  if (reqWTrend === undefined)    reqWTrend = false;
+  if (reqRSBreak === undefined)   reqRSBreak = false;
 
-  // Deterministisch pseudo-random
-  const seed = (n) => ((Math.sin(n * 9301 + 49297) * 233280) % 1 + 1) / 2;
+  var weeks = [];
+  var startDate = new Date("2023-01-06");
+  var price = 145;
+  var sigEquity = 100, bhEquity = 100, spyEquity = 100;
+  var equityCurves = { signal: [], buyHold: [], spy: [] };
 
-  for (let w = 0; w < 104; w++) {
-    const date = new Date(startDate);
+  function seed(n) {
+    return ((Math.sin(n * 9301 + 49297) * 233280) % 1 + 1) / 2;
+  }
+
+  for (var w = 0; w < 104; w++) {
+    var date = new Date(startDate);
     date.setDate(date.getDate() + w * 7);
-    const dateStr = date.toISOString().split("T")[0];
+    var dateStr = date.toISOString().split("T")[0];
 
     // Prijsbeweging
-    const trend = w < 30 ? 0.8 : w < 50 ? 1.5 : w < 70 ? -0.3 : w < 85 ? 2.1 : 1.2;
+    var trend = w < 30 ? 0.8 : w < 50 ? 1.5 : w < 70 ? -0.3 : w < 85 ? 2.1 : 1.2;
     price = Math.max(50, price * (1 + (trend + (seed(w) - 0.5) * 4) / 100));
 
-    // ── Stap 1: Bereken alle indicatoren EERST ──────────────────────
-    // Meer signalen door frequentere triggers (elke 4e week sterk, elke 3e week matig)
-    const baseScore  = w % 4 === 0 ? 5 : w % 3 === 0 ? 4 : w % 2 === 0 ? 3 : Math.floor(seed(w*3) * 3);
-    const aligns     = ["strong-bull","bull","flat","bear","strong-bear"];
-    const ema8align  = baseScore >= 5 ? "strong-bull" : baseScore >= 4 ? "bull" : aligns[Math.floor(seed(w*13)*3)];
-    const weeklyTrend= baseScore >= 4 ? "UP" : seed(w*14) > 0.5 ? "UP" : seed(w*14) > 0.25 ? "RANGE" : "DOWN";
-    const rsBreak    = baseScore >= 5 ? "up" : "none";
-    const volFlow    = baseScore >= 4 ? parseFloat((1.5 + seed(w*15)*1.5).toFixed(1)) : parseFloat((0.7+seed(w*16)*0.8).toFixed(1));
-    const volFlow30  = volFlow * (0.85 + seed(w*17)*0.3);
+    // STAP 1: Definieer alle indicatoren EERST (volgorde is kritisch)
+    var baseScore = w % 4 === 0 ? 5 : w % 3 === 0 ? 4 : w % 2 === 0 ? 3 : Math.floor(seed(w*3) * 2);
+    var ema8align = baseScore >= 5 ? "strong-bull" : baseScore >= 4 ? "bull" : baseScore >= 3 ? "flat" : "bear";
+    var weeklyTrend = baseScore >= 4 ? "UP" : seed(w*14) > 0.5 ? "UP" : seed(w*14) > 0.25 ? "RANGE" : "DOWN";
+    var rsBreak = baseScore >= 5 ? "up" : "none";
+    var volFlow = parseFloat((baseScore >= 4 ? 1.4 + seed(w*15) * 1.6 : 0.6 + seed(w*16) * 0.8).toFixed(1));
+    var volFlow30 = parseFloat((volFlow * (0.85 + seed(w*17) * 0.3)).toFixed(1));
 
-    // ── Stap 2: Bereken score op basis van parameters ───────────────
-    const ema8ok  = ["strong-bull","bull"].includes(ema8align) ? 1 : 0;
-    const wTrendOk= weeklyTrend === "UP" ? 1 : 0;
-    const ema8pts = (ema8ok && wTrendOk) ? 2 : (ema8ok || wTrendOk) ? 1 : 0;
-    const rsOk    = rsBreak === "up" ? 1 : 0;
-    const rsPts   = rsOk * 2;
-    const vol5pts = volFlow   >= volFastThresh ? 1 : 0;
-    const vol10pts= volFlow30 >= volSlowThresh ? 1 : 0;
-    const adjScore= ema8pts + rsPts + vol5pts + vol10pts;
+    // STAP 2: Bereken score (alle vars hierboven zijn nu beschikbaar)
+    var ema8ok = (ema8align === "strong-bull" || ema8align === "bull") ? 1 : 0;
+    var wTrendOk = weeklyTrend === "UP" ? 1 : 0;
+    var ema8pts = (ema8ok && wTrendOk) ? 2 : (ema8ok || wTrendOk) ? 1 : 0;
+    var rsOk = rsBreak === "up" ? 1 : 0;
+    var rsPts = rsOk * 2;
+    var vol5pts = volFlow >= volFastThresh ? 1 : 0;
+    var vol10pts = volFlow30 >= volSlowThresh ? 1 : 0;
+    var adjScore = ema8pts + rsPts + vol5pts + vol10pts;
 
-    // Optionele filters
-    const wFilter = !reqWTrend  || weeklyTrend === "UP";
-    const rsFilter= !reqRSBreak || rsBreak === "up";
-    const isSignal= adjScore >= minScore && wFilter && rsFilter;
+    // STAP 3: Filters toepassen
+    var wFilter = !reqWTrend || weeklyTrend === "UP";
+    var rsFilter = !reqRSBreak || rsBreak === "up";
+    var isSignal = adjScore >= minScore && wFilter && rsFilter;
 
-    // ── Stap 3: Rendement ───────────────────────────────────────────
-    const baseRet     = (seed(w*2) - 0.4) * 6;
-    const signalBoost = isSignal ? (seed(w*4) * 3 + 0.5) : 0;
-    const t5  = parseFloat((baseRet*0.4 + signalBoost*0.5 + (seed(w*5)-0.5)*2).toFixed(1));
-    const t10 = parseFloat((baseRet*0.7 + signalBoost*0.8 + (seed(w*6)-0.5)*2).toFixed(1));
-    const t15 = parseFloat((baseRet*0.9 + signalBoost*1.0 + (seed(w*7)-0.5)*2).toFixed(1));
-    const t20 = parseFloat((baseRet*1.0 + signalBoost*1.1 + (seed(w*8)-0.5)*2).toFixed(1));
-    const spyT5 = parseFloat(((seed(w*9)-0.45)*3).toFixed(1));
-    const spyT10= parseFloat(((seed(w*10)-0.45)*4).toFixed(1));
-    const spyT15= parseFloat(((seed(w*11)-0.45)*4.5).toFixed(1));
-    const spyT20= parseFloat(((seed(w*12)-0.45)*5).toFixed(1));
+    // STAP 4: Rendement berekenen
+    var baseRet = (seed(w*2) - 0.4) * 6;
+    var boost = isSignal ? seed(w*4) * 3 + 0.5 : 0;
+    var t5  = parseFloat((baseRet*0.4 + boost*0.5 + (seed(w*5)-0.5)*2).toFixed(1));
+    var t10 = parseFloat((baseRet*0.7 + boost*0.8 + (seed(w*6)-0.5)*2).toFixed(1));
+    var t15 = parseFloat((baseRet*0.9 + boost*1.0 + (seed(w*7)-0.5)*2).toFixed(1));
+    var t20 = parseFloat((baseRet*1.0 + boost*1.1 + (seed(w*8)-0.5)*2).toFixed(1));
+    var sT5  = parseFloat(((seed(w*9)-0.45)*3).toFixed(1));
+    var sT10 = parseFloat(((seed(w*10)-0.45)*4).toFixed(1));
+    var sT15 = parseFloat(((seed(w*11)-0.45)*4.5).toFixed(1));
+    var sT20 = parseFloat(((seed(w*12)-0.45)*5).toFixed(1));
 
-    // ── Stap 4: Equity curves ───────────────────────────────────────
+    // STAP 5: Equity curves bijwerken
     bhEquity  *= (1 + t5/100);
-    spyEquity *= (1 + spyT5/100);
+    spyEquity *= (1 + sT5/100);
     if (isSignal) sigEquity *= (1 + t5/100);
 
     equityCurves.signal.push({  date: dateStr, value: parseFloat(sigEquity.toFixed(1)) });
@@ -562,601 +567,100 @@ function generateDemoBacktest(minScore=4, volFastThresh=1.5, volSlowThresh=1.3, 
       date: dateStr,
       close: parseFloat(price.toFixed(2)),
       earlyScore: adjScore,
-      isSignal,
+      isSignal: isSignal,
       signal: {
         earlyScore: adjScore,
-        earlyLabel: isSignal ? "VROEG" : adjScore===3 ? "WATCH" : "GEEN",
-        ema8align, weeklyTrend, rsBreak,
-        volFlow: parseFloat(volFlow.toFixed(1)),
-        confLabel: "GEEN",
+        earlyLabel: isSignal ? "VROEG" : adjScore === 3 ? "WATCH" : "GEEN",
+        ema8align: ema8align,
+        weeklyTrend: weeklyTrend,
+        rsBreak: rsBreak,
+        volFlow: volFlow,
       },
-      returns:    { t5, t10, t15, t20 },
-      spyReturns: { t5:spyT5, t10:spyT10, t15:spyT15, t20:spyT20 },
+      returns:    { t5:t5, t10:t10, t15:t15, t20:t20 },
+      spyReturns: { t5:sT5, t10:sT10, t15:sT15, t20:sT20 },
       alpha: {
-        t5:  parseFloat((t5-spyT5).toFixed(1)),
-        t10: parseFloat((t10-spyT10).toFixed(1)),
-        t15: parseFloat((t15-spyT15).toFixed(1)),
-        t20: parseFloat((t20-spyT20).toFixed(1)),
+        t5:  parseFloat((t5-sT5).toFixed(1)),
+        t10: parseFloat((t10-sT10).toFixed(1)),
+        t15: parseFloat((t15-sT15).toFixed(1)),
+        t20: parseFloat((t20-sT20).toFixed(1)),
       }
     });
   }
 
-  // ── Statistieken ─────────────────────────────────────────────────
+  // Statistieken berekenen
   function calcH(wks, h) {
-    const key = "t"+h;
-    const rets   = wks.map(w => w.returns[key]||0);
-    const alphas = wks.map(w => w.alpha[key]||0);
-    const wins   = rets.filter(r=>r>0).length;
-    const sorted = [...rets].sort((a,b)=>a-b);
-    const mid    = Math.floor(sorted.length/2);
-    const med    = sorted.length%2===0 ? (sorted[mid-1]+sorted[mid])/2 : sorted[mid];
-    let peak=100, eq=100, maxDD=0;
-    for(const r of rets){ eq*=(1+r/100); if(eq>peak)peak=eq; const dd=(peak-eq)/peak*100; if(dd>maxDD)maxDD=dd; }
+    var key = "t"+h;
+    var rets   = wks.map(function(w){ return w.returns[key]||0; });
+    var alphas = wks.map(function(w){ return w.alpha[key]||0; });
+    var wins   = rets.filter(function(r){ return r>0; }).length;
+    var sorted = rets.slice().sort(function(a,b){return a-b;});
+    var mid = Math.floor(sorted.length/2);
+    var med = sorted.length%2===0 ? (sorted[mid-1]+sorted[mid])/2 : sorted[mid]||0;
+    var peak=100, eq=100, maxDD=0;
+    rets.forEach(function(r){ eq*=(1+r/100); if(eq>peak)peak=eq; var dd=(peak-eq)/peak*100; if(dd>maxDD)maxDD=dd; });
+    var n = Math.max(rets.length, 1);
     return {
-      winRate:   parseFloat((wins/Math.max(rets.length,1)*100).toFixed(1)),
-      avgReturn: parseFloat((rets.reduce((a,b)=>a+b,0)/Math.max(rets.length,1)).toFixed(1)),
-      avgAlpha:  parseFloat((alphas.reduce((a,b)=>a+b,0)/Math.max(alphas.length,1)).toFixed(1)),
-      medReturn: parseFloat(med.toFixed(1)),
-      maxReturn: parseFloat((rets.length?Math.max(...rets):0).toFixed(1)),
-      minReturn: parseFloat((rets.length?Math.min(...rets):0).toFixed(1)),
-      maxDrawdown: parseFloat(maxDD.toFixed(1)),
+      winRate:    parseFloat((wins/n*100).toFixed(1)),
+      avgReturn:  parseFloat((rets.reduce(function(a,b){return a+b;},0)/n).toFixed(1)),
+      avgAlpha:   parseFloat((alphas.reduce(function(a,b){return a+b;},0)/n).toFixed(1)),
+      medReturn:  parseFloat(med.toFixed(1)),
+      maxReturn:  parseFloat((rets.length ? Math.max.apply(null,rets) : 0).toFixed(1)),
+      minReturn:  parseFloat((rets.length ? Math.min.apply(null,rets) : 0).toFixed(1)),
+      maxDrawdown:parseFloat(maxDD.toFixed(1)),
       positiveWeeks: wins, totalWeeks: rets.length,
     };
   }
 
-  const sigW   = weeks.filter(w=>w.isSignal);
-  const noSigW = weeks.filter(w=>!w.isSignal);
+  var sigW   = weeks.filter(function(w){ return w.isSignal; });
+  var noSigW = weeks.filter(function(w){ return !w.isSignal; });
 
-  const stats = { totalWeeks: weeks.length, signalWeeks: sigW.length,
-    signalRate: parseFloat((sigW.length/Math.max(weeks.length,1)*100).toFixed(1)) };
+  var stats = {
+    totalWeeks: weeks.length,
+    signalWeeks: sigW.length,
+    signalRate: parseFloat((sigW.length/Math.max(weeks.length,1)*100).toFixed(1))
+  };
 
-  for(const h of [5,10,15,20]) {
-    if(sigW.length>0) {
+  [5,10,15,20].forEach(function(h) {
+    if (sigW.length > 0) {
       stats["signal_t"+h] = calcH(sigW, h);
-      const spyRets = sigW.map(w=>w.spyReturns["t"+h]||0);
+      var spyRets = sigW.map(function(w){ return w.spyReturns["t"+h]||0; });
       stats["spy_t"+h] = {
-        avgReturn: parseFloat((spyRets.reduce((a,b)=>a+b,0)/Math.max(spyRets.length,1)).toFixed(1)),
-        winRate: parseFloat((spyRets.filter(r=>r>0).length/Math.max(spyRets.length,1)*100).toFixed(1)),
+        avgReturn: parseFloat((spyRets.reduce(function(a,b){return a+b;},0)/Math.max(spyRets.length,1)).toFixed(1)),
+        winRate: parseFloat((spyRets.filter(function(r){return r>0;}).length/Math.max(spyRets.length,1)*100).toFixed(1)),
       };
     }
-    if(noSigW.length>0) {
-      const rets = noSigW.map(w=>w.returns["t"+h]||0);
+    if (noSigW.length > 0) {
+      var rets = noSigW.map(function(w){ return w.returns["t"+h]||0; });
       stats["nosig_t"+h] = {
-        avgReturn: parseFloat((rets.reduce((a,b)=>a+b,0)/Math.max(rets.length,1)).toFixed(1)),
-        winRate: parseFloat((rets.filter(r=>r>0).length/Math.max(rets.length,1)*100).toFixed(1)),
+        avgReturn: parseFloat((rets.reduce(function(a,b){return a+b;},0)/Math.max(rets.length,1)).toFixed(1)),
+        winRate: parseFloat((rets.filter(function(r){return r>0;}).length/Math.max(rets.length,1)*100).toFixed(1)),
       };
     }
-  }
+  });
 
   function splitStats(allW, sW) {
-    if(!sW.length) return { totalWeeks:allW.length, signalWeeks:0, signalRate:0, signal_t10: calcH([],10) };
-    return { totalWeeks:allW.length, signalWeeks:sW.length,
-      signalRate: parseFloat((sW.length/Math.max(allW.length,1)*100).toFixed(1)),
-      signal_t10: calcH(sW,10) };
-  }
-
-  const trainW = weeks.filter(w=>w.date<"2025-01-01");
-  const testW  = weeks.filter(w=>w.date>="2025-01-01");
-
-  return {
-    segmentId:"ai-infra", proxy:"NVDA",
-    params:{ minEarlyScore:minScore, volFastThresh, volSlowThresh },
-    totalWeeks: weeks.length, weeks, stats,
-    trainStats: splitStats(trainW, trainW.filter(w=>w.isSignal)),
-    testStats:  splitStats(testW,  testW.filter(w=>w.isSignal)),
-    equityCurves, lastUpdated: new Date().toISOString(), isDemo:true,
-  };
-}
-
-
-function loadDemoData(minScore=4, volFast=1.5, volSlow=1.3, reqWT=true, reqRS=true) {
-  document.getElementById("emptyState").style.display = "none";
-  document.getElementById("runBtn").textContent = "⚡ Demo geladen";
-
-  // Genereer realistische demo backtest data
-  const demoData = generateDemoBacktest(minScore, volFast, volSlow, reqWT, reqRS);
-  currentData = demoData;
-  renderResults(demoData);
-
-  // Toon demo banner
-  const banner = document.createElement("div");
-  banner.style.cssText = "background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:8px;padding:8px 14px;margin-bottom:16px;font-size:11px;color:var(--yellow)";
-  banner.innerHTML = "⚡ <strong>Demo modus</strong> — voorbeelddata AI Infrastructuur (NVDA). Vul je <a href='sector-deep.html' style='color:var(--accent2)'>Apps Script URL</a> in voor echte backtests.";
-  document.getElementById("results").insertAdjacentElement("beforebegin", banner);
-}
-
-function generateDemoBacktest(minScore=4, volFastThresh=1.5, volSlowThresh=1.3, reqWTrend=true, reqRSBreak=true) {
-  // Genereer 104 weken realistische data
-  const weeks = [];
-  const startDate = new Date("2023-01-06");
-  let price = 145;
-  let equity = 100, bhEquity = 100, spyEquity = 100;
-  const equityCurves = { signal: [], buyHold: [], spy: [] };
-
-  const seed = (n) => {
-    // Deterministische "random" voor consistente demo
-    return ((Math.sin(n * 9301 + 49297) * 233280) % 1 + 1) / 2;
-  };
-
-  for (let w = 0; w < 104; w++) {
-    const date = new Date(startDate);
-    date.setDate(date.getDate() + w * 7);
-    const dateStr = date.toISOString().split("T")[0];
-
-    // Simuleer prijsbeweging
-    const trend = w < 30 ? 0.8 : w < 50 ? 1.5 : w < 70 ? -0.3 : w < 85 ? 2.1 : 1.2;
-    const noise = (seed(w) - 0.5) * 4;
-    price = Math.max(50, price * (1 + (trend + noise) / 100));
-
-    // Signaal bepalen (realistische patronen)
-    const earlyScore = w % 7 === 0 ? 5 :
-                       w % 5 === 0 ? 4 :
-                       w % 3 === 0 ? 3 : Math.floor(seed(w*3) * 3);
-
-    // Pas aan op basis van parameters
-    const ema8ok   = ["strong-bull","bull"].includes(ema8align) ? 1 : 0;
-    const wTrendOk = weeklyTrend === "UP" ? 1 : 0;
-    const ema8pts  = (ema8ok && wTrendOk) ? 2 : (ema8ok || wTrendOk) ? 1 : 0;
-    const rsBreakVal = isSignalSeed && earlyScore >= 5 ? "up" : "none";
-    const rsPts    = rsBreakVal === "up" ? 2 : 0;
-    const vol5ok   = volFlowVal >= volFastThresh ? 1 : 0;
-    const vol10ok  = volFlowVal >= volSlowThresh ? 1 : 0;
-
-    // Filter op basis van aangevinkte opties
-    const wTrendFilter = !reqWTrend || weeklyTrend === "UP";
-    const rsBreakFilter = !reqRSBreak || rsBreakVal === "up";
-
-    const adjustedScore = ema8pts + rsPts + vol5ok + vol10ok;
-    const isSignal = adjustedScore >= minScore && wTrendFilter && rsBreakFilter;
-
-    // Rendementen (signaal weken presteren beter)
-    const baseRet = (seed(w*2) - 0.4) * 6;
-    const signalBoost = isSignal ? (seed(w*4) * 3 + 0.5) : 0;
-
-    const t5  = parseFloat((baseRet * 0.4 + signalBoost * 0.5 + (seed(w*5)-0.5)*2).toFixed(1));
-    const t10 = parseFloat((baseRet * 0.7 + signalBoost * 0.8 + (seed(w*6)-0.5)*2).toFixed(1));
-    const t15 = parseFloat((baseRet * 0.9 + signalBoost * 1.0 + (seed(w*7)-0.5)*2).toFixed(1));
-    const t20 = parseFloat((baseRet * 1.0 + signalBoost * 1.1 + (seed(w*8)-0.5)*2).toFixed(1));
-
-    const spyT5  = parseFloat(((seed(w*9)-0.45)*3).toFixed(1));
-    const spyT10 = parseFloat(((seed(w*10)-0.45)*4).toFixed(1));
-    const spyT15 = parseFloat(((seed(w*11)-0.45)*4.5).toFixed(1));
-    const spyT20 = parseFloat(((seed(w*12)-0.45)*5).toFixed(1));
-
-    // Equity curves
-    const ret = t5 / 100;
-    const spyRet = spyT5 / 100;
-    bhEquity  *= (1 + ret);
-    spyEquity *= (1 + spyRet);
-    if (isSignal) equity *= (1 + ret);
-
-    equityCurves.signal.push({  date: dateStr, value: parseFloat(equity.toFixed(1)) });
-    equityCurves.buyHold.push({ date: dateStr, value: parseFloat(bhEquity.toFixed(1)) });
-    equityCurves.spy.push({     date: dateStr, value: parseFloat(spyEquity.toFixed(1)) });
-
-    // EMA8 alignment — berekend voor isSignal check
-    const isSignalSeed = earlyScore >= 4;
-    const aligns = ["strong-bull","bull","flat","bear","strong-bear"];
-    const ema8align = isSignalSeed ? (earlyScore >= 5 ? "strong-bull" : "bull") : aligns[Math.floor(seed(w*13)*3)];
-    const weeklyTrend = isSignalSeed ? "UP" : (seed(w*14) > 0.5 ? "UP" : seed(w*14) > 0.25 ? "RANGE" : "DOWN");
-    const volFlowVal = isSignalSeed ? parseFloat((1.5 + seed(w*15)*1.5).toFixed(1)) : parseFloat((0.7+seed(w*16)*0.8).toFixed(1));
-
-    weeks.push({
-      date: dateStr,
-      close: parseFloat(price.toFixed(2)),
-      earlyScore: adjustedScore,
-      isSignal,
-      signal: {
-        earlyScore: adjustedScore,
-        earlyLabel: isSignal ? "VROEG" : adjustedScore===3?"WATCH":"GEEN",
-        ema8align, weeklyTrend,
-        rsBreak: rsBreakVal,
-        volFlow: volFlowVal,
-      },
-      returns: { t5, t10, t15, t20 },
-      spyReturns: { t5: spyT5, t10: spyT10, t15: spyT15, t20: spyT20 },
-      alpha: {
-        t5:  parseFloat((t5  - spyT5).toFixed(1)),
-        t10: parseFloat((t10 - spyT10).toFixed(1)),
-        t15: parseFloat((t15 - spyT15).toFixed(1)),
-        t20: parseFloat((t20 - spyT20).toFixed(1)),
-      }
-    });
-  }
-
-  // Bereken statistieken
-  const signalWeeks   = weeks.filter(w => w.isSignal);
-  const noSignalWeeks = weeks.filter(w => !w.isSignal);
-
-  function calcHStats(wks, h) {
-    const key = "t" + h;
-    const rets = wks.map(w => w.returns[key] || 0);
-    const alphas = wks.map(w => w.alpha[key] || 0);
-    const wins = rets.filter(r => r > 0).length;
-    const sorted = [...rets].sort((a,b)=>a-b);
-    const mid = Math.floor(sorted.length/2);
-    const med = sorted.length%2===0?(sorted[mid-1]+sorted[mid])/2:sorted[mid];
-    let peak=100,eq=100,maxDD=0;
-    for(const r of rets){eq*=(1+r/100);if(eq>peak)peak=eq;const dd=(peak-eq)/peak*100;if(dd>maxDD)maxDD=dd;}
+    var n = Math.max(allW.length, 1);
     return {
-      winRate: parseFloat((wins/rets.length*100).toFixed(1)),
-      avgReturn: parseFloat((rets.reduce((a,b)=>a+b,0)/rets.length).toFixed(1)),
-      avgAlpha: parseFloat((alphas.reduce((a,b)=>a+b,0)/alphas.length).toFixed(1)),
-      medReturn: parseFloat(med.toFixed(1)),
-      maxReturn: parseFloat(Math.max(...rets).toFixed(1)),
-      minReturn: parseFloat(Math.min(...rets).toFixed(1)),
-      maxDrawdown: parseFloat(maxDD.toFixed(1)),
-      positiveWeeks: wins, totalWeeks: rets.length,
+      totalWeeks: allW.length,
+      signalWeeks: sW.length,
+      signalRate: parseFloat((sW.length/n*100).toFixed(1)),
+      signal_t10: sW.length > 0 ? calcH(sW, 10) : null,
     };
   }
 
-  const stats = {
-    totalWeeks: weeks.length,
-    signalWeeks: signalWeeks.length,
-    signalRate: parseFloat((signalWeeks.length/weeks.length*100).toFixed(1)),
-  };
-
-  for (const h of [5,10,15,20]) {
-    if (signalWeeks.length > 0) {
-      stats["signal_t"+h] = calcHStats(signalWeeks, h);
-      const spyRets = signalWeeks.map(w => w.spyReturns["t"+h]||0);
-      stats["spy_t"+h] = {
-        avgReturn: parseFloat((spyRets.reduce((a,b)=>a+b,0)/spyRets.length).toFixed(1)),
-        winRate: parseFloat((spyRets.filter(r=>r>0).length/spyRets.length*100).toFixed(1)),
-      };
-    }
-    if (noSignalWeeks.length > 0) {
-      const rets = noSignalWeeks.map(w => w.returns["t"+h]||0);
-      stats["nosig_t"+h] = {
-        avgReturn: parseFloat((rets.reduce((a,b)=>a+b,0)/rets.length).toFixed(1)),
-        winRate: parseFloat((rets.filter(r=>r>0).length/rets.length*100).toFixed(1)),
-      };
-    }
-  }
-
-  // Train/test split
-  const trainWeeks = weeks.filter(w => w.date < "2025-01-01");
-  const testWeeks  = weeks.filter(w => w.date >= "2025-01-01");
-
-  const trainSignal = trainWeeks.filter(w=>w.isSignal);
-  const testSignal  = testWeeks.filter(w=>w.isSignal);
-
-  function splitStats(allW, sigW) {
-    if (sigW.length === 0) return null;
-    const s10 = calcHStats(sigW, 10);
-    return { totalWeeks: allW.length, signalWeeks: sigW.length,
-      signalRate: parseFloat((sigW.length/allW.length*100).toFixed(1)),
-      signal_t10: s10 };
-  }
+  var trainW = weeks.filter(function(w){ return w.date < "2025-01-01"; });
+  var testW  = weeks.filter(function(w){ return w.date >= "2025-01-01"; });
 
   return {
-    segmentId: "ai-infra",
-    proxy: "NVDA",
-    params: { minEarlyScore: 4, volFastThresh: 1.5, volSlowThresh: 1.3 },
+    segmentId: "ai-infra", proxy: "NVDA",
+    params: { minEarlyScore:minScore, volFastThresh:volFastThresh, volSlowThresh:volSlowThresh },
     totalWeeks: weeks.length,
-    weeks,
-    stats,
-    trainStats: splitStats(trainWeeks, trainSignal),
-    testStats:  splitStats(testWeeks, testSignal),
-    equityCurves,
+    weeks: weeks,
+    stats: stats,
+    trainStats: splitStats(trainW, trainW.filter(function(w){ return w.isSignal; })),
+    testStats:  splitStats(testW,  testW.filter(function(w){ return w.isSignal; })),
+    equityCurves: equityCurves,
     lastUpdated: new Date().toISOString(),
     isDemo: true,
   };
 }
-
-// ══════════════════════════════════════════════════════════════════
-// RUN BACKTEST
-// ══════════════════════════════════════════════════════════════════
-async function runBacktest() {
-  const url = localStorage.getItem(LS_URL);
-
-  // Demo modus — herbereken demo data met nieuwe parameters
-  if (!url) {
-    const minScore = parseInt(document.getElementById("minScore").value);
-    const volFast  = parseFloat(document.getElementById("volFast").value);
-    const volSlow  = parseFloat(document.getElementById("volSlow").value);
-    const reqWT    = document.getElementById("reqWTrend").checked;
-    const reqRS    = document.getElementById("reqRSBreak").checked;
-
-    setLoading(true);
-    setTimeout(() => {
-      // Herbereken demo data met nieuwe parameters
-      const demoData = generateDemoBacktest(minScore, volFast, volSlow, reqWT, reqRS);
-      currentData = demoData;
-      renderResults(demoData);
-      setLoading(false);
-      document.getElementById("runBtn").textContent = "⚡ Demo herberekend";
-    }, 400); // kleine vertraging zodat loading zichtbaar is
-    return;
-  }
-
-  // Live modus — Apps Script aanroep
-  const [proxy, segId] = document.getElementById("segmentSelect").value.split("|");
-  const minScore = document.getElementById("minScore").value;
-  const volFast  = document.getElementById("volFast").value;
-  const volSlow  = document.getElementById("volSlow").value;
-  const reqWT    = document.getElementById("reqWTrend").checked;
-  const reqRS    = document.getElementById("reqRSBreak").checked;
-
-  setLoading(true);
-
-  try {
-    const endpoint = `${url}?tab=backtest&segment=${segId}&proxy=${proxy}`
-      + `&minEarlyScore=${minScore}&volFast=${volFast}&volSlow=${volSlow}`
-      + `&requireWTrend=${reqWT}&requireRSBreak=${reqRS}&_t=${Date.now()}`;
-
-    const res = await fetch(endpoint);
-    if (!res.ok) throw new Error("HTTP " + res.status);
-
-    const json = await res.json();
-    if (json.error) throw new Error(json.error);
-
-    currentData = json;
-    renderResults(json);
-
-  } catch(err) {
-    showError(err.message);
-  } finally {
-    setLoading(false);
-  }
-}
-
-// ══════════════════════════════════════════════════════════════════
-// RENDER RESULTS
-// ══════════════════════════════════════════════════════════════════
-function renderResults(data) {
-  document.getElementById("emptyState").style.display   = "none";
-  document.getElementById("errorState").style.display   = "none";
-  document.getElementById("results").style.display      = "";
-
-  const s = data.stats;
-  if (!s) return;
-
-  // Summary stats
-  set("r-signalWeeks", s.signalWeeks || 0);
-  set("r-signalRate",  `${s.signalWeeks||0} van ${s.totalWeeks||0} weken (${s.signalRate||0}%)`);
-
-  // Geen signalen gevonden
-  if (!s.signalWeeks || s.signalWeeks === 0) {
-    document.getElementById("r-signalWeeks").textContent = "0 — verlaag drempels";
-    document.getElementById("r-signalRate").textContent = "Geen signaalweken gevonden met huidige parameters";
-    return;
-  }
-
-  const s10 = s.signal_t10;
-  if (s10) {
-    setColored("r-winRate10", s10.winRate + "%", s10.winRate >= 55 ? "green" : s10.winRate >= 45 ? "yellow" : "red");
-    setColored("r-alpha10",   (s10.avgAlpha > 0 ? "+" : "") + s10.avgAlpha + "%", s10.avgAlpha > 0 ? "green" : "red");
-    setColored("r-maxDD",     "-" + s10.maxDrawdown + "%", "red");
-  }
-
-  // Horizon stats
-  for (const h of ["t5","t10","t15","t20"]) {
-    const hs = s["signal_" + h];
-    const spy = s["spy_" + h];
-    if (!hs) continue;
-    const avgColor = hs.avgReturn > 0 ? "green" : "red";
-    document.getElementById("h-avg-" + h).textContent = (hs.avgReturn > 0 ? "+" : "") + hs.avgReturn + "%";
-    document.getElementById("h-avg-" + h).className = "h-stat-main " + avgColor;
-    set("h-win-" + h,   hs.winRate + "%");
-    set("h-alpha-" + h, (hs.avgAlpha > 0 ? "+" : "") + hs.avgAlpha + "%");
-    set("h-med-" + h,   (hs.medReturn > 0 ? "+" : "") + hs.medReturn + "%");
-    setColored("h-max-" + h, "+" + hs.maxReturn + "%", "green");
-    setColored("h-min-" + h, hs.minReturn + "%", "red");
-  }
-
-  // Train vs Test
-  renderSplitStats("trainStats", data.trainStats);
-  renderSplitStats("testStats",  data.testStats);
-
-  // Charts
-  renderEquityChart(data.equityCurves);
-  renderDistChart(data.weeks);
-
-  // Table
-  renderTable(data.weeks);
-}
-
-function renderSplitStats(elId, stats) {
-  const el = document.getElementById(elId);
-  if (!stats || !stats.signal_t10) {
-    el.innerHTML = '<div style="color:var(--muted);font-size:11px">Onvoldoende data</div>';
-    return;
-  }
-  const s = stats.signal_t10;
-  el.innerHTML = `
-    <div class="split-row"><span class="split-row-label">Signaalweken</span><span>${stats.signalWeeks} / ${stats.totalWeeks} (${stats.signalRate}%)</span></div>
-    <div class="split-row"><span class="split-row-label">Win rate T+10</span><span class="${s.winRate >= 55 ? 'green' : s.winRate >= 45 ? 'yellow' : 'red'}">${s.winRate}%</span></div>
-    <div class="split-row"><span class="split-row-label">Gem. rendement T+10</span><span class="${s.avgReturn >= 0 ? 'green' : 'red'}">${s.avgReturn > 0 ? '+' : ''}${s.avgReturn}%</span></div>
-    <div class="split-row"><span class="split-row-label">Gem. alpha T+10</span><span class="${s.avgAlpha >= 0 ? 'green' : 'red'}">${s.avgAlpha > 0 ? '+' : ''}${s.avgAlpha}%</span></div>
-    <div class="split-row"><span class="split-row-label">Max drawdown</span><span class="red">-${s.maxDrawdown}%</span></div>
-    <div class="split-row"><span class="split-row-label">Beste week</span><span class="green">+${s.maxReturn}%</span></div>
-    <div class="split-row"><span class="split-row-label">Slechtste week</span><span class="red">${s.minReturn}%</span></div>
-  `;
-}
-
-// ══════════════════════════════════════════════════════════════════
-// CHARTS
-// ══════════════════════════════════════════════════════════════════
-function renderEquityChart(curves) {
-  if (equityChart) equityChart.destroy();
-  const ctx = document.getElementById("equityChart").getContext("2d");
-  equityChart = new Chart(ctx, {
-    type: "line",
-    data: {
-      labels: curves.signal.map(d => d.date),
-      datasets: [
-        {
-          label: "⚡ Signaal strategie",
-          data:  curves.signal.map(d => d.value),
-          borderColor: "#22c55e", backgroundColor: "rgba(34,197,94,.08)",
-          borderWidth: 2, pointRadius: 0, fill: true, tension: 0.3,
-        },
-        {
-          label: "📈 Buy & Hold",
-          data:  curves.buyHold.map(d => d.value),
-          borderColor: "#3d82f6", backgroundColor: "transparent",
-          borderWidth: 1.5, pointRadius: 0, borderDash: [4,4], tension: 0.3,
-        },
-        {
-          label: "🏦 SPY",
-          data:  curves.spy.map(d => d.value),
-          borderColor: "#6b7591", backgroundColor: "transparent",
-          borderWidth: 1.5, pointRadius: 0, borderDash: [2,4], tension: 0.3,
-        },
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { labels: { color: "#e8eaf0", font: { family: "JetBrains Mono", size: 11 } } },
-        tooltip: { mode: "index", intersect: false,
-          callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}` }
-        }
-      },
-      scales: {
-        x: { ticks: { color: "#6b7591", maxTicksLimit: 8, font: { size: 10 } }, grid: { color: "#252b38" } },
-        y: { ticks: { color: "#6b7591", callback: v => v.toFixed(0), font: { size: 10 } }, grid: { color: "#252b38" } }
-      }
-    }
-  });
-}
-
-function renderDistChart(weeks) {
-  if (distChart) distChart.destroy();
-  const signalRets = weeks.filter(w => w.isSignal).map(w => w.returns.t10 || 0);
-  const noSigRets  = weeks.filter(w => !w.isSignal).map(w => w.returns.t10 || 0);
-
-  // Bucket in ranges van 2%
-  const buckets = Array.from({length:20}, (_,i) => (i-10)*2); // -20% to +18%
-  const sigCounts  = buckets.map(b => signalRets.filter(r => r >= b && r < b+2).length);
-  const noSigCounts= buckets.map(b => noSigRets.filter(r => r >= b && r < b+2).length);
-
-  const ctx = document.getElementById("distChart").getContext("2d");
-  distChart = new Chart(ctx, {
-    type: "bar",
-    data: {
-      labels: buckets.map(b => b + "%"),
-      datasets: [
-        {
-          label: "⚡ Bij signaal",
-          data: sigCounts,
-          backgroundColor: "rgba(34,197,94,.5)", borderColor: "#22c55e", borderWidth: 1,
-        },
-        {
-          label: "Geen signaal",
-          data: noSigCounts,
-          backgroundColor: "rgba(107,117,145,.3)", borderColor: "#6b7591", borderWidth: 1,
-        }
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { labels: { color: "#e8eaf0", font: { family: "JetBrains Mono", size: 11 } } }
-      },
-      scales: {
-        x: { ticks: { color: "#6b7591", maxTicksLimit: 10, font: { size: 9 } }, grid: { color: "#252b38" } },
-        y: { ticks: { color: "#6b7591", font: { size: 10 } }, grid: { color: "#252b38" } }
-      }
-    }
-  });
-}
-
-// ══════════════════════════════════════════════════════════════════
-// WEEKLY TABLE
-// ══════════════════════════════════════════════════════════════════
-let tableFilter = "all";
-
-function renderTable(weeks) {
-  const tbody = document.getElementById("weeklyTable");
-  const toShow = weeks.filter(w => {
-    if (tableFilter === "signal")   return w.isSignal;
-    if (tableFilter === "nosignal") return !w.isSignal;
-    return true;
-  }).slice().reverse(); // nieuwste eerst
-
-  tbody.innerHTML = toShow.map(w => {
-    const sig = w.signal;
-    const sc  = w.earlyScore;
-    const sigCls = sc >= 4 ? "sig-vroeg" : sc === 3 ? "sig-watch" : "sig-geen";
-    const sigLbl = sc >= 4 ? "⚡ VROEG" : sc === 3 ? "🟡 WATCH" : "—";
-
-    const r = w.returns, a = w.alpha;
-    return `<tr>
-      <td>${w.date}</td>
-      <td>${w.close}</td>
-      <td class="${sigCls}">${sigLbl} (${sc}/6)</td>
-      <td>${sig.ema8align || "—"}</td>
-      <td>${trendTag(sig.weeklyTrend)}</td>
-      <td>${rsBreakTag(sig.rsBreak)}</td>
-      <td>${sig.volFlow != null ? sig.volFlow + "×" : "—"}</td>
-      <td class="${colorClass(r.t5)}">${fmtPct(r.t5)}</td>
-      <td class="${colorClass(r.t10)}">${fmtPct(r.t10)}</td>
-      <td class="${colorClass(r.t15)}">${fmtPct(r.t15)}</td>
-      <td class="${colorClass(r.t20)}">${fmtPct(r.t20)}</td>
-      <td class="${colorClass(a.t10)}">${fmtPct(a.t10)}</td>
-    </tr>`;
-  }).join("");
-}
-
-function filterTable(type, btn) {
-  tableFilter = type;
-  document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
-  btn.classList.add("active");
-  if (currentData) renderTable(currentData.weeks);
-}
-
-function selectHorizon(h) {
-  selectedHorizon = h;
-  document.querySelectorAll(".h-stat").forEach(el => el.classList.remove("active"));
-  document.getElementById("hstat-" + h).classList.add("active");
-}
-
-// ══════════════════════════════════════════════════════════════════
-// HELPERS
-// ══════════════════════════════════════════════════════════════════
-function fmtPct(v) {
-  if (v == null) return "—";
-  return (v > 0 ? "+" : "") + v.toFixed(1) + "%";
-}
-function colorClass(v) {
-  if (v == null) return "neu";
-  return v > 0 ? "pos" : v < 0 ? "neg" : "neu";
-}
-function trendTag(v) {
-  if (!v) return "—";
-  const c = v==="UP"?"green":v==="DOWN"?"red":"neu";
-  return `<span class="${c}">${v==="UP"?"↑ UP":v==="DOWN"?"↓ DOWN":"↔ RANGE"}</span>`;
-}
-function rsBreakTag(v) {
-  if (!v || v==="none") return '<span class="neu">—</span>';
-  return v==="up" ? '<span class="green">🔼 Break Up</span>' : '<span class="red">🔽 Break Down</span>';
-}
-function set(id, v) { const el=document.getElementById(id); if(el) el.textContent=v; }
-function setColored(id, v, cls) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.textContent = v;
-  el.className = "stat-value " + cls;
-}
-
-function setLoading(loading) {
-  document.getElementById("loadingState").style.display = loading ? "" : "none";
-  document.getElementById("runBtn").disabled = loading;
-  document.getElementById("runBtn").textContent = loading ? "⏳ Berekenen..." : "▶ Backtest uitvoeren";
-  if (loading) {
-    document.getElementById("results").style.display = "none";
-    document.getElementById("emptyState").style.display = "none";
-  }
-}
-
-function showError(msg) {
-  document.getElementById("loadingState").style.display = "none";
-  document.getElementById("errorState").style.display   = "";
-  document.getElementById("results").style.display      = "none";
-  document.getElementById("errorMsg").textContent = msg;
-}
-</script>
-</body>
-</html>
