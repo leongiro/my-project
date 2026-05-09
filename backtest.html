@@ -302,39 +302,15 @@ var equityChart = null;
 var distChart = null;
 
 window.addEventListener("DOMContentLoaded", function() {
-  var url = localStorage.getItem(LS_URL);
   document.getElementById("demoBanner").style.display = "";
   runDemoBacktest();
-
-  // Auto-update bij filter wijziging (met debounce voor sliders)
-  var debounceTimer = null;
-  function debouncedRun() {
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(function() {
-      var liveUrl = localStorage.getItem(LS_URL);
-      if (!liveUrl) { runDemoBacktest(); }
-      // Bij live URL: niet auto-refreshen (te veel API calls)
-    }, 400);
-  }
-
-  document.getElementById("minScore").addEventListener("input", debouncedRun);
-  document.getElementById("volFast").addEventListener("input", debouncedRun);
-  document.getElementById("volSlow").addEventListener("input", debouncedRun);
-  document.getElementById("reqWTrend").addEventListener("change", function(){ if (!localStorage.getItem(LS_URL)) runDemoBacktest(); });
-  document.getElementById("reqRSBreak").addEventListener("change", function(){ if (!localStorage.getItem(LS_URL)) runDemoBacktest(); });
-  document.getElementById("segmentSelect").addEventListener("change", function(){
-    var liveUrl = localStorage.getItem(LS_URL);
-    if (!liveUrl) { runDemoBacktest(); }
-    else { runBacktest(); } // Live: herlaad met nieuwe ticker
-  });
 });
 
 var autoRunTimer = null;
 function autoRun() {
   clearTimeout(autoRunTimer);
   autoRunTimer = setTimeout(function() {
-    var url = localStorage.getItem(LS_URL);
-    if (!url) { runDemoBacktest(); }
+    runDemoBacktest();
   }, 350);
 }
 
