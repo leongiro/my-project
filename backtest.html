@@ -303,14 +303,30 @@ var distChart = null;
 
 window.addEventListener("DOMContentLoaded", function() {
   var url = localStorage.getItem(LS_URL);
-  if (!url) {
-    document.getElementById("demoBanner").style.display = "";
-    runDemoBacktest();
-  } else {
-    // Toon demo alvast, live data laadt via knop
-    document.getElementById("demoBanner").style.display = "";
-    runDemoBacktest();
+  document.getElementById("demoBanner").style.display = "";
+  runDemoBacktest();
+
+  // Auto-update bij filter wijziging (met debounce voor sliders)
+  var debounceTimer = null;
+  function debouncedRun() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(function() {
+      var liveUrl = localStorage.getItem(LS_URL);
+      if (!liveUrl) { runDemoBacktest(); }
+      // Bij live URL: niet auto-refreshen (te veel API calls)
+    }, 400);
   }
+
+  document.getElementById("minScore").addEventListener("input", debouncedRun);
+  document.getElementById("volFast").addEventListener("input", debouncedRun);
+  document.getElementById("volSlow").addEventListener("input", debouncedRun);
+  document.getElementById("reqWTrend").addEventListener("change", function(){ if (!localStorage.getItem(LS_URL)) runDemoBacktest(); });
+  document.getElementById("reqRSBreak").addEventListener("change", function(){ if (!localStorage.getItem(LS_URL)) runDemoBacktest(); });
+  document.getElementById("segmentSelect").addEventListener("change", function(){
+    var liveUrl = localStorage.getItem(LS_URL);
+    if (!liveUrl) { runDemoBacktest(); }
+    else { runBacktest(); } // Live: herlaad met nieuwe ticker
+  });
 });
 
 function runDemoBacktest() {
@@ -319,7 +335,10 @@ function runDemoBacktest() {
   var volSlow    = parseFloat(document.getElementById("volSlow").value) || 1.1;
   var reqWTrend  = document.getElementById("reqWTrend").checked;
   var reqRSBreak = document.getElementById("reqRSBreak").checked;
-  var data = generateDemoData(minScore, volFast, volSlow, reqWTrend, reqRSBreak);
+  // Gebruik segment index als seed zodat elke sector andere data geeft
+  var segEl  = document.getElementById("segmentSelect");
+  var segSeed = segEl ? segEl.selectedIndex : 0;
+  var data = generateDemoData(minScore, volFast, volSlow, reqWTrend, reqRSBreak, segSeed);
   currentData = data;
   renderResults(data);
 }
@@ -357,13 +376,15 @@ function runBacktest() {
     .finally(function(){ btn.disabled=false; btn.textContent="▶ Backtest uitvoeren"; });
 }
 
-function generateDemoData(minScore, volFastThresh, volSlowThresh, reqWTrend, reqRSBreak) {
+function generateDemoData(minScore, volFastThresh, volSlowThresh, reqWTrend, reqRSBreak, segSeed) {
+  if (!segSeed) segSeed = 0;
   var weeks = [];
-  var price = 145;
+  var price = 100 + segSeed * 50;
   var sigEq = 100, bhEq = 100, spyEq = 100;
   var curves = { signal:[], buyHold:[], spy:[] };
+  var SS = segSeed * 1000; // seed offset per segment
 
-  function s(n){ return ((Math.sin(n*9301+49297)*233280)%1+1)/2; }
+  function s(n){ return ((Math.sin((n+SS)*9301+49297)*233280)%1+1)/2; }
 
   for (var w = 0; w < 104; w++) {
     var d = new Date("2023-01-06");
