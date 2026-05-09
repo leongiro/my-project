@@ -268,5 +268,541 @@
 
     load();
   </script>
+<!-- ══════════════════════════════════════════════════════════════
+     EXECUTIVE SUMMARY — Kapitaalrotatie Signalen
+     Plak dit snippet onderaan index.html, net voor </body>
+     ══════════════════════════════════════════════════════════════ -->
+
+<style>
+/* ── Executive Summary styles ─────────────────────────────────── */
+.es-section {
+  max-width: 1800px;
+  margin: 32px auto 0;
+  padding: 0 20px 40px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.es-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.es-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -.4px;
+  color: #e8eaf0;
+}
+.es-title span { color: #5b9cf8; }
+.es-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 10px;
+  color: #6b7591;
+}
+.es-pulse {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+  animation: es-pulse 2s infinite;
+}
+@keyframes es-pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+.es-refresh-btn {
+  padding: 4px 12px;
+  border-radius: 5px;
+  border: 1px solid #2e3647;
+  background: #181c23;
+  color: #6b7591;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.es-refresh-btn:hover { border-color: #3d82f6; color: #e8eaf0; }
+
+/* Signal blocks */
+.es-blocks {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+}
+@media(max-width:1100px) { .es-blocks { grid-template-columns: 1fr 1fr; } }
+@media(max-width:700px)  { .es-blocks { grid-template-columns: 1fr; } }
+
+.es-block {
+  background: #111318;
+  border: 1px solid #252b38;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.es-block-header {
+  padding: 10px 16px;
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid #252b38;
+}
+.es-block-header.instroom  { background: rgba(34,197,94,.08);  color: #22c55e; }
+.es-block-header.uitstroom { background: rgba(239,68,68,.08);   color: #ef4444; }
+.es-block-header.transitie { background: rgba(245,158,11,.08);  color: #f59e0b; }
+
+.es-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.es-table th {
+  padding: 6px 10px;
+  text-align: left;
+  font-size: 9px;
+  color: #6b7591;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  border-bottom: 1px solid #1e2330;
+  background: #0f1217;
+}
+.es-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #1a1f2a;
+  vertical-align: middle;
+}
+.es-table tr:last-child td { border-bottom: none; }
+.es-table tr:hover td { background: #181c23; }
+
+/* Segment name */
+.es-seg-name { font-weight: 600; color: #e8eaf0; font-size: 11px; }
+.es-seg-sub  { color: #6b7591; font-size: 9px; margin-top: 1px; }
+
+/* Signal strength bar */
+.es-bar-wrap { display: flex; align-items: center; gap: 5px; }
+.es-bar      { width: 36px; height: 4px; background: #1e2330; border-radius: 2px; overflow: hidden; }
+.es-bar-fill { height: 100%; border-radius: 2px; }
+
+/* Tags */
+.es-tag {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .4px;
+}
+.es-tag-bull-cross { background: rgba(34,197,94,.15);  color: #22c55e; }
+.es-tag-bear-cross { background: rgba(239,68,68,.15);  color: #ef4444; }
+.es-tag-sbull      { background: rgba(6,182,212,.12);  color: #06b6d4; }
+.es-tag-sbear      { background: rgba(239,68,68,.10);  color: #f87171; }
+.es-tag-exhaust    { background: rgba(245,158,11,.12); color: #f59e0b; }
+.es-tag-early      { background: rgba(167,139,250,.12);color: #a78bfa; }
+
+/* Action badge */
+.es-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.es-action-buy     { background: rgba(34,197,94,.12);  color: #22c55e; border: 1px solid rgba(34,197,94,.2); }
+.es-action-sell    { background: rgba(239,68,68,.12);  color: #ef4444; border: 1px solid rgba(239,68,68,.2); }
+.es-action-watch   { background: rgba(245,158,11,.12); color: #f59e0b; border: 1px solid rgba(245,158,11,.2); }
+.es-action-reduce  { background: rgba(239,68,68,.06);  color: #f87171; border: 1px solid rgba(239,68,68,.15); }
+
+/* Composite score dots */
+.es-score-dots { display: flex; gap: 2px; }
+.es-dot { width: 7px; height: 7px; border-radius: 50%; }
+.es-dot-on  { background: #22c55e; }
+.es-dot-warn{ background: #f59e0b; }
+.es-dot-off { background: #2e3647; }
+
+/* Empty state */
+.es-empty {
+  padding: 24px;
+  text-align: center;
+  color: #6b7591;
+  font-size: 11px;
+}
+
+/* Loading */
+.es-loading {
+  padding: 40px;
+  text-align: center;
+  color: #6b7591;
+  font-size: 11px;
+}
+</style>
+
+<!-- EXECUTIVE SUMMARY SECTION -->
+<div class="es-section" id="executiveSummary">
+  <div class="es-header">
+    <div>
+      <div class="es-title">Kapitaalrotatie <span>Signalen</span></div>
+      <div style="color:#6b7591;font-size:10px;margin-top:3px">
+        Instroom · Uitstroom · Transitie — live data uit Deep Dive dashboard
+      </div>
+    </div>
+    <div class="es-meta">
+      <div class="es-pulse" id="esPulse" style="background:#6b7591"></div>
+      <span id="esLastUpdate">Laden...</span>
+      <button class="es-refresh-btn" onclick="loadExecutiveSummary(true)">↻ Refresh</button>
+      <a href="sector-deep.html" style="color:#3d82f6;font-size:10px;text-decoration:none">→ Deep Dive</a>
+    </div>
+  </div>
+
+  <div id="esContent">
+    <div class="es-loading">📡 Kapitaalrotatie signalen laden...</div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+// EXECUTIVE SUMMARY — Kapitaalrotatie Signalen
+// Classificeert alle 69 subsegmenten in Instroom / Uitstroom / Transitie
+// ══════════════════════════════════════════════════════════════════
+
+var ES_CACHE_KEY    = "es_data_cache";
+var ES_CACHE_TS_KEY = "es_data_ts";
+var ES_CACHE_TTL    = 30 * 60 * 1000; // 30 min
+
+// ──────────────────────────────────────────────────────────────────
+// CLASSIFICATIE LOGICA
+// ──────────────────────────────────────────────────────────────────
+
+// Instroom score (0-10): hoe sterk is het instroom signaal?
+function esInstroomScore(seg) {
+  var score = 0;
+
+  // EMA8 alignment — vroegste momentum indicator (gewicht 2)
+  if (seg.ema8align === "strong-bull") score += 2;
+  else if (seg.ema8align === "bull")   score += 1;
+
+  // RS Breuk omhoog — sector begint te leiden (gewicht 2)
+  if (seg.rsBreak === "up" && (seg.rs || 0) > 0) score += 2;
+  else if (seg.rsBreak === "up") score += 1;
+
+  // Volume bevestiging (gewicht 2)
+  if ((seg.volFlow || 0) >= 2.0) score += 2;
+  else if ((seg.volFlow || 0) >= 1.5) score += 1;
+
+  // Wekelijkse trend (gewicht 1)
+  if (seg.weeklyTrend === "UP") score += 1;
+
+  // Dagelijkse structuur (gewicht 1)
+  if (seg.structure === "HH/HL") score += 1;
+
+  // Mansfield positief en stijgend (gewicht 1)
+  if ((seg.mansfield || 0) > 0 && seg.rsTrend === "up") score += 1;
+
+  return score; // max 10
+}
+
+// Uitstroom score (0-10): hoe sterk is het uitstroom signaal?
+function esUitstroomScore(seg) {
+  var score = 0;
+
+  // EMA8 negatief (gewicht 2)
+  if (seg.ema8align === "strong-bear") score += 2;
+  else if (seg.ema8align === "bear")   score += 1;
+
+  // RS Breuk omlaag (gewicht 2)
+  if (seg.rsBreak === "down" && (seg.rs || 0) < 0) score += 2;
+  else if (seg.rsBreak === "down") score += 1;
+
+  // Bearish structuur (gewicht 2)
+  if (seg.structure === "LH/LL") score += 2;
+
+  // Wekelijkse trend neerwaarts (gewicht 1)
+  if (seg.weeklyTrend === "DOWN") score += 1;
+
+  // Mansfield negatief (gewicht 1)
+  if ((seg.mansfield || 0) < -0.5) score += 1;
+
+  // Volume droogt op (gewicht 1)
+  if ((seg.volFlow || 0) < 0.9) score += 1;
+
+  // Momentum uitputting: hoog RSI + hoge Mansfield (gewicht 1)
+  if ((seg.rsi || 50) > 70 && (seg.mansfield || 0) > 2.5) score += 1;
+
+  return score; // max 11
+}
+
+// Classificeer een segment
+function esClassify(seg) {
+  var iScore = esInstroomScore(seg);
+  var uScore = esUitstroomScore(seg);
+  var earlyScore = seg._earlyScore || 0;
+
+  // Momentum uitputting: hoog RSI + Mansfield maar RS begint te dalen
+  var isExhausted = (seg.rsi || 50) > 70 &&
+                    (seg.mansfield || 0) > 2.0 &&
+                    seg.rsTrend === "down";
+
+  // Verse cross (bull of bear) = transitie
+  var isFreshCross = seg.ema21x50 === "bull-cross" || seg.ema21x50 === "bear-cross";
+
+  // INSTROOM: duidelijk positief signaal
+  if (iScore >= 6 && uScore <= 2) {
+    return { type: "instroom", iScore: iScore, uScore: uScore, isExhausted: false };
+  }
+
+  // UITSTROOM: duidelijk negatief
+  if (uScore >= 5 && iScore <= 2) {
+    return { type: "uitstroom", iScore: iScore, uScore: uScore, isExhausted: isExhausted };
+  }
+
+  // TRANSITIE: verse cross OF momentum uitputting OF signaal opbouwend
+  if (isFreshCross || isExhausted || (earlyScore === 3)) {
+    return { type: "transitie", iScore: iScore, uScore: uScore,
+             isExhausted: isExhausted, isFreshCross: isFreshCross };
+  }
+
+  return { type: "neutraal", iScore: iScore, uScore: uScore };
+}
+
+// ──────────────────────────────────────────────────────────────────
+// ACTIE BEPALEN
+// ──────────────────────────────────────────────────────────────────
+function esAction(seg, classification) {
+  var type = classification.type;
+
+  if (type === "instroom") {
+    if (classification.iScore >= 8) {
+      return { label: "📈 Zoek aandelen", cls: "es-action-buy",
+               tip: "Sterk instroom signaal — selecteer aandelen binnen dit segment" };
+    }
+    return { label: "👀 Monitor", cls: "es-action-watch",
+             tip: "Instroom bevestigt — houd aan voor bevestiging" };
+  }
+
+  if (type === "uitstroom") {
+    if (classification.isExhausted) {
+      return { label: "⚠️ Neem winst", cls: "es-action-reduce",
+               tip: "Momentum uitgeput: RSI>70 + Mansfield hoog maar RS daalt" };
+    }
+    if (classification.uScore >= 7) {
+      return { label: "🚪 Roteer weg", cls: "es-action-sell",
+               tip: "Kapitaal stroomt uit — exit positie of roteer naar sterker segment" };
+    }
+    return { label: "⬇️ Verlaag pos.", cls: "es-action-reduce",
+             tip: "Zwakker wordend segment — verlaag positiegrootte" };
+  }
+
+  if (type === "transitie") {
+    if (classification.isFreshCross && seg.ema21x50 === "bull-cross") {
+      return { label: "⚡ Verse cross", cls: "es-action-watch",
+               tip: "EMA21 kruiste net boven EMA50 — vroeg maar nog niet bevestigd" };
+    }
+    if (classification.isFreshCross && seg.ema21x50 === "bear-cross") {
+      return { label: "⚠️ Bear cross", cls: "es-action-reduce",
+               tip: "EMA21 kruiste net onder EMA50 — momentum keert negatief" };
+    }
+    if (classification.isExhausted) {
+      return { label: "⚠️ Uitgeput", cls: "es-action-reduce",
+               tip: "Trend ver gevorderd: RSI overbought + Mansfield hoog + RS draait" };
+    }
+    return { label: "👀 Opbouwend", cls: "es-action-watch",
+             tip: "Signaal aan het opbouwen — nog geen vol bevestiging" };
+  }
+
+  return null; // neutraal — niet tonen
+}
+
+// ──────────────────────────────────────────────────────────────────
+// DATA LADEN
+// ──────────────────────────────────────────────────────────────────
+function loadExecutiveSummary(forceRefresh) {
+  var url = localStorage.getItem("deepdive_appsscript_url");
+  if (!url) {
+    renderESSkeleton();
+    return;
+  }
+
+  // Check cache
+  if (!forceRefresh) {
+    var ts   = parseInt(localStorage.getItem(ES_CACHE_TS_KEY) || "0");
+    var blob = localStorage.getItem(ES_CACHE_KEY);
+    if (blob && Date.now() - ts < ES_CACHE_TTL) {
+      try {
+        var parsed = JSON.parse(blob);
+        renderES(parsed.data);
+        updateESMeta(parsed.lastUpdated, false);
+        return;
+      } catch(e) {}
+    }
+  }
+
+  updateESMeta(null, true);
+  fetch(url + "?tab=deepdive&_t=" + Date.now())
+    .then(function(r) { return r.json(); })
+    .then(function(json) {
+      if (!json.data) throw new Error("Geen data");
+      localStorage.setItem(ES_CACHE_KEY,    JSON.stringify(json));
+      localStorage.setItem(ES_CACHE_TS_KEY, String(Date.now()));
+      renderES(json.data);
+      updateESMeta(json.lastUpdated, false);
+    })
+    .catch(function(e) {
+      document.getElementById("esContent").innerHTML =
+        '<div class="es-loading" style="color:#ef4444">⚠️ Kon data niet laden: ' + e.message + '</div>';
+      document.getElementById("esPulse").style.background = "#ef4444";
+    });
+}
+
+function updateESMeta(lastUpdated, loading) {
+  var pulse = document.getElementById("esPulse");
+  var upd   = document.getElementById("esLastUpdate");
+  if (loading) {
+    pulse.style.background = "#f59e0b";
+    upd.textContent = "Laden...";
+  } else {
+    pulse.style.background = "#22c55e";
+    var ts = lastUpdated ? new Date(lastUpdated).toLocaleTimeString("nl-NL") : new Date().toLocaleTimeString("nl-NL");
+    upd.textContent = "Bijgewerkt: " + ts;
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────
+// RENDER
+// ──────────────────────────────────────────────────────────────────
+function renderES(data) {
+  // Verrijk data met computed signals
+  var enriched = data.map(function(seg) {
+    var earlyScore = esComputeEarlyScore(seg);
+    return Object.assign({}, seg, { _earlyScore: earlyScore });
+  });
+
+  // Classificeer alles
+  var instroom  = [];
+  var uitstroom = [];
+  var transitie = [];
+
+  enriched.forEach(function(seg) {
+    var cls = esClassify(seg);
+    var act = esAction(seg, cls);
+    if (!act) return; // neutraal overslaan
+
+    var item = { seg: seg, cls: cls, action: act };
+
+    if (cls.type === "instroom")  instroom.push(item);
+    if (cls.type === "uitstroom") uitstroom.push(item);
+    if (cls.type === "transitie") transitie.push(item);
+  });
+
+  // Sorteer op score
+  instroom.sort(function(a,b)  { return b.cls.iScore - a.cls.iScore; });
+  uitstroom.sort(function(a,b) { return b.cls.uScore - a.cls.uScore; });
+
+  document.getElementById("esContent").innerHTML =
+    '<div class="es-blocks">' +
+    renderESBlock("instroom",  "🟢 Instroom", "instroom",  instroom,  10) +
+    renderESBlock("uitstroom", "🔴 Uitstroom","uitstroom", uitstroom, 11) +
+    renderESBlock("transitie", "🟡 Transitie","transitie", transitie, 10) +
+    '</div>';
+}
+
+function renderESBlock(id, title, cls, items, maxScore) {
+  var rows = "";
+  if (items.length === 0) {
+    rows = '<tr><td colspan="5"><div class="es-empty">Geen signalen momenteel</div></td></tr>';
+  } else {
+    rows = items.slice(0, 8).map(function(item) {
+      var seg = item.seg, c = item.cls, act = item.action;
+      var scoreW = Math.round((cls === "instroom" ? c.iScore : c.uScore) / maxScore * 6);
+      var dots = "";
+      for (var i = 0; i < 6; i++) {
+        dots += '<div class="es-dot ' + (i < scoreW ? (cls==="uitstroom"?"es-dot-warn":"es-dot-on") : "es-dot-off") + '"></div>';
+      }
+      return '<tr>' +
+        '<td><div class="es-seg-name">' + (seg.icon||"") + " " + seg.name + '</div>' +
+             '<div class="es-seg-sub">' + (seg.proxy||"") + '</div></td>' +
+        '<td><div class="es-score-dots">' + dots + '</div></td>' +
+        '<td>' + esTagEMA8(seg.ema8align) + '</td>' +
+        '<td>' + esTagRS(seg.rsBreak, seg.rs) + '</td>' +
+        '<td><span class="es-action ' + act.cls + '" title="' + act.tip + '">' + act.label + '</span></td>' +
+      '</tr>';
+    }).join("");
+  }
+
+  return '<div class="es-block">' +
+    '<div class="es-block-header ' + cls + '">' + title +
+    '  <span style="opacity:.6;font-size:10px;font-weight:400">' + items.length + ' segment' + (items.length!==1?"en":"") + '</span></div>' +
+    '<table class="es-table">' +
+    '<thead><tr><th>Segment</th><th>Sterkte</th><th>EMA8</th><th>RS</th><th>Actie</th></tr></thead>' +
+    '<tbody>' + rows + '</tbody></table></div>';
+}
+
+// ──────────────────────────────────────────────────────────────────
+// CELL RENDERERS
+// ──────────────────────────────────────────────────────────────────
+function esTagEMA8(v) {
+  var map = {
+    "strong-bull": ["es-tag-sbull",  "⚡ S-Bull"],
+    "bull":        ["es-tag-bull-cross", "↑ Bull"],
+    "bull-cross":  ["es-tag-bull-cross", "↑ NEW"],
+    "bear":        ["es-tag-sbear",  "↓ Bear"],
+    "strong-bear": ["es-tag-sbear",  "⚡ S-Bear"],
+    "bear-cross":  ["es-tag-bear-cross", "↓ NEW"],
+  };
+  var info = map[v];
+  if (!info) return '<span style="color:#6b7591">—</span>';
+  return '<span class="es-tag ' + info[0] + '">' + info[1] + '</span>';
+}
+
+function esTagRS(rsBreak, rs) {
+  if (rsBreak === "up")   return '<span class="es-tag es-tag-bull-cross">🔼 Break</span>';
+  if (rsBreak === "down") return '<span class="es-tag es-tag-bear-cross">🔽 Break</span>';
+  if ((rs||0) > 1)  return '<span style="color:#22c55e;font-size:10px">+' + (rs||0).toFixed(1) + '</span>';
+  if ((rs||0) < -1) return '<span style="color:#ef4444;font-size:10px">' + (rs||0).toFixed(1) + '</span>';
+  return '<span style="color:#6b7591">—</span>';
+}
+
+// ──────────────────────────────────────────────────────────────────
+// VROEG SCORE BEREKENING (zelfde als sector-deep.html)
+// ──────────────────────────────────────────────────────────────────
+function esComputeEarlyScore(seg) {
+  var ema8ok  = ["strong-bull","bull"].includes(seg.ema8align) ? 1 : 0;
+  var wtOk    = seg.weeklyTrend === "UP" ? 1 : 0;
+  var ema8pts = (ema8ok && wtOk) ? 2 : (ema8ok || wtOk) ? 1 : 0;
+  var rsBreakOk = seg.rsBreak === "up" ? 1 : 0;
+  var rsPosOk   = (seg.rs || 0) > 0 ? 1 : 0;
+  var rsPts   = (rsBreakOk && rsPosOk) ? 2 : rsBreakOk ? 1 : 0;
+  var vol5pts = (seg.volFlow   || 0) >= 1.5 ? 1 : 0;
+  var vol10pts= (seg.volFlow30 || 0) >= 1.3 ? 1 : 0;
+  return ema8pts + rsPts + vol5pts + vol10pts;
+}
+
+// ──────────────────────────────────────────────────────────────────
+// SKELETON (geen URL ingesteld)
+// ──────────────────────────────────────────────────────────────────
+function renderESSkeleton() {
+  document.getElementById("esContent").innerHTML =
+    '<div class="es-loading" style="color:#6b7591">' +
+    '🔗 Stel je Apps Script URL in via de <a href="sector-deep.html" style="color:#3d82f6">Deep Dive pagina</a> om live rotatie signalen te zien.' +
+    '</div>';
+}
+
+// ──────────────────────────────────────────────────────────────────
+// INIT — laad automatisch bij pagina open
+// ──────────────────────────────────────────────────────────────────
+(function() {
+  // Wacht tot DOM geladen is
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", function() { loadExecutiveSummary(false); });
+  } else {
+    loadExecutiveSummary(false);
+  }
+})();
+</script>
+<!-- ══ Einde Executive Summary snippet ══ -->  
 </body>
 </html>
