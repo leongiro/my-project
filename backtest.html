@@ -94,7 +94,7 @@ tbody td{padding:7px 10px;font-size:11px;white-space:nowrap}
   <div class="controls">
     <div class="ctrl-group">
       <div class="ctrl-label">Subsegment</div>
-      <select class="ctrl-select" id="segmentSelect">
+      <select class="ctrl-select" id="segmentSelect" onchange="autoRun()">
         <optgroup label="Technology">
           <option value="NVDA|ai-infra">AI Infrastructuur (NVDA)</option>
           <option value="MSFT|ai-hyperscalers">AI Hyperscalers (MSFT)</option>
@@ -142,7 +142,7 @@ tbody td{padding:7px 10px;font-size:11px;white-space:nowrap}
     </div>
     <div class="ctrl-group">
       <div class="ctrl-label">Min. VROEG score</div>
-      <input type="range" class="ctrl-range" id="minScore" min="3" max="6" value="3" oninput="document.getElementById('minScoreVal').textContent=this.value">
+      <input type="range" class="ctrl-range" id="minScore" min="3" max="6" value="3" oninput="document.getElementById('minScoreVal').textContent=this.value; autoRun()">
       <div style="display:flex;justify-content:space-between;margin-top:2px">
         <span style="color:var(--muted);font-size:10px">3</span>
         <span class="ctrl-val" id="minScoreVal">3</span>
@@ -151,7 +151,7 @@ tbody td{padding:7px 10px;font-size:11px;white-space:nowrap}
     </div>
     <div class="ctrl-group">
       <div class="ctrl-label">Vol SMA5/SMA20 drempel</div>
-      <input type="range" class="ctrl-range" id="volFast" min="1.1" max="2.5" step="0.1" value="1.3" oninput="document.getElementById('volFastVal').textContent=parseFloat(this.value).toFixed(1)+'x'">
+      <input type="range" class="ctrl-range" id="volFast" min="1.1" max="2.5" step="0.1" value="1.3" oninput="document.getElementById('volFastVal').textContent=parseFloat(this.value).toFixed(1)+'x'; autoRun()">
       <div style="display:flex;justify-content:space-between;margin-top:2px">
         <span style="color:var(--muted);font-size:10px">1.1x</span>
         <span class="ctrl-val" id="volFastVal">1.3x</span>
@@ -160,7 +160,7 @@ tbody td{padding:7px 10px;font-size:11px;white-space:nowrap}
     </div>
     <div class="ctrl-group">
       <div class="ctrl-label">Vol SMA10/SMA30 drempel</div>
-      <input type="range" class="ctrl-range" id="volSlow" min="1.0" max="2.0" step="0.1" value="1.1" oninput="document.getElementById('volSlowVal').textContent=parseFloat(this.value).toFixed(1)+'x'">
+      <input type="range" class="ctrl-range" id="volSlow" min="1.0" max="2.0" step="0.1" value="1.1" oninput="document.getElementById('volSlowVal').textContent=parseFloat(this.value).toFixed(1)+'x'; autoRun()">
       <div style="display:flex;justify-content:space-between;margin-top:2px">
         <span style="color:var(--muted);font-size:10px">1.0x</span>
         <span class="ctrl-val" id="volSlowVal">1.1x</span>
@@ -170,10 +170,10 @@ tbody td{padding:7px 10px;font-size:11px;white-space:nowrap}
     <div class="ctrl-group">
       <div class="ctrl-label">Filters</div>
       <label style="display:flex;align-items:center;gap:8px;font-size:11px;cursor:pointer;margin-top:4px">
-        <input type="checkbox" id="reqWTrend" style="accent-color:var(--accent)"> W-Trend UP vereist
+        <input type="checkbox" id="reqWTrend" style="accent-color:var(--accent)" onchange="autoRun()"> W-Trend UP vereist
       </label>
       <label style="display:flex;align-items:center;gap:8px;font-size:11px;cursor:pointer;margin-top:6px">
-        <input type="checkbox" id="reqRSBreak" style="accent-color:var(--accent)"> RS Breuk Up vereist
+        <input type="checkbox" id="reqRSBreak" style="accent-color:var(--accent)" onchange="autoRun()"> RS Breuk Up vereist
       </label>
     </div>
     <div class="ctrl-group" style="justify-content:flex-end">
@@ -328,6 +328,15 @@ window.addEventListener("DOMContentLoaded", function() {
     else { runBacktest(); } // Live: herlaad met nieuwe ticker
   });
 });
+
+var autoRunTimer = null;
+function autoRun() {
+  clearTimeout(autoRunTimer);
+  autoRunTimer = setTimeout(function() {
+    var url = localStorage.getItem(LS_URL);
+    if (!url) { runDemoBacktest(); }
+  }, 350);
+}
 
 function runDemoBacktest() {
   var minScore   = parseInt(document.getElementById("minScore").value) || 3;
