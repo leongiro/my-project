@@ -46,7 +46,7 @@ nav a.active{color:#fff;background:var(--accent)}
 .chart-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:18px}
 .chart-title{font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:4px}
 .chart-sub{color:var(--muted);font-size:10px;margin-bottom:16px}
-.chart-wrap{position:relative;height:260px}
+.chart-wrap{position:relative;height:260px;width:100%}
 .split-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px}
 .split-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
 .split-title{font-family:'Syne',sans-serif;font-weight:700;font-size:12px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
@@ -251,12 +251,12 @@ tbody td{padding:7px 10px;font-size:11px;white-space:nowrap}
       <div class="chart-card">
         <div class="chart-title">Equity Curve</div>
         <div class="chart-sub">Signaal strategie vs Buy &amp; Hold vs SPY (basis 100)</div>
-        <div class="chart-wrap"><canvas id="equityChart"></canvas></div>
+        <div class="chart-wrap"><canvas id="equityChart" style="width:100%;height:100%"></canvas></div>
       </div>
       <div class="chart-card">
         <div class="chart-title">Rendement distributie T+10</div>
         <div class="chart-sub">Signaalweken vs geen signaal</div>
-        <div class="chart-wrap"><canvas id="distChart"></canvas></div>
+        <div class="chart-wrap"><canvas id="distChart" style="width:100%;height:100%"></canvas></div>
       </div>
     </div>
 
@@ -487,7 +487,7 @@ function renderResults(data) {
   });
   renderSplit("trainStats",data.trainStats);
   renderSplit("testStats",data.testStats);
-  renderCharts(data.equityCurves, data.weeks);
+  setTimeout(function(){ renderCharts(data.equityCurves, data.weeks); }, 100);
   renderTable(data.weeks);
 }
 
@@ -526,8 +526,12 @@ function renderCharts(curves, weeks) {
 function drawLineChart(id, series, labels) {
   var canvas = document.getElementById(id);
   if (!canvas) return;
-  var W = canvas.offsetWidth || 500, H = canvas.offsetHeight || 240;
+  var parent = canvas.parentElement;
+  var W = parent ? parent.offsetWidth : 500;
+  var H = parent ? parent.offsetHeight : 240;
+  if (W < 10) W = 500; if (H < 10) H = 240;
   canvas.width = W; canvas.height = H;
+  canvas.style.width = W+"px"; canvas.style.height = H+"px";
   var ctx = canvas.getContext("2d");
   var pad = {t:20,r:10,b:40,l:50};
   var w = W - pad.l - pad.r, h = H - pad.t - pad.b;
@@ -597,8 +601,12 @@ function drawLineChart(id, series, labels) {
 function drawBarChart(id, labels, series) {
   var canvas = document.getElementById(id);
   if (!canvas) return;
-  var W = canvas.offsetWidth || 300, H = canvas.offsetHeight || 240;
+  var parent = canvas.parentElement;
+  var W = parent ? parent.offsetWidth : 300;
+  var H = parent ? parent.offsetHeight : 240;
+  if (W < 10) W = 300; if (H < 10) H = 240;
   canvas.width = W; canvas.height = H;
+  canvas.style.width = W+"px"; canvas.style.height = H+"px";
   var ctx = canvas.getContext("2d");
   var pad = {t:20,r:10,b:40,l:40};
   var w = W - pad.l - pad.r, h = H - pad.t - pad.b;
