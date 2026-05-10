@@ -349,6 +349,7 @@ function runDemoBacktest() {
   var segSeed = segEl ? segEl.selectedIndex : 0;
   var data = generateDemoData(minScore, volFast, volSlow, reqWTrend, reqRSBreak, segSeed);
   currentData = data;
+  document.getElementById("demoBanner").style.display = "none";
   renderResults(data);
 }
 
