@@ -416,7 +416,7 @@ function runBacktest() {
   var btn = document.getElementById("runBtn");
   btn.disabled = true; btn.textContent = "⏳ Berekenen...";
   var endpoint = url + "?tab=backtest&segment=" + segId + "&proxy=" + proxy
-    + "&minEarlyScore=" + minScore + "&volFast=" + volFast
+    + "&minEarlyScore=" + minScore 
     + "&requireWTrend=" + reqWTrend + "&requireRSBreak=" + reqRSBreak + "&_t=" + Date.now();
   fetch(endpoint)
     .then(function(r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
