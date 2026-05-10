@@ -212,7 +212,17 @@ tbody td{padding:7px 10px;font-size:11px;white-space:nowrap}
         <span style="color:var(--muted);font-size:10px">7</span>
       </div>
     </div>
-       <div class="ctrl-group">
+    <div class="ctrl-group">
+      <div class="ctrl-label">Vol SMA5/20 drempel</div>
+      <input type="range" class="ctrl-range" id="volFast" min="1.1" max="2.5" step="0.1" value="1.3"
+        oninput="document.getElementById('volFastVal').textContent=parseFloat(this.value).toFixed(1)+'x'; autoRun()">
+      <div style="display:flex;justify-content:space-between;margin-top:2px">
+        <span style="color:var(--muted);font-size:10px">1.1x</span>
+        <span class="ctrl-val" id="volFastVal">1.3x</span>
+        <span style="color:var(--muted);font-size:10px">2.5x</span>
+      </div>
+    </div>
+    <div class="ctrl-group">
       <div class="ctrl-label">Filters</div>
       <label style="display:flex;align-items:center;gap:8px;font-size:11px;cursor:pointer;margin-top:4px">
         <input type="checkbox" id="reqWTrend" style="accent-color:var(--accent)" onchange="autoRun()"> W-Trend UP vereist
@@ -351,9 +361,14 @@ tbody td{padding:7px 10px;font-size:11px;white-space:nowrap}
         </div>
       </div>
 
-      <!-- Score distributie 3-7 in één rij -->
-      <div class="section-title" style="margin-bottom:10px">Score distributie — win rate per niveau (max 7pt)</div>
+      <!-- Score distributie 7pt -->
+      <div class="section-title" style="margin-bottom:10px">Score distributie — 7pt model</div>
       <div class="score-dist-grid" id="attr-score-grid"></div>
+
+      <!-- Score distributie 100pt NIEUW -->
+      <div class="section-title" style="margin-top:20px;margin-bottom:4px">Score distributie — 100pt model (sectortype gewogen)</div>
+      <div class="section-sub" id="attr-sector-type-label" style="margin-bottom:10px">Sectortype: —</div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px" id="attr-score100-grid"></div>
     </div>
 
     <div class="table-card">
@@ -411,12 +426,13 @@ function runBacktest() {
   var proxy      = document.getElementById("segmentSelect").value.split("|")[0];
   var segId      = document.getElementById("segmentSelect").value.split("|")[1];
   var minScore   = document.getElementById("minScore").value;
+  var volFast    = document.getElementById("volFast").value;
   var reqWTrend  = document.getElementById("reqWTrend").checked;
   var reqRSBreak = document.getElementById("reqRSBreak").checked;
   var btn = document.getElementById("runBtn");
   btn.disabled = true; btn.textContent = "⏳ Berekenen...";
   var endpoint = url + "?tab=backtest&segment=" + segId + "&proxy=" + proxy
-    + "&minEarlyScore=" + minScore 
+    + "&minEarlyScore=" + minScore + "&volFast=" + volFast
     + "&requireWTrend=" + reqWTrend + "&requireRSBreak=" + reqRSBreak + "&_t=" + Date.now();
   fetch(endpoint)
     .then(function(r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
@@ -600,6 +616,35 @@ function renderAttribution(attr) {
         + '</div>';
     });
     scoreGrid.innerHTML = html;
+  }
+
+  // Score distributie 100pt — NIEUW
+  var grid100 = document.getElementById("attr-score100-grid");
+  var typeLabel = document.getElementById("attr-sector-type-label");
+  if (grid100 && attr.scoreDistribution100) {
+    // Sectortype label
+    var sectorType = currentData && currentData.sectorType;
+    var typeNames = { "A":"Type A — Rotatie/Commodity (RS 50%)", "B":"Type B — Trend/Growth (OBV 30%)", "C":"Type C — Defensief (Trend 30%)", "D":"Type D — Financials (Regime 15%)" };
+    if (typeLabel && sectorType) typeLabel.textContent = "Sectortype: " + (typeNames[sectorType] || sectorType);
+
+    var buckets = ["0-34","35-49","50-64","65-79","80-100"];
+    var bucketColors = { "0-34":"var(--red)", "35-49":"var(--red)", "50-64":"var(--yellow)", "65-79":"var(--green)", "80-100":"var(--green)" };
+    var bucketLabels = { "0-34":"Uitstroom", "35-49":"Zwak", "50-64":"Vroeg signaal", "65-79":"Positieve rotatie", "80-100":"Sterke instroom" };
+    var html100 = "";
+    buckets.forEach(function(b) {
+      var sd = attr.scoreDistribution100[b];
+      var aw = sd && sd.allWeeks;
+      html100 += '<div class="score-card" style="border-color:' + (aw && aw.n > 0 && aw.winRate >= 55 ? "rgba(34,197,94,.3)" : "var(--border)") + '">'
+        + '<div class="score-num" style="color:' + bucketColors[b] + ';font-size:16px">' + b + '</div>'
+        + '<div class="score-label" style="font-size:9px">' + bucketLabels[b] + '</div>'
+        + (aw && aw.n > 0
+          ? '<div class="score-stat ' + (aw.winRate>=55?"green":aw.winRate>=45?"yellow":"red") + '">' + aw.winRate + '% win</div>'
+          + '<div class="score-stat ' + (aw.alpha>0?"green":"red") + '">' + (aw.alpha>0?"+":"") + aw.alpha + '% alpha</div>'
+          + '<div class="score-weeks">' + aw.n + ' weken</div>'
+          : '<div class="score-weeks" style="margin-top:12px">— geen data —</div>')
+        + '</div>';
+    });
+    grid100.innerHTML = html100;
   }
 }
 
