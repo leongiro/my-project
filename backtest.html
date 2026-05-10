@@ -212,17 +212,7 @@ tbody td{padding:7px 10px;font-size:11px;white-space:nowrap}
         <span style="color:var(--muted);font-size:10px">7</span>
       </div>
     </div>
-    <div class="ctrl-group">
-      <div class="ctrl-label">Vol SMA5/20 drempel</div>
-      <input type="range" class="ctrl-range" id="volFast" min="1.1" max="2.5" step="0.1" value="1.3"
-        oninput="document.getElementById('volFastVal').textContent=parseFloat(this.value).toFixed(1)+'x'; autoRun()">
-      <div style="display:flex;justify-content:space-between;margin-top:2px">
-        <span style="color:var(--muted);font-size:10px">1.1x</span>
-        <span class="ctrl-val" id="volFastVal">1.3x</span>
-        <span style="color:var(--muted);font-size:10px">2.5x</span>
-      </div>
-    </div>
-    <div class="ctrl-group">
+       <div class="ctrl-group">
       <div class="ctrl-label">Filters</div>
       <label style="display:flex;align-items:center;gap:8px;font-size:11px;cursor:pointer;margin-top:4px">
         <input type="checkbox" id="reqWTrend" style="accent-color:var(--accent)" onchange="autoRun()"> W-Trend UP vereist
