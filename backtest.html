@@ -371,7 +371,7 @@ function generateDemoData(minScore, volFastThresh, volSlowThresh, reqWTrend, req
 
   function s(n){ return ((Math.sin((n+SS)*9301+49297)*233280)%1+1)/2; }
 
-  for (var w = 0; w < 104; w++) {
+  for (var w = 0; w < 130; w++) {
     var d = new Date("2023-01-06");
     d.setDate(d.getDate() + w*7);
     var ds = d.toISOString().split("T")[0];
@@ -479,17 +479,20 @@ function renderResults(data) {
     setC("r-alpha10",(s10.avgAlpha>0?"+":"")+s10.avgAlpha+"%",s10.avgAlpha>0?"green":"red");
     setC("r-maxDD","-"+s10.maxDrawdown+"%","red");
   }
-  ["t5","t10","t15","t20"].forEach(function(h){
+  ["5","10","15","20"].forEach(function(h){
     var hs=s["signal_t"+h];
     if (!hs) return;
-    var el=document.getElementById("h-avg-"+h);
+    var el=document.getElementById("h-avg-t"+h);
+    if (!el) return;
     el.textContent=(hs.avgReturn>0?"+":"")+hs.avgReturn+"%";
     el.className="h-stat-main "+(hs.avgReturn>0?"green":"red");
-    set("h-win-"+h,hs.winRate+"%");
-    set("h-alpha-"+h,(hs.avgAlpha>0?"+":"")+hs.avgAlpha+"%");
-    set("h-med-"+h,(hs.medReturn>0?"+":"")+hs.medReturn+"%");
-    var mx=document.getElementById("h-max-"+h);mx.textContent="+"+hs.maxReturn+"%";mx.style.color="var(--green)";
-    var mn=document.getElementById("h-min-"+h);mn.textContent=hs.minReturn+"%";mn.style.color="var(--red)";
+    set("h-win-t"+h,  hs.winRate+"%");
+    set("h-alpha-t"+h,(hs.avgAlpha>0?"+":"")+hs.avgAlpha+"%");
+    set("h-med-t"+h,  (hs.medReturn>0?"+":"")+hs.medReturn+"%");
+    var mx=document.getElementById("h-max-t"+h);
+    if(mx){mx.textContent="+"+hs.maxReturn+"%";mx.style.color="var(--green)";}
+    var mn=document.getElementById("h-min-t"+h);
+    if(mn){mn.textContent=hs.minReturn+"%";mn.style.color="var(--red)";}
   });
   renderSplit("trainStats",data.trainStats);
   renderSplit("testStats",data.testStats);
