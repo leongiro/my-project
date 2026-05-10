@@ -95,48 +95,72 @@ tbody td{padding:7px 10px;font-size:11px;white-space:nowrap}
     <div class="ctrl-group">
       <div class="ctrl-label">Subsegment</div>
       <select class="ctrl-select" id="segmentSelect" onchange="autoRun()">
-        <optgroup label="Technology">
+        <optgroup label="🏷️ Sector ETFs (aanbevolen)">
+          <option value="XLK|semis">Technology Sector (XLK)</option>
+          <option value="XLE|oil-majors">Energy Sector (XLE)</option>
+          <option value="XLF|mega-banks">Financials Sector (XLF)</option>
+          <option value="XLV|pharma-lc">Healthcare Sector (XLV)</option>
+          <option value="XLI|aero-defense">Industrials Sector (XLI)</option>
+          <option value="XLB|copper-metals">Materials Sector (XLB)</option>
+          <option value="XLU|elec-util">Utilities Sector (XLU)</option>
+          <option value="XLP|food-bev">Consumer Staples (XLP)</option>
+          <option value="XLY|travel-leisure">Consumer Discret. (XLY)</option>
+          <option value="XLC|social-media">Communication (XLC)</option>
+          <option value="XLRE|dc-reits">Real Estate (XLRE)</option>
+        </optgroup>
+        <optgroup label="💻 Technology subsegmenten">
           <option value="NVDA|ai-infra">AI Infrastructuur (NVDA)</option>
           <option value="MSFT|ai-hyperscalers">AI Hyperscalers (MSFT)</option>
           <option value="PLTR|ai-apps">AI Applicaties (PLTR)</option>
-          <option value="PANW|cybersec">Cybersecurity (PANW)</option>
+          <option value="SOXX|semis">Halfgeleiders ETF (SOXX)</option>
+          <option value="HACK|cybersec">Cybersecurity ETF (HACK)</option>
           <option value="IONQ|quantum">Quantum Computing (IONQ)</option>
         </optgroup>
-        <optgroup label="Energy">
-          <option value="XOM|oil-majors">Olie Majors (XOM)</option>
-          <option value="CEG|nuclear">Kernenergie (CEG)</option>
+        <optgroup label="⚡ Energy subsegmenten">
+          <option value="XLE|oil-majors">Olie Majors ETF (XLE)</option>
+          <option value="OIH|oil-services">Olie Diensten ETF (OIH)</option>
           <option value="LNG|nat-gas">Aardgas (LNG)</option>
+          <option value="CEG|nuclear">Kernenergie (CEG)</option>
+          <option value="TAN|solar">Solar ETF (TAN)</option>
           <option value="PLUG|hydrogen">Waterstof (PLUG)</option>
         </optgroup>
-        <optgroup label="Materials">
-          <option value="NEM|gold-miners">Goudmijnen (NEM)</option>
-          <option value="FCX|copper-metals">Koper (FCX)</option>
-          <option value="ALB|lithium">Lithium (ALB)</option>
+        <optgroup label="🪨 Materials subsegmenten">
+          <option value="GDX|gold-miners">Goudmijnen ETF (GDX)</option>
+          <option value="SIL|silver-pm">Zilver ETF (SIL)</option>
+          <option value="COPX|copper-metals">Koper ETF (COPX)</option>
+          <option value="LIT|lithium">Lithium ETF (LIT)</option>
+          <option value="NUE|steel">Staal (NUE)</option>
         </optgroup>
-        <optgroup label="Financials">
-          <option value="JPM|mega-banks">Mega Banken (JPM)</option>
+        <optgroup label="🏦 Financials subsegmenten">
+          <option value="KBE|mega-banks">Banken ETF (KBE)</option>
+          <option value="KRE|regional-banks">Regionale Banken ETF (KRE)</option>
+          <option value="FINX|fintech">Fintech ETF (FINX)</option>
           <option value="BX|alt-asset-mgr">Alt. Vermogen (BX)</option>
-          <option value="V|fintech">Fintech (V)</option>
         </optgroup>
-        <optgroup label="Industrials">
+        <optgroup label="🏥 Healthcare subsegmenten">
+          <option value="XBI|biotech">Biotech ETF (XBI)</option>
+          <option value="XLV|pharma-lc">Farma ETF (XLV)</option>
+          <option value="VEEV|health-it">Healthcare IT (VEEV)</option>
+        </optgroup>
+        <optgroup label="⚙️ Industrials subsegmenten">
+          <option value="ITA|aero-defense">Defensie ETF (ITA)</option>
           <option value="KTOS|defense-tech">Defensie Tech (KTOS)</option>
           <option value="RKLB|space">Space (RKLB)</option>
-          <option value="LMT|aero-defense">Defensie (LMT)</option>
         </optgroup>
-        <optgroup label="Healthcare">
-          <option value="LLY|pharma-lc">Large Cap Farma (LLY)</option>
-          <option value="BIIB|biotech">Biotech (BIIB)</option>
-        </optgroup>
-        <optgroup label="Communication">
-          <option value="META|social-media">Social Media (META)</option>
-          <option value="NFLX|streaming">Streaming (NFLX)</option>
-        </optgroup>
-        <optgroup label="Consumer">
+        <optgroup label="🛒 Consumer subsegmenten">
+          <option value="AWAY|travel-leisure">Reizen ETF (AWAY)</option>
+          <option value="IBUY|ecommerce">E-Commerce ETF (IBUY)</option>
           <option value="BKNG|travel-leisure">Reizen (BKNG)</option>
-          <option value="AMZN|ecommerce">E-Commerce (AMZN)</option>
         </optgroup>
-        <optgroup label="Real Estate">
-          <option value="EQIX|dc-reits">Data Center REITs (EQIX)</option>
+        <optgroup label="🏢 Real Estate subsegmenten">
+          <option value="XLRE|dc-reits">Real Estate ETF (XLRE)</option>
+          <option value="SRVR|dc-reits">Data Center REITs ETF (SRVR)</option>
+          <option value="PLD|ind-reits">Industriële REITs (PLD)</option>
+        </optgroup>
+        <optgroup label="📡 Communication subsegmenten">
+          <option value="SOCL|social-media">Social Media ETF (SOCL)</option>
+          <option value="NFLX|streaming">Streaming (NFLX)</option>
+          <option value="GOOGL|digital-ads">Digitale Ads (GOOGL)</option>
         </optgroup>
       </select>
     </div>
