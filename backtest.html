@@ -829,7 +829,7 @@ function generateDemoData(minScore, volFastThresh, volSlowThresh, reqWTrend, req
       stats["nosig_t"+h]={avgReturn:parseFloat((nr.reduce(function(a,b){return a+b;},0)/Math.max(nr.length,1)).toFixed(1))};}
   });
   function sp(all,sig){ return {totalWeeks:all.length,signalWeeks:sig.length,signalRate:parseFloat((sig.length/Math.max(all.length,1)*100).toFixed(1)),signal_t10:sig.length?ch(sig,10):null}; }
-  var tr=weeks.filter(function(w){return w.date<"2025-01-01";}),
+  var tr=weeks.filter(function(w){return w.date<"2025-01-01";}), te=weeks.filter(function(w){return w.date>="2025-01-01";});
   return {weeks:weeks,stats:stats,equityCurves:curves,
     trainStats:sp(tr,tr.filter(function(w){return w.isSignal;})),
     testStats:sp(te,te.filter(function(w){return w.isSignal;})),isDemo:true};
