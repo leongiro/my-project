@@ -52,7 +52,11 @@ const Rendement = (() => {
     benchData = {};
     const badge = document.getElementById("twr-badge");
     if (badge) badge.textContent = "Vernieuwen…";
+    // Voeg refresh=true toe om de Apps Script cache te wissen
+    const origUrl = cfg.sheetsUrl;
+    cfg.sheetsUrl = origUrl + (origUrl.includes("?") ? "&" : "?") + "refresh=true";
     await load();
+    cfg.sheetsUrl = origUrl; // herstel originele URL
   }
 
   // ══════════════════════════════════════════════════════════════════
