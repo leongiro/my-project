@@ -177,7 +177,9 @@ const Rendement = (() => {
       type:   CF_TYPE_MAP[(c.type ?? "").toLowerCase()] ?? (c.type ?? "OVERIG").toUpperCase(),
     }));
 
-    return { samenvatting, meta, posities, twrHistorie, cashflows };
+    return { samenvatting, meta, posities, twrHistorie, cashflows,
+             geslotenPosities: raw.geslotenPosities ?? [],
+             benchmarkData:    raw.benchmarkData    ?? {} };
   }
 
   function normalizePositie(p) {
