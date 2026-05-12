@@ -473,6 +473,7 @@ const Rendement = (() => {
         <td><div class="prod-name">${escHtml(p.product)}</div><div class="prod-isin">${escHtml(p.isin)}</div></td>
         <td>${fmtNummer(p.aantal, 4)}</td>
         <td>${fmtEUR(p.gemAankoopprijs, 2)}</td>
+        <td>${fmtEUR(p.huidig, 2)}</td>
         <td>${fmtEUR(p.waarde, 0)}</td>
         <td class="pos">${fmtEUR(p.dividend, 0)}</td>
         <td class="${p.pnl >= 0 ? "pos":"neg"}">${fmtEUR(p.pnl, 0)}</td>
@@ -492,7 +493,7 @@ const Rendement = (() => {
   <div style="overflow-x:auto">
     <table class="positions">
       <thead><tr>
-        <th>Product</th><th>Aantal</th><th>Gem. prijs</th><th>Huidige waarde</th>
+        <th>Product</th><th>Aantal</th><th>Gem. prijs</th><th>Huidige koers</th><th>Huidige waarde</th>
         <th>Dividend</th><th>P&amp;L</th><th>P&amp;L %</th><th>Gewicht</th>
       </tr></thead>
       <tbody>${rijen}</tbody>
