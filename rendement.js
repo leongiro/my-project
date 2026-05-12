@@ -36,6 +36,7 @@ const Rendement = (() => {
   let benchData     = {};
   let activePeriod  = "1J";
   let chartInstance = null;
+  let toonGesloten  = false; // toggle open/gesloten posities
 
   // ══════════════════════════════════════════════════════════════════
   // INITIALISATIE
@@ -298,15 +299,23 @@ const Rendement = (() => {
       html += `<div class="warn-box">ℹ Rendement = <strong>P&L / kostenbasis</strong> (geen gecorrigeerde TWR). Voeg <code>twrHistorie</code> toe aan je Apps Script voor echte Time-Weighted Return.</div>`;
     }
 
-    const actief = posities.filter(p => p.aantal > 0.0001);
+    const actief    = posities.filter(p => p.aantal > 0.0001);
+    const gesloten  = portfolioData.geslotenPosities ?? [];
 
     html += renderSectionTitle("Portefeuille Samenvatting");
-    html += renderKpiGrid(samenvatting, cagr);
+    html += renderKpiGrid(samenvatting, cagr, gesloten);
     html += renderGrafiekSectie();
     html += renderSectionTitle(`Benchmark Vergelijking — ${activePeriod}`);
     html += renderBenchmarkGrid(startDatum, twr);
-    html += renderSectionTitle(`Posities (${actief.length})`);
-    html += renderPosTable(actief, samenvatting.totaalWaarde);
+
+    // Posities header met toggle
+    html += renderPositiesSectionHeader(actief.length, gesloten.length);
+    if (!toonGesloten) {
+      html += renderPosTable(actief, samenvatting.totaalWaarde);
+    } else {
+      html += renderGeslotenTable(gesloten);
+    }
+
     if (cashflows.length > 0) {
       html += renderSectionTitle("Cashflows");
       html += renderCashflowGrid(cashflows);
@@ -321,8 +330,57 @@ const Rendement = (() => {
   // ── Render helpers ────────────────────────────────────────────────
   function renderSectionTitle(t) { return `<div class="section-title">${t}</div>\n`; }
 
-  function renderKpiGrid(samenvatting, cagr) {
+  function renderPositiesSectionHeader(aantalOpen, aantalGesloten) {
+    const actief  = !toonGesloten;
+    return `
+<div class="section-title" style="display:flex;align-items:center;justify-content:space-between">
+  <span>${actief ? `Open posities (${aantalOpen})` : `Gesloten posities (${aantalGesloten})`}</span>
+  <div style="display:flex;gap:6px">
+    <button class="pf${actief ? " active" : ""}" onclick="Rendement._setGesloten(false)">Open</button>
+    <button class="pf${!actief ? " active" : ""}" onclick="Rendement._setGesloten(true)">Gesloten</button>
+  </div>
+</div>`;
+  }
+
+  function renderGeslotenTable(gesloten) {
+    if (!gesloten || gesloten.length === 0) {
+      return `<div class="pos-table-wrap"><div style="padding:2rem;text-align:center;color:var(--muted);font-family:'DM Mono',monospace;font-size:12px">Geen gesloten posities gevonden</div></div>`;
+    }
+    const gesorteerd = [...gesloten].sort((a, b) => (b.gerealiseerd ?? 0) - (a.gerealiseerd ?? 0));
+    const totaalGerealiseerd = gesorteerd.reduce((s, p) => s + (p.gerealiseerd ?? 0), 0);
+    const rijen = gesorteerd.map(p => {
+      const ger = p.gerealiseerd ?? 0;
+      return `<tr>
+        <td><div class="prod-name">${escHtml(p.product ?? "—")}</div><div class="prod-isin">${escHtml(p.isin ?? "")}</div></td>
+        <td style="color:var(--muted);font-size:11px">${escHtml(p.lastDatum ?? "—")}</td>
+        <td class="${ger >= 0 ? "pos" : "neg"}">${fmtEUR(ger, 0)}</td>
+        <td class="pos">${fmtEUR(p.dividend ?? 0, 0)}</td>
+        <td class="neg">-${fmtEUR(p.kosten ?? 0, 0)}</td>
+        <td class="${(ger + (p.dividend??0) - (p.kosten??0)) >= 0 ? "pos":"neg"}">${fmtEUR(ger + (p.dividend??0) - (p.kosten??0), 0)}</td>
+      </tr>`;
+    }).join("");
+    return `
+<div class="pos-table-wrap">
+  <div class="pos-table-header">
+    <div class="pos-table-title">Gerealiseerde posities</div>
+    <div class="pos-count ${totaalGerealiseerd >= 0 ? "pos":"neg"}">${fmtEUR(totaalGerealiseerd, 0)} totaal</div>
+  </div>
+  <div style="overflow-x:auto">
+    <table class="positions">
+      <thead><tr>
+        <th>Product</th><th>Laatste transactie</th><th>Gerealiseerd P&amp;L</th>
+        <th>Dividend</th><th>Kosten</th><th>Netto resultaat</th>
+      </tr></thead>
+      <tbody>${rijen}</tbody>
+    </table>
+  </div>
+</div>`;
+  }
+
+  function renderKpiGrid(samenvatting, cagr, gesloten) {
     const twr = samenvatting.twr ?? 0;
+    const totaalGerealiseerd = samenvatting.totaalGerealiseerd ??
+      (gesloten ?? []).reduce((s, p) => s + (p.gerealiseerd ?? 0), 0);
     return `
 <div class="kpi-grid">
   <div class="kpi-card gold-accent">
@@ -354,6 +412,11 @@ const Rendement = (() => {
     <div class="kpi-label">Transactiekosten</div>
     <div class="kpi-value neg">-${fmtEUR(samenvatting.totaalKosten ?? 0, 0)}</div>
     <div class="kpi-sub">broker + taks</div>
+  </div>
+  <div class="kpi-card ${totaalGerealiseerd >= 0 ? "pos-accent":"neg-accent"}" style="display:${totaalGerealiseerd !== 0 ? 'block' : 'none'}">
+    <div class="kpi-label">Gerealiseerd P&amp;L</div>
+    <div class="kpi-value ${totaalGerealiseerd >= 0 ? "pos":"neg"}">${fmtEUR(totaalGerealiseerd, 0)}</div>
+    <div class="kpi-sub">gesloten posities</div>
   </div>
 </div>`;
   }
@@ -589,6 +652,10 @@ const Rendement = (() => {
   return {
     init, refresh,
     _setPeriod: setPeriod,
+    _setGesloten: (v) => {
+      toonGesloten = v;
+      if (portfolioData) render(!cfg.sheetsUrl || cfg.sheetsUrl.includes("JOUW_"));
+    },
     _debug: () => console.log("portfolioData:", portfolioData, "\nbenchData:", benchData),
   };
 
