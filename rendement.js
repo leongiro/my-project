@@ -1,11 +1,14 @@
 /**
- * rendement.js — Portfolio Rendement Module v2.2
- * TWR + CAGR + Benchmarks (SPX / MSCI World / AEX) + Allocatie Donut
+ * rendement.js — Portfolio Rendement Module v2.3
+ * TWR + CAGR + Benchmarks + Allocatie Donut + Verbeterde grafiek
  *
- * v2.2 nieuw:
- * - Donut-chart voor portefeuille-allocatie met center-total en custom legend
- * - Allocatie-chart bijwerkt mee bij periode-wissel en open/gesloten toggle
- * - allocatieChartInstance correct opgeruimd bij re-render
+ * v2.3 nieuw:
+ * - Grafiek: lineaire tijdas (geen categorische string-as meer)
+ * - Grafiek: alle lijnen genormaliseerd op 0% op CHART_START (2025-04-01)
+ * - Grafiek: dagelijkse benchmark data via Apps Script (1d interval)
+ * - Grafiek: AEX kleur onderscheidend van Portfolio (goud → rood)
+ * - Portfolio: correct genormaliseerd via gechainde TWR-benadering
+ * - Tooltip: datum + alle 4 lijnen tegelijk
  */
 
 const Rendement = (() => {
@@ -13,8 +16,11 @@ const Rendement = (() => {
   // ── BENCHMARK CONFIGURATIE ────────────────────────────────────────
   const BENCHMARK_TICKERS = { SPX: "^GSPC", MSCI_WORLD: "URTH", AEX: "^AEX" };
   const BENCHMARK_LABELS  = { SPX: "S&P 500", MSCI_WORLD: "MSCI All World", AEX: "AEX" };
-  const BENCHMARK_COLORS  = { SPX: "#60a5fa", MSCI_WORLD: "#4ade80", AEX: "#fbbf24" };
+  const BENCHMARK_COLORS  = { SPX: "#60a5fa", MSCI_WORLD: "#4ade80", AEX: "#f87171" };
   const PERIODE_MAANDEN   = { "1M":1,"3M":3,"6M":6,"YTD":0,"1J":12,"3J":36,"MAX":999 };
+
+  // Vaste startdatum voor de rendementsgrafiek (normalisatie op 0%)
+  const CHART_START = "2025-04-01";
 
   // Allocatie-kleurenpalet (past bij de dark-theme design tokens)
   const ALLOC_COLORS = [
@@ -517,22 +523,35 @@ const Rendement = (() => {
 
   // ── Rendement vs benchmark grafiek ───────────────────────────────
   function renderGrafiekSectie() {
+    // Periode-knoppen sturen de benchmark-vergelijkingskaarten aan (niet de grafiek)
+    // De grafiek is altijd genormaliseerd op CHART_START = 2025-04-01
     const periodes = ["1M","3M","6M","YTD","1J","3J","MAX"];
     const knoppen  = periodes.map(p =>
       `<button class="pf${activePeriod===p?" active":""}" onclick="Rendement._setPeriod('${p}')">${p}</button>`
     ).join("");
-    const legPort = `<div class="leg-item"><div class="leg-dot" style="background:#fbbf24"></div>Portfolio</div>`;
-    const legBm   = cfg.benchmarks.map(b =>
-      `<div class="leg-item"><div class="leg-dot" style="background:${BENCHMARK_COLORS[b]}"></div>${BENCHMARK_LABELS[b]}</div>`
-    ).join("");
+
+    const legItems = [
+      { kleur: "#fbbf24", label: "Portfolio" },
+      ...cfg.benchmarks.map(b => ({ kleur: BENCHMARK_COLORS[b], label: BENCHMARK_LABELS[b] })),
+    ].map(l => `
+      <div class="leg-item">
+        <div class="leg-dot" style="background:${l.kleur}"></div>
+        ${l.label}
+      </div>`).join("");
+
     return `
 <div class="chart-wrap">
   <div class="chart-top">
-    <div class="chart-title">Rendement vs Benchmarks</div>
-    <div class="period-filters">${knoppen}</div>
+    <div>
+      <div class="chart-title">Rendement vs Benchmarks</div>
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-top:3px">
+        genormaliseerd op 0% · 1 apr 2025 t/m vandaag
+      </div>
+    </div>
+    <div class="period-filters" title="Stuurt de benchmark-vergelijkingskaarten aan">${knoppen}</div>
   </div>
-  <div class="chart-legend">${legPort}${legBm}</div>
-  <canvas id="rend-chart" height="180"></canvas>
+  <div class="chart-legend">${legItems}</div>
+  <canvas id="rend-chart" height="200"></canvas>
 </div>`;
   }
 
@@ -672,61 +691,185 @@ const Rendement = (() => {
 
   // ══════════════════════════════════════════════════════════════════
   // RENDEMENT-CHART (lijndiagram)
+  // Tijdas: lineaire schaal op epoch-ms → correcte chronologische volgorde
+  // Normalisatie: alle lijnen starten op 0% op CHART_START (2025-04-01)
+  // Benchmarks: dagelijkse data (1d interval) uit Apps Script
+  // Portfolio: maandelijkse gecumuleerde TWR, genormaliseerd vanuit CHART_START
   // ══════════════════════════════════════════════════════════════════
   function drawChart(startDatum, twrHistorie) {
     const canvas = document.getElementById("rend-chart");
     if (!canvas) return;
     if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
 
+    // Helper: datum-string → epoch ms (voor lineaire x-as zonder date-adapter)
+    const toMs = d => new Date(d).getTime();
+    const startMs = toMs(CHART_START);
+
     const datasets = [];
 
-    const portData = (twrHistorie ?? [])
-      .filter(h => h?.datum >= startDatum)
-      .map(h => ({ x: h.datum.substring(0,7), y: +((h.twr ?? 0) * 100).toFixed(3) }));
-    if (portData.length >= 2) {
-      datasets.push({
-        label: "Portfolio (TWR)", data: portData,
-        borderColor: "#fbbf24", backgroundColor: "rgba(251,191,36,0.08)",
-        borderWidth: 2, pointRadius: 0, tension: 0.35, fill: true, order: 0,
+    // ── Portfolio lijn ──────────────────────────────────────────────
+    // twrHistorie bevat maandelijkse cumulatieve TWR-waarden (vanaf portfoliostart).
+    // Normaliseer naar CHART_START: (1 + twr_t) / (1 + twr_base) - 1
+    const allPort = [...(twrHistorie ?? [])].sort((a, b) => a.datum.localeCompare(b.datum));
+
+    if (allPort.length >= 2) {
+      // Vind de TWR op/vlak voor CHART_START als basiswaarde
+      const voor  = allPort.filter(h => h.datum <= CHART_START);
+      const na    = allPort.filter(h => h.datum >= CHART_START);
+      const basis = voor.length > 0 ? voor[voor.length - 1] : na[0];
+      const twrBasis = basis?.twr ?? 0;
+
+      const portData = [];
+      // Synthetisch 0%-punt op exacte CHART_START
+      portData.push({ x: startMs, y: 0 });
+
+      na.forEach(h => {
+        if (h.datum === basis?.datum) return; // sla basis over (is al 0%)
+        const norm = (1 + (h.twr ?? 0)) / (1 + twrBasis) - 1;
+        portData.push({ x: toMs(h.datum), y: +(norm * 100).toFixed(3) });
       });
+
+      if (portData.length >= 2) {
+        datasets.push({
+          label: "Portfolio",
+          data: portData,
+          borderColor: "#fbbf24",
+          backgroundColor: "rgba(251,191,36,0.07)",
+          borderWidth: 2.5,
+          pointRadius: 0,
+          pointHoverRadius: 5,
+          tension: 0.3,
+          fill: true,
+          order: 0,
+        });
+      }
     }
 
+    // ── Benchmark lijnen ────────────────────────────────────────────
+    // benchData[key] = [{datum, koers}] — dagelijks, gesorteerd
     for (const key of cfg.benchmarks) {
-      const genorm = normaliseerBenchmark(benchData[key] ?? [], startDatum);
-      if (genorm.length < 2) continue;
+      const serie = [...(benchData[key] ?? [])].sort((a, b) => a.datum.localeCompare(b.datum));
+      if (serie.length < 2) continue;
+
+      // Basisprijs: dichtstbijzijnde koers op/voor CHART_START
+      const voor  = serie.filter(d => d.datum <= CHART_START);
+      const na    = serie.filter(d => d.datum >= CHART_START);
+      const basis = voor.length > 0 ? voor[voor.length - 1] : na[0];
+      if (!basis?.koers) continue;
+
+      const bmData = [];
+      // Synthetisch 0%-punt op CHART_START
+      bmData.push({ x: startMs, y: 0 });
+
+      na.forEach(d => {
+        if (d.datum === basis.datum) return;
+        bmData.push({
+          x: toMs(d.datum),
+          y: +((d.koers / basis.koers - 1) * 100).toFixed(3),
+        });
+      });
+
+      if (bmData.length < 2) continue;
+
       datasets.push({
         label: BENCHMARK_LABELS[key],
-        data: genorm.map(d => ({ x: d.datum.substring(0,7), y: +(d.rendement*100).toFixed(3) })),
-        borderColor: BENCHMARK_COLORS[key], backgroundColor: "transparent",
-        borderWidth: 1.5, pointRadius: 0, tension: 0.35, fill: false, order: 1,
+        data: bmData,
+        borderColor: BENCHMARK_COLORS[key],
+        backgroundColor: "transparent",
+        borderWidth: 1.5,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        tension: 0.3,
+        fill: false,
+        order: 1,
       });
     }
 
     if (datasets.length === 0) {
       canvas.insertAdjacentHTML("afterend",
         `<div style="text-align:center;color:var(--muted);font-family:'DM Mono',monospace;font-size:12px;padding:2rem 0">
-          Geen grafiekdata — controleer internetverbinding</div>`);
+          Geen grafiekdata beschikbaar — vernieuw de pagina of controleer de Apps Script</div>`);
       return;
     }
 
+    // Nul-lijn plugin (horizontale referentielijn op y=0)
+    const nullLijnPlugin = {
+      id: "nullLijn",
+      afterDraw(chart) {
+        const { ctx, chartArea: ca, scales } = chart;
+        if (!ca) return;
+        const y0 = scales.y.getPixelForValue(0);
+        if (y0 < ca.top || y0 > ca.bottom) return;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(ca.left, y0);
+        ctx.lineTo(ca.right, y0);
+        ctx.strokeStyle = "rgba(255,255,255,0.12)";
+        ctx.lineWidth   = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.stroke();
+        ctx.restore();
+      },
+    };
+
     chartInstance = new Chart(canvas, {
-      type: "line", data: { datasets },
+      type: "line",
+      data: { datasets },
       options: {
         responsive: true,
         interaction: { mode: "index", intersect: false },
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: "#12121a", borderColor: "#1e1e2e", borderWidth: 1,
-            titleColor: "#5a5a7a", bodyColor: "#e8e8f0",
-            callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y >= 0 ? "+" : ""}${ctx.parsed.y.toFixed(2)}%` },
+            backgroundColor: "#12121a",
+            borderColor:     "#1e1e2e",
+            borderWidth:     1,
+            titleColor:      "#5a5a7a",
+            bodyColor:       "#e8e8f0",
+            padding:         12,
+            callbacks: {
+              title: ctx => {
+                const d = new Date(ctx[0].parsed.x);
+                return d.toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" });
+              },
+              label: ctx => {
+                const v = ctx.parsed.y;
+                return ` ${ctx.dataset.label}: ${v >= 0 ? "+" : ""}${v.toFixed(2)}%`;
+              },
+              afterBody: () => "",
+            },
           },
         },
         scales: {
-          x: { type:"category", grid:{color:"#1e1e2e"}, ticks:{color:"#5a5a7a",maxTicksLimit:8,font:{family:"DM Mono",size:10}} },
-          y: { grid:{color:"#1e1e2e"}, ticks:{color:"#5a5a7a",font:{family:"DM Mono",size:10},callback:v=>`${v>=0?"+":""}${v.toFixed(1)}%`} },
+          x: {
+            // Lineaire schaal op epoch-ms: garandeert chronologische volgorde
+            // zonder externe date-adapter nodig
+            type: "linear",
+            min:  startMs,
+            grid: { color: "#1e1e2e" },
+            border: { color: "#1e1e2e" },
+            ticks: {
+              color: "#5a5a7a",
+              font:  { family: "DM Mono", size: 10 },
+              maxTicksLimit: 10,
+              callback: val => {
+                const d = new Date(val);
+                return d.toLocaleDateString("nl-NL", { month: "short", year: "2-digit" });
+              },
+            },
+          },
+          y: {
+            grid:   { color: "#1e1e2e" },
+            border: { color: "#1e1e2e" },
+            ticks: {
+              color: "#5a5a7a",
+              font:  { family: "DM Mono", size: 10 },
+              callback: v => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`,
+            },
+          },
         },
       },
+      plugins: [nullLijnPlugin],
     });
   }
 
