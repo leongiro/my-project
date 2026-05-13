@@ -673,13 +673,7 @@ const Rendement = (() => {
   }
 
   // ── Cashflow grid ─────────────────────────────────────────────────
-  // Beantwoordt drie vragen:
-  //   1. Houdt het dashboard rekening met stortingen/onttrekkingen?
-  //   2. Hoeveel heb ik gestort / onttrokken?
-  //   3. Hoeveel staat er nog van mijn eigen geld in de portefeuille?
   function renderCashflowGrid(cashflows, cfSam, sam) {
-    // Waarden: gebruik Apps Script cashflowSamenvatting indien beschikbaar,
-    // anders fallback op cashflows-array (minder accuraat)
     const gestort    = cfSam.totaalStorting  ?? cashflows.filter(c => c.type==="STORTING").reduce((s,c)=>s+Math.abs(c.bedrag),0);
     const onttrokken = cfSam.totaalOpname    ?? cashflows.filter(c => c.type==="OPNAME").reduce((s,c)=>s+Math.abs(c.bedrag),0);
     const nettoInleg = cfSam.nettoInleg      ?? (gestort - onttrokken);
@@ -688,78 +682,84 @@ const Rendement = (() => {
     const absReturn  = cfSam.totalReturnEUR  ?? sam.totalReturnEUR;
     const portWaarde = sam.totaalWaarde ?? 0;
     const twr        = sam.twr ?? 0;
-
-    // Stoplicht: klopt het rendement?
-    // Rendement is correct als we koers + dividend + kosten meenemen en storting/opname uitsluiten
     const twrLabel   = sam.twrIsProxy ? "P&L rendement" : "TWR";
+    const absKleur   = absReturn >= 0 ? "var(--pos)" : "var(--neg)";
+    const twrKleur   = twr >= 0 ? "var(--pos)" : "var(--neg)";
+    const absPrefix  = absReturn >= 0 ? "+" : "";
+    const twrPrefix  = twr >= 0 ? "+" : "";
 
-    return \`
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1.5rem">
+    const rijen_invest = totInvest != null ? [
+      "<div style=\"display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--border)\">",
+        "<span style=\"font-size:12px;color:var(--muted)\">Besteed aan aankopen</span>",
+        "<span style=\"font-family:'DM Mono',monospace;font-size:12px;color:var(--muted)\">-" + fmtEUR(totInvest, 2) + "</span>",
+      "</div>",
+      "<div style=\"display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--border)\">",
+        "<span style=\"font-size:12px;color:var(--muted)\">Ontvangen uit verkopen</span>",
+        "<span style=\"font-family:'DM Mono',monospace;font-size:12px;color:var(--muted)\">+" + fmtEUR(totOntv, 2) + "</span>",
+      "</div>",
+    ].join("") : "";
 
-  <!-- Linker kolom: bancaire cashflows -->
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem">
-    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:1rem">
-      Bancaire transfers (gestort / onttrokken)
-    </div>
+    const rij_return = absReturn != null ? [
+      "<div style=\"display:flex;justify-content:space-between;align-items:baseline;padding:10px 0 6px;border-bottom:1px solid var(--border)\">",
+        "<span style=\"font-size:12px;font-weight:600;color:var(--text)\">Absoluut rendement</span>",
+        "<span style=\"font-family:'DM Mono',monospace;font-size:15px;font-weight:500;color:" + absKleur + "\">" + absPrefix + fmtEUR(absReturn, 2) + "</span>",
+      "</div>",
+    ].join("") : "";
 
-    <div style="display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--border)">
-      <span style="font-size:12px;color:var(--text)">Totaal gestort naar DEGIRO</span>
-      <span style="font-family:'DM Mono',monospace;font-size:13px;color:var(--gold)">${fmtEUR(gestort, 2)}</span>
-    </div>
-    <div style="display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--border)">
-      <span style="font-size:12px;color:var(--text)">Totaal teruggehaald</span>
-      <span style="font-family:'DM Mono',monospace;font-size:13px;color:var(--neg)">-${fmtEUR(onttrokken, 2)}</span>
-    </div>
-    <div style="display:flex;justify-content:space-between;align-items:baseline;padding:10px 0 0">
-      <span style="font-size:12px;font-weight:600;color:var(--text)">Netto eigen inleg</span>
-      <span style="font-family:'DM Mono',monospace;font-size:15px;font-weight:500;color:var(--gold)">${fmtEUR(nettoInleg, 2)}</span>
-    </div>
-    <div style="margin-top:8px;font-size:10px;color:var(--muted);line-height:1.6">
-      Dit is het geld dat jij inbracht. Het verschil met de portefeuillewaarde is jouw rendement.
-    </div>
-  </div>
+    return [
+      "<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1.5rem\">",
 
-  <!-- Rechter kolom: rendement-verificatie -->
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem">
-    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:1rem">
-      Rendement-verificatie
-    </div>
+      // Linker kaart: bancaire transfers
+      "<div style=\"background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem\">",
+        "<div style=\"font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:1rem\">",
+          "Bancaire transfers",
+        "</div>",
+        "<div style=\"display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--border)\">",
+          "<span style=\"font-size:12px;color:var(--text)\">Totaal gestort naar DEGIRO</span>",
+          "<span style=\"font-family:'DM Mono',monospace;font-size:13px;color:var(--gold)\">" + fmtEUR(gestort, 2) + "</span>",
+        "</div>",
+        "<div style=\"display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--border)\">",
+          "<span style=\"font-size:12px;color:var(--text)\">Totaal teruggehaald</span>",
+          "<span style=\"font-family:'DM Mono',monospace;font-size:13px;color:var(--neg)\">-" + fmtEUR(onttrokken, 2) + "</span>",
+        "</div>",
+        "<div style=\"display:flex;justify-content:space-between;align-items:baseline;padding:10px 0 0\">",
+          "<span style=\"font-size:12px;font-weight:600;color:var(--text)\">Netto eigen inleg</span>",
+          "<span style=\"font-family:'DM Mono',monospace;font-size:15px;font-weight:500;color:var(--gold)\">" + fmtEUR(nettoInleg, 2) + "</span>",
+        "</div>",
+        "<div style=\"margin-top:8px;font-size:10px;color:var(--muted);line-height:1.6\">",
+          "Het verschil tussen netto inleg en portefeuillewaarde is jouw rendement.",
+        "</div>",
+      "</div>",
 
-    <div style="display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--border)">
-      <span style="font-size:12px;color:var(--text)">Portefeuillewaarde nu</span>
-      <span style="font-family:'DM Mono',monospace;font-size:13px;color:var(--text)">${fmtEUR(portWaarde, 2)}</span>
-    </div>
-    ${totInvest != null ? \`
-    <div style="display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--border)">
-      <span style="font-size:12px;color:var(--muted)">Besteed aan aankopen</span>
-      <span style="font-family:'DM Mono',monospace;font-size:12px;color:var(--muted)">-${fmtEUR(totInvest, 2)}</span>
-    </div>
-    <div style="display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--border)">
-      <span style="font-size:12px;color:var(--muted)">Ontvangen uit verkopen</span>
-      <span style="font-family:'DM Mono',monospace;font-size:12px;color:var(--muted)">+${fmtEUR(totOntv, 2)}</span>
-    </div>\` : ""}
-    ${absReturn != null ? \`
-    <div style="display:flex;justify-content:space-between;align-items:baseline;padding:10px 0 0">
-      <span style="font-size:12px;font-weight:600;color:var(--text)">Absoluut rendement (€)</span>
-      <span style="font-family:'DM Mono',monospace;font-size:15px;font-weight:500;color:\${absReturn>=0?'var(--pos)':'var(--neg)'}">\${absReturn>=0?'+':''}${fmtEUR(absReturn, 2)}</span>
-    </div>\` : ""}
-    <div style="margin-top:12px;padding:8px 10px;border-radius:6px;background:rgba(96,165,250,0.07);border:1px solid rgba(96,165,250,0.2)">
-      <div style="font-size:10px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.06em">${twrLabel}</div>
-      <div style="font-family:'DM Mono',monospace;font-size:16px;font-weight:500;color:\${twr>=0?'var(--pos)':'var(--neg)'}">
-        \${twr>=0?'+':''}${(twr*100).toFixed(2)}%
-      </div>
-      <div style="font-size:10px;color:var(--muted);margin-top:4px;line-height:1.5">
-        ✅ Koersrendement + dividend + gerealiseerd<br>
-        ✅ Transactiekosten afgetrokken<br>
-        ❌ Stortingen / onttrekkingen uitgesloten
-      </div>
-    </div>
-  </div>
+      // Rechter kaart: rendement-verificatie
+      "<div style=\"background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem\">",
+        "<div style=\"font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:1rem\">",
+          "Rendement-verificatie",
+        "</div>",
+        "<div style=\"display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--border)\">",
+          "<span style=\"font-size:12px;color:var(--text)\">Portefeuillewaarde nu</span>",
+          "<span style=\"font-family:'DM Mono',monospace;font-size:13px;color:var(--text)\">" + fmtEUR(portWaarde, 2) + "</span>",
+        "</div>",
+        rijen_invest,
+        rij_return,
+        "<div style=\"margin-top:10px;padding:10px;border-radius:6px;background:rgba(96,165,250,0.07);border:1px solid rgba(96,165,250,0.2)\">",
+          "<div style=\"font-size:10px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.06em\">" + twrLabel + "</div>",
+          "<div style=\"font-family:'DM Mono',monospace;font-size:18px;font-weight:500;color:" + twrKleur + "\">",
+            twrPrefix + (twr * 100).toFixed(2) + "%",
+          "</div>",
+          "<div style=\"font-size:10px;color:var(--muted);margin-top:6px;line-height:1.7\">",
+            "&#10003; Koersrendement + dividend + gerealiseerd<br>",
+            "&#10003; Transactiekosten afgetrokken<br>",
+            "&#10007; Stortingen / onttrekkingen uitgesloten",
+          "</div>",
+        "</div>",
+      "</div>",
 
-</div>\`;
+      "</div>",
+    ].join("");
   }
 
-  // ── Methodologie ──────────────────────────────────────────────────
+    // ── Methodologie ──────────────────────────────────────────────────
   function renderMethodologie(isProxy) {
     const uitleg = isProxy
       ? `<strong>P&L Rendement</strong> — (huidige waarde − kostenbasis) / kostenbasis. Geen cashflow-correctie.
