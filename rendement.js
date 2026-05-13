@@ -50,6 +50,8 @@ const Rendement = (() => {
   let chartInstance        = null;
   let allocatieChartInstance = null;
   let toonGesloten         = false;
+  let allocatieData        = null;   // gecachede API-classificaties
+  let allocatieAnalyseInst = {};     // chart-instanties per categorie
 
   // ══════════════════════════════════════════════════════════════════
   // INITIALISATIE
@@ -63,6 +65,7 @@ const Rendement = (() => {
   async function refresh() {
     portfolioData = null;
     benchData = {};
+    allocatieData = null;
     const badge = document.getElementById("twr-badge");
     if (badge) badge.textContent = "Vernieuwen…";
     const origUrl = cfg.sheetsUrl;
@@ -340,6 +343,7 @@ const Rendement = (() => {
     if (actief.length > 0) {
       html += renderSectionTitle("Portfolio Allocatie");
       html += renderAllocatieGrafiek(actief);
+      html += renderAllocatieAnalyseSectie();
     }
 
     // Posities header met toggle
@@ -358,7 +362,10 @@ const Rendement = (() => {
 
     requestAnimationFrame(() => {
       drawChart(startDatum, twrHistorie);
-      if (actief.length > 0) drawAllocatieChart(actief);
+      if (actief.length > 0) {
+        drawAllocatieChart(actief);
+        loadAllocatieAnalyse(actief);
+      }
     });
   }
 
@@ -531,6 +538,252 @@ const Rendement = (() => {
     <div class="kpi-sub">gesloten posities</div>
   </div>
 </div>`;
+  }
+
+
+  // ══════════════════════════════════════════════════════════════════
+  // ALLOCATIE ANALYSE — AI-powered classificatie per positie
+  // Categorieën: Sector · Regio · Valuta · Marktcap · Assetklasse
+  // ══════════════════════════════════════════════════════════════════
+
+  const ALLOC_PALETTES = {
+    sector:     ["#60a5fa","#4ade80","#fbbf24","#f87171","#a78bfa","#fb923c","#34d399","#38bdf8","#e879f9","#5a5a7a"],
+    regio:      ["#60a5fa","#4ade80","#fbbf24","#f87171","#a78bfa","#34d399","#5a5a7a"],
+    valuta:     ["#60a5fa","#4ade80","#fbbf24","#f87171","#a78bfa","#5a5a7a"],
+    marktcap:   ["#60a5fa","#4ade80","#fbbf24"],
+    assetklasse:["#60a5fa","#4ade80","#fbbf24","#f87171","#5a5a7a"],
+  };
+
+  function renderAllocatieAnalyseSectie() {
+    return `
+<div style="margin-top:0.5rem">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+    <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em">Risicospreiding — economische blootstelling</div>
+    <button class="btn-refresh" onclick="Rendement._herclassificeer()" style="font-size:10px">↻ Herclassificeren</button>
+  </div>
+  <div id="alloc-analyse-content">
+    <div style="text-align:center;padding:2rem;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px">
+      Wacht op positiedata<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span>
+    </div>
+  </div>
+</div>`;
+  }
+
+  async function loadAllocatieAnalyse(posities) {
+    const el = document.getElementById('alloc-analyse-content');
+    if (!el) return;
+    if (posities.length === 0) { el.innerHTML = ''; return; }
+
+    if (allocatieData) { drawAllocatieAnalyseCharts(allocatieData, posities); return; }
+
+    el.innerHTML = `<div style="text-align:center;padding:2rem;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px">
+      Posities classificeren via AI<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>`;
+
+    try {
+      const classificaties = await classifyPositions(posities);
+      allocatieData = classificaties;
+      drawAllocatieAnalyseCharts(classificaties, posities);
+    } catch(e) {
+      el.innerHTML = `<div style="text-align:center;padding:1.5rem;color:var(--neg);font-family:'DM Mono',monospace;font-size:11px">
+        Classificatie mislukt: ${escHtml(e.message)}</div>`;
+    }
+  }
+
+  async function classifyPositions(posities) {
+    const payload = posities.map(p => ({ isin: p.isin, product: p.product, ticker: p.ticker || '' }));
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        system: 'Portfolio classifier. Return ONLY a valid JSON array. No markdown, no prose.',
+        messages: [{
+          role: 'user',
+          content: `Classify each investment position. Use your financial knowledge (and web search if needed).
+
+Positions:
+${JSON.stringify(payload, null, 2)}
+
+For each position return a JSON object with these fields:
+- isin: string (copy from input)
+- sector: object with GICS sector names as keys, percentages as values (sum=100)
+  Use: Technologie, Financials, Gezondheidszorg, Cyclische consument, Niet-cyclisch, Industrie, Energie, Materialen, Vastgoed, Nutsbedrijven, Overig
+- regio: object with regions as keys, percentages (sum=100)
+  Use: VS, Europa, EM, Japan, Azië-Pacific, Overig
+- valuta: object with currency codes (USD/EUR/GBP/JPY/EM/Overig), percentages (sum=100)
+- marktcap: object with Large/Mid/Small keys, percentages (sum=100)
+- assetklasse: single string from: Aandelen/Obligaties/Commodity/Cash/Overig
+
+Example for iShares MSCI World ETF:
+{"isin":"IE00B4L5Y983","sector":{"Technologie":22,"Financials":16,"Gezondheidszorg":12,"Industrie":11,"Cyclische consument":11,"Niet-cyclisch":7,"Energie":5,"Materialen":4,"Overig":12},"regio":{"VS":70,"Europa":15,"Japan":6,"Azië-Pacific":4,"EM":3,"Overig":2},"valuta":{"USD":70,"EUR":12,"JPY":6,"GBP":5,"Overig":7},"marktcap":{"Large":89,"Mid":10,"Small":1},"assetklasse":"Aandelen"}
+
+Return ONLY the JSON array of classified positions.`
+        }]
+      })
+    });
+    if (!res.ok) throw new Error('API ' + res.status);
+    const data = await res.json();
+    const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+    const clean = text.replace(/```[a-z]*/g, '').replace(/```/g, '').trim();
+    const s = clean.indexOf('['), e = clean.lastIndexOf(']');
+    if (s === -1) throw new Error('Geen JSON in antwoord');
+    return JSON.parse(clean.slice(s, e + 1));
+  }
+
+  function aggregeerAllocatie(classificaties, posities) {
+    const gewichten = {};
+    posities.forEach(p => { gewichten[p.isin] = p.gewicht ?? 0; });
+
+    const cats = { sector: {}, regio: {}, valuta: {}, marktcap: {}, assetklasse: {} };
+
+    classificaties.forEach(c => {
+      const w = gewichten[c.isin] ?? 0;
+      if (w <= 0) return;
+
+      ['sector','regio','valuta','marktcap'].forEach(cat => {
+        const dist = c[cat] || {};
+        Object.entries(dist).forEach(([k, pct]) => {
+          cats[cat][k] = (cats[cat][k] || 0) + w * (pct / 100);
+        });
+      });
+
+      const ak = c.assetklasse || 'Overig';
+      cats.assetklasse[ak] = (cats.assetklasse[ak] || 0) + w;
+    });
+
+    // Normaliseer + sorteer per categorie
+    const result = {};
+    Object.entries(cats).forEach(([cat, raw]) => {
+      const total = Object.values(raw).reduce((s, v) => s + v, 0);
+      if (total <= 0) { result[cat] = []; return; }
+      result[cat] = Object.entries(raw)
+        .map(([k, v]) => ({ label: k, pct: Math.round(v / total * 1000) / 10 }))
+        .sort((a, b) => b.pct - a.pct);
+      // Herbereken zodat som exact 100 is
+      const sum = result[cat].reduce((s, x) => s + x.pct, 0);
+      if (result[cat].length > 0) result[cat][0].pct += Math.round((100 - sum) * 10) / 10;
+    });
+
+    // Valuta: bundel alles <5% als "Overig"
+    if (result.valuta) {
+      const groot = result.valuta.filter(x => x.pct >= 5);
+      const klein = result.valuta.filter(x => x.pct < 5);
+      if (klein.length > 0) {
+        const overigPct = klein.reduce((s, x) => s + x.pct, 0);
+        const overigIdx = groot.findIndex(x => x.label === 'Overig');
+        if (overigIdx >= 0) groot[overigIdx].pct = Math.round((groot[overigIdx].pct + overigPct) * 10) / 10;
+        else groot.push({ label: 'Overig', pct: Math.round(overigPct * 10) / 10 });
+        result.valuta = groot;
+      }
+    }
+
+    return result;
+  }
+
+  function drawAllocatieAnalyseCharts(classificaties, posities) {
+    const el = document.getElementById('alloc-analyse-content');
+    if (!el) return;
+
+    const agg = aggregeerAllocatie(classificaties, posities);
+
+    // Top 5 posities op gewicht
+    const top5 = [...posities].sort((a, b) => (b.gewicht ?? 0) - (a.gewicht ?? 0)).slice(0, 5);
+    const hoogsteSector = agg.sector?.[0];
+    const hoogsteRegio  = agg.regio?.[0];
+
+    function miniLegend(items, colors) {
+      return items.map((x, i) => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid rgba(30,30,46,0.5)">
+          <div style="display:flex;align-items:center;gap:6px;min-width:0">
+            <div style="width:8px;height:8px;border-radius:2px;background:${colors[i % colors.length]};flex-shrink:0"></div>
+            <span style="font-size:10px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px">${escHtml(x.label)}</span>
+          </div>
+          <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);flex-shrink:0;margin-left:6px">${x.pct.toFixed(1)}%</span>
+        </div>`).join('');
+    }
+
+    function chartCard(id, title, legendId, colspan) {
+      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1rem;${colspan?'grid-column:span '+colspan:''}">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.75rem">${title}</div>
+        <div style="display:grid;grid-template-columns:160px 1fr;gap:1rem;align-items:center">
+          <canvas id="${id}" height="160"></canvas>
+          <div id="${legendId}" style="max-height:160px;overflow-y:auto"></div>
+        </div>
+      </div>`;
+    }
+
+    el.innerHTML = `
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
+        ${chartCard('ch-sector','Sector','leg-sector','')}
+        ${chartCard('ch-asset','Assetklasse','leg-asset','')}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
+        ${chartCard('ch-regio','Regio','leg-regio','')}
+        ${chartCard('ch-valuta','Valuta (>5%)','leg-valuta','')}
+        ${chartCard('ch-cap','Marktkapitalisatie','leg-cap','')}
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1rem">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.75rem">Samenvatting</div>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:1rem">
+          <div>
+            <div style="font-size:9px;color:var(--muted);margin-bottom:6px">TOP 5 POSITIES</div>
+            ${top5.map((p, i) => `
+              <div style="display:flex;justify-content:space-between;padding:2px 0;font-family:'DM Mono',monospace;font-size:10px">
+                <span style="color:var(--muted)">${i+1}. ${escHtml(p.product.length>28?p.product.slice(0,26)+'…':p.product)}</span>
+                <span style="color:var(--text)">${((p.gewicht??0)*100).toFixed(1)}%</span>
+              </div>`).join('')}
+          </div>
+          <div>
+            <div style="font-size:9px;color:var(--muted);margin-bottom:6px">HOOGSTE SECTOR</div>
+            ${hoogsteSector ? `<div style="font-family:'DM Mono',monospace;font-size:18px;color:var(--neutral)">${hoogsteSector.pct.toFixed(1)}%</div>
+            <div style="font-size:11px;color:var(--muted)">${escHtml(hoogsteSector.label)}</div>` : '—'}
+          </div>
+          <div>
+            <div style="font-size:9px;color:var(--muted);margin-bottom:6px">HOOGSTE REGIO</div>
+            ${hoogsteRegio ? `<div style="font-family:'DM Mono',monospace;font-size:18px;color:var(--neutral)">${hoogsteRegio.pct.toFixed(1)}%</div>
+            <div style="font-size:11px;color:var(--muted)">${escHtml(hoogsteRegio.label)}</div>` : '—'}
+          </div>
+        </div>
+      </div>`;
+
+    // Destroy old chart instances
+    Object.values(allocatieAnalyseInst).forEach(ci => { try { ci.destroy(); } catch(_){} });
+    allocatieAnalyseInst = {};
+
+    function drawDonut(id, legId, items, palette) {
+      const canvas = document.getElementById(id);
+      const legEl  = document.getElementById(legId);
+      if (!canvas || !items || items.length === 0) return;
+      if (legEl) legEl.innerHTML = miniLegend(items, palette);
+      const colors = items.map((_, i) => palette[i % palette.length]);
+      allocatieAnalyseInst[id] = new Chart(canvas, {
+        type: 'doughnut',
+        data: {
+          labels: items.map(x => x.label),
+          datasets: [{ data: items.map(x => x.pct), backgroundColor: colors, borderColor: '#0a0a0f', borderWidth: 2 }]
+        },
+        options: {
+          responsive: true, cutout: '68%',
+          animation: { duration: 400 },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#12121a', borderColor: '#1e1e2e', borderWidth: 1,
+              titleColor: '#5a5a7a', bodyColor: '#e8e8f0',
+              callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed.toFixed(1)}%` }
+            }
+          }
+        }
+      });
+    }
+
+    drawDonut('ch-sector', 'leg-sector', agg.sector,     ALLOC_PALETTES.sector);
+    drawDonut('ch-asset',  'leg-asset',  agg.assetklasse, ALLOC_PALETTES.assetklasse);
+    drawDonut('ch-regio',  'leg-regio',  agg.regio,       ALLOC_PALETTES.regio);
+    drawDonut('ch-valuta', 'leg-valuta', agg.valuta,      ALLOC_PALETTES.valuta);
+    drawDonut('ch-cap',    'leg-cap',    agg.marktcap,    ALLOC_PALETTES.marktcap);
   }
 
   // ── Rendement vs benchmark grafiek ───────────────────────────────
@@ -1033,6 +1286,13 @@ const Rendement = (() => {
     _setGesloten: (v) => {
       toonGesloten = v;
       if (portfolioData) render(!cfg.sheetsUrl || cfg.sheetsUrl.includes("JOUW_"));
+    },
+    _herclassificeer: () => {
+      allocatieData = null;
+      if (portfolioData) {
+        const actief = portfolioData.posities.filter(p => p.aantal > 0.0001);
+        loadAllocatieAnalyse(actief);
+      }
     },
     _debug: () => console.log("portfolioData:", portfolioData, "\nbenchData:", benchData),
   };
