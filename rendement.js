@@ -140,7 +140,15 @@ const Rendement = (() => {
     const totaalKostenbasis = actief.reduce((s, p) => s + p.aantal * p.gemAankoopprijs, 0);
     const totaalPnL         = actief.reduce((s, p) => s + p.pnl, 0);
     const totaalDividend    = actief.reduce((s, p) => s + p.dividend, 0);
-    const totaalKosten      = actief.reduce((s, p) => s + p.kosten, 0);
+
+    // ── KOSTEN: gebruik altijd de Apps Script totalen ─────────────────
+    // De Apps Script telt AutoFX + broker over ALLE transacties (incl. verkopen).
+    // Het frontend mag dit NOOIT zelf herberekenen vanuit actieve posities alleen
+    // (dat geeft een te laag getal — zie bug waarbij €385 → €113 werd).
+    const totaalKosten      = safeNum(raw.samenvatting?.totaalKosten,
+                                actief.reduce((s, p) => s + p.kosten, 0));
+    const totaalAutoFX      = safeNum(raw.samenvatting?.totaalAutoFX, null);
+    const totaalBrokerKosten = safeNum(raw.samenvatting?.totaalBrokerKosten, null);
 
     if (totaalWaarde > 0) {
       posities.forEach(p => { p.gewicht = p.waarde / totaalWaarde; });
@@ -153,7 +161,8 @@ const Rendement = (() => {
     const twrIsProxy = rawTwr == null || rawTwr === 0;
 
     const samenvatting = {
-      totaalWaarde, totaalPnL, totaalDividend, totaalKosten,
+      totaalWaarde, totaalPnL, totaalDividend,
+      totaalKosten, totaalAutoFX, totaalBrokerKosten,
       totaalGerealiseerd: safeNum(raw.samenvatting?.totaalGerealiseerd, null),
       twr, twrIsProxy,
       cagr: safeNum(raw.samenvatting?.cagr, null),
@@ -492,9 +501,13 @@ const Rendement = (() => {
     <div class="kpi-sub">netto ontvangen</div>
   </div>
   <div class="kpi-card neg-accent">
-    <div class="kpi-label">Transactiekosten</div>
-    <div class="kpi-value neg">-${fmtEUR(samenvatting.totaalKosten ?? 0, 0)}</div>
-    <div class="kpi-sub">broker + taks</div>
+    <div class="kpi-label">Totale kosten</div>
+    <div class="kpi-value neg">-${fmtEUR(samenvatting.totaalKosten ?? 0, 2)}</div>
+    <div class="kpi-sub" style="line-height:1.6">
+      ${samenvatting.totaalAutoFX != null
+        ? `AutoFX: ${fmtEUR(samenvatting.totaalAutoFX, 2)}<br>Broker/derden: ${fmtEUR(samenvatting.totaalBrokerKosten ?? 0, 2)}`
+        : "broker + AutoFX · alle trans."}
+    </div>
   </div>
   <div class="kpi-card ${totaalGerealiseerd >= 0 ? "pos-accent":"neg-accent"}" style="display:${totaalGerealiseerd !== 0 ? 'block' : 'none'}">
     <div class="kpi-label">Gerealiseerd P&amp;L</div>
