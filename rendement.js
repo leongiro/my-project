@@ -14,8 +14,8 @@
 const Rendement = (() => {
 
   // ── BENCHMARK CONFIGURATIE ────────────────────────────────────────
-  const BENCHMARK_TICKERS = { SPX: "^GSPC", MSCI_WORLD: "URTH", AEX: "^AEX" };
-  const BENCHMARK_LABELS  = { SPX: "S&P 500", MSCI_WORLD: "MSCI All World", AEX: "AEX" };
+  const BENCHMARK_TICKERS = { SPX: "^SP500TR", MSCI_WORLD: "IWDA.AS", AEX: "AEXGR.AS" };
+  const BENCHMARK_LABELS  = { SPX: "S&P 500 TR (USD)", MSCI_WORLD: "MSCI World TR (EUR)", AEX: "AEX TR (EUR)" };
   const BENCHMARK_COLORS  = { SPX: "#60a5fa", MSCI_WORLD: "#4ade80", AEX: "#f87171" };
   const PERIODE_MAANDEN   = { "1M":1,"3M":3,"6M":6,"YTD":0,"1J":12,"3J":36,"MAX":999 };
 
