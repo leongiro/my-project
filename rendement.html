@@ -130,6 +130,156 @@
       defaultPeriod: "1J",
     });
   </script>
+<!-- ═══════════════════════════════════════════════════════
+     MARKET EVENT STRIP — plak dit vóór </body> in rendement.html
+     ═══════════════════════════════════════════════════════ -->
+<style>
+  .mes-root { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; margin-top: 2rem; }
+  .mes-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: .75rem; }
+  .mes-title  { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; }
+  .mes-meta   { display: flex; align-items: center; gap: 12px; }
+  .mes-ts     { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); }
+  .mes-legend { display: flex; gap: 14px; margin-bottom: .75rem; flex-wrap: wrap; }
+  .mes-leg    { display: flex; align-items: center; gap: 5px; font-family: 'DM Mono', monospace; font-size: 9px; color: var(--muted); }
+  .mes-leg-dot { width: 6px; height: 6px; border-radius: 2px; }
+  .mes-scroll { overflow-x: auto; padding-bottom: 4px; }
+  .mes-scroll::-webkit-scrollbar { height: 3px; }
+  .mes-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .mes-row    { display: flex; gap: 6px; min-width: max-content; }
+  .mes-day    { min-width: 132px; max-width: 148px; background: rgba(255,255,255,.015); border: 1px solid var(--border); border-radius: 8px; padding: 8px; }
+  .mes-day.today { background: rgba(96,165,250,.05); border-color: rgba(96,165,250,.25); }
+  .mes-day-lbl { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); margin-bottom: 6px; }
+  .mes-day.today .mes-day-lbl { color: var(--neutral); font-weight: 600; }
+  .mes-ev     { display: flex; align-items: flex-start; gap: 5px; margin-bottom: 5px; }
+  .mes-ev:last-child { margin-bottom: 0; }
+  .mes-ev-dot { width: 3px; height: 3px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+  .mes-ev-meta { font-family: 'DM Mono', monospace; font-size: 9px; color: var(--muted); line-height: 1.2; }
+  .mes-ev-lbl  { font-family: 'DM Mono', monospace; font-size: 10px; line-height: 1.3; }
+  .mes-ev-lbl.high { color: var(--text); }
+  .mes-ev-lbl.med  { color: var(--muted); }
+  .mes-status { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); padding: .5rem 0; text-align: center; }
+  .mes-err    { color: var(--neg); }
+</style>
 
+<div class="mes-root" id="mes-root">
+  <div class="mes-header">
+    <span class="mes-title">Market Events — komende 10 handelsdagen</span>
+    <div class="mes-meta">
+      <span class="mes-ts" id="mes-ts"></span>
+      <button class="btn-refresh" id="mes-btn" onclick="MarketEvents.load()">↻ Events</button>
+    </div>
+  </div>
+  <div class="mes-legend">
+    <div class="mes-leg"><div class="mes-leg-dot" style="background:#60a5fa"></div>MACRO</div>
+    <div class="mes-leg"><div class="mes-leg-dot" style="background:#fbbf24"></div>CORP</div>
+    <div class="mes-leg"><div class="mes-leg-dot" style="background:#4ade80"></div>DIV</div>
+    <div class="mes-leg"><div class="mes-leg-dot" style="background:#a78bfa"></div>MECH</div>
+  </div>
+  <div id="mes-content"><div class="mes-status">Klik op ↻ Events om de kalender te laden</div></div>
+</div>
+
+<script>
+const MarketEvents = (() => {
+  const TYPE_COLOR = { Macro:'#60a5fa', Corp:'#fbbf24', Div:'#4ade80', Mech:'#a78bfa' };
+  const TYPE_SHORT = { Macro:'MACRO', Corp:'CORP', Div:'DIV', Mech:'MECH' };
+  const REG_SHORT  = { US:'US', EU:'EU', NL:'NL', GLOBAL:'GLB' };
+
+  function todayISO() { return new Date().toISOString().slice(0, 10); }
+
+  function fmtDay(d) {
+    return new Date(d + 'T12:00:00Z')
+      .toLocaleDateString('nl-NL', { weekday:'short', day:'2-digit', month:'2-digit' });
+  }
+
+  function render(events) {
+    const today = todayISO();
+    const grouped = {};
+    (events || []).forEach(ev => {
+      if (!grouped[ev.date]) grouped[ev.date] = [];
+      if (grouped[ev.date].length < 4) grouped[ev.date].push(ev);
+    });
+    const dates = Object.keys(grouped).sort();
+    if (!dates.length) {
+      document.getElementById('mes-content').innerHTML =
+        '<div class="mes-status">Geen events gevonden voor de komende 10 handelsdagen</div>';
+      return;
+    }
+    const cols = dates.map(date => {
+      const isT = date === today;
+      const evs = grouped[date].map(ev => `
+        <div class="mes-ev">
+          <div class="mes-ev-dot" style="background:${TYPE_COLOR[ev.type] || '#5a5a7a'}"></div>
+          <div>
+            <div class="mes-ev-meta">${REG_SHORT[ev.region] || ev.region} · ${TYPE_SHORT[ev.type] || ev.type}</div>
+            <div class="mes-ev-lbl ${ev.impact === 'HIGH' ? 'high' : 'med'}">${ev.label}</div>
+          </div>
+        </div>`).join('');
+      return `<div class="mes-day${isT ? ' today' : ''}">
+        <div class="mes-day-lbl">${fmtDay(date)}${isT ? ' · VANDAAG' : ''}</div>
+        ${evs}
+      </div>`;
+    }).join('');
+    document.getElementById('mes-content').innerHTML =
+      `<div class="mes-scroll"><div class="mes-row">${cols}</div></div>`;
+  }
+
+  async function load() {
+    const btn = document.getElementById('mes-btn');
+    if (btn) btn.disabled = true;
+    document.getElementById('mes-content').innerHTML =
+      '<div class="mes-status">Events ophalen<span id="mes-dots">.</span></div>';
+
+    let di = 1;
+    const dt = setInterval(() => {
+      const el = document.getElementById('mes-dots');
+      if (el) el.textContent = '.'.repeat((di++ % 3) + 1);
+    }, 400);
+
+    const today = todayISO();
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+          system: 'Financial market calendar assistant. Return ONLY valid JSON array. No markdown fences, no prose.',
+          messages: [{
+            role: 'user',
+            content: `Today is ${today}. Search for the most market-moving events for the next 10 trading days.
+
+Include: FOMC/ECB rate decisions, US macro (NFP, CPI, PPI, retail sales, ISM, jobless claims), EU macro (ECB, eurozone CPI/PMI), major S&P500/AEX earnings (MSFT AAPL NVDA ASML ADYEN SHELL UNILEVER), large-cap ex-dividend dates, monthly options expiry if within 7 days, major index rebalances.
+
+Return ONLY a JSON array:
+[{"date":"YYYY-MM-DD","region":"US","type":"Macro","label":"NFP Release","impact":"HIGH"}]
+
+type = Macro|Corp|Div|Mech. region = US|EU|NL|GLOBAL. label ≤28 chars, no emojis. impact = HIGH|MED. Max 4 per date. Sort date asc.`
+          }]
+        })
+      });
+
+      const data = await res.json();
+      const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+      const clean = text.replace(/```[a-z]*/g, '').replace(/```/g, '').trim();
+      const s = clean.indexOf('['), e = clean.lastIndexOf(']');
+      if (s === -1 || e === -1) throw new Error('Geen JSON ontvangen');
+      const events = JSON.parse(clean.slice(s, e + 1));
+      clearInterval(dt);
+      render(events);
+      const ts = document.getElementById('mes-ts');
+      if (ts) ts.textContent = 'bijgewerkt: ' + new Date().toLocaleTimeString('nl-NL', { hour:'2-digit', minute:'2-digit' });
+    } catch (err) {
+      clearInterval(dt);
+      document.getElementById('mes-content').innerHTML =
+        `<div class="mes-status mes-err">Ophalen mislukt — ${err.message}</div>`;
+    }
+    if (btn) btn.disabled = false;
+  }
+
+  return { load };
+})();
+</script>
+<!-- ═══════════════════════════════════════════════════════ -->
 </body>
 </html>
