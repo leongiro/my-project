@@ -335,8 +335,6 @@ const Rendement = (() => {
       html += renderSectionTitle("Cashflows");
       html += renderCashflowGrid(cashflows);
     }
-    html += renderSectionTitle("Methodologie");
-    html += renderMethodologie(samenvatting.twrIsProxy);
 
     document.getElementById("content").innerHTML = html;
 
