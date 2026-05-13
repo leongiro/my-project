@@ -778,40 +778,49 @@ const Rendement = (() => {
     const datasets = [];
 
     // ── Portfolio lijn ──────────────────────────────────────────────
-    // twrHistorie bevat maandelijkse cumulatieve TWR-waarden (vanaf portfoliostart).
-    // Normaliseer naar CHART_START: (1 + twr_t) / (1 + twr_base) - 1
+    // Normalisatie via WAARDE (niet via TWR-ratio):
+    //   return_t = (waarde_t / waarde_base) - 1
+    //
+    // Waarom niet (1+twr_t)/(1+twr_base)-1:
+    //   Onze twr = totalReturn/kostenbasis is GEEN gechainde TWR.
+    //   Als twr_base negatief is (vroege verliezen), explodeert de deling:
+    //   twr_base=-0.30 → 1/0.70=1.43 → ×huidige waarde → 153% ✗
+    //
+    // Waarde-normalisatie is robuust, intuïtief en vergelijkbaar met
+    // benchmark-rendement (die ook op koersniveau worden genormaliseerd).
     const allPort = [...(twrHistorie ?? [])].sort((a, b) => a.datum.localeCompare(b.datum));
 
     if (allPort.length >= 2) {
-      // Vind de TWR op/vlak voor CHART_START als basiswaarde
-      const voor  = allPort.filter(h => h.datum <= CHART_START);
-      const na    = allPort.filter(h => h.datum >= CHART_START);
-      const basis = voor.length > 0 ? voor[voor.length - 1] : na[0];
-      const twrBasis = basis?.twr ?? 0;
+      const voor      = allPort.filter(h => h.datum <= CHART_START);
+      const na        = allPort.filter(h => h.datum >= CHART_START);
+      const basisEntry = voor.length > 0 ? voor[voor.length - 1] : na[0];
+      const basisWaarde = basisEntry?.waarde ?? 0;
 
-      const portData = [];
-      // Synthetisch 0%-punt op exacte CHART_START
-      portData.push({ x: startMs, y: 0 });
+      if (basisWaarde > 0) {
+        const portData = [{ x: startMs, y: 0 }];
 
-      na.forEach(h => {
-        if (h.datum === basis?.datum) return; // sla basis over (is al 0%)
-        const norm = (1 + (h.twr ?? 0)) / (1 + twrBasis) - 1;
-        portData.push({ x: toMs(h.datum), y: +(norm * 100).toFixed(3) });
-      });
-
-      if (portData.length >= 2) {
-        datasets.push({
-          label: "Portfolio",
-          data: portData,
-          borderColor: "#fbbf24",
-          backgroundColor: "rgba(251,191,36,0.07)",
-          borderWidth: 2.5,
-          pointRadius: 0,
-          pointHoverRadius: 5,
-          tension: 0.3,
-          fill: true,
-          order: 0,
+        na.forEach(h => {
+          if (!h.waarde || h.waarde <= 0 || h.datum === basisEntry?.datum) return;
+          portData.push({
+            x: toMs(h.datum),
+            y: +((h.waarde / basisWaarde - 1) * 100).toFixed(3),
+          });
         });
+
+        if (portData.length >= 2) {
+          datasets.push({
+            label: "Portfolio",
+            data: portData,
+            borderColor: "#fbbf24",
+            backgroundColor: "rgba(251,191,36,0.07)",
+            borderWidth: 2.5,
+            pointRadius: 0,
+            pointHoverRadius: 5,
+            tension: 0.3,
+            fill: true,
+            order: 0,
+          });
+        }
       }
     }
 
