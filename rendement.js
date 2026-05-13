@@ -673,123 +673,78 @@ const Rendement = (() => {
 </div>`;
   }
 
-  // ── Cashflow grid ─────────────────────────────────────────────────
+  // ── Cashflow / rendement-sectie ──────────────────────────────────
+  // Gebaseerd op transactiedata (KOOP/VERKOOP) — betrouwbaar.
+  // Bancaire transfers worden NIET gebruikt: DEGIRO-omschrijvingen
+  // wisselen per periode en geven stelselmatig foute bedragen.
   function renderCashflowGrid(cashflows, cfSam, sam) {
-    const gestort    = cfSam.totaalStorting  ?? cashflows.filter(c => c.type==="STORTING").reduce((s,c)=>s+Math.abs(c.bedrag),0);
-    const onttrokken = cfSam.totaalOpname    ?? cashflows.filter(c => c.type==="OPNAME").reduce((s,c)=>s+Math.abs(c.bedrag),0);
-    const nettoInleg = cfSam.nettoInleg      ?? (gestort - onttrokken);
-    const totInvest  = cfSam.totaalGeïnvesteerd;
-    const totOntv    = cfSam.totaalOntvangen;
-    const absReturn  = cfSam.totalReturnEUR  ?? sam.totalReturnEUR;
-    const portWaarde = sam.totaalWaarde ?? 0;
-    const twr        = sam.twr ?? 0;
-    const twrLabel   = sam.twrIsProxy ? "P&L rendement" : "TWR";
-    const absKleur   = absReturn >= 0 ? "var(--pos)" : "var(--neg)";
-    const twrKleur   = twr >= 0 ? "var(--pos)" : "var(--neg)";
-    const absPrefix  = absReturn >= 0 ? "+" : "";
-    const twrPrefix  = twr >= 0 ? "+" : "";
+    const kostenbasis = cfSam.totaalKostenbasis ?? (sam.totaalWaarde - (sam.totaalPnL ?? 0));
+    const waarde      = sam.totaalWaarde      ?? 0;
+    const onger       = sam.totaalPnL         ?? 0;
+    const ger         = sam.totaalGerealiseerd ?? 0;
+    const div         = sam.totaalDividend     ?? 0;
+    const kosten      = sam.totaalKosten       ?? 0;
+    const absReturn   = cfSam.totalReturnEUR   ?? (onger + ger + div);
+    const twr         = sam.twr               ?? 0;
+    const twrKleur    = twr >= 0 ? "var(--pos)" : "var(--neg)";
+    const twrPrefix   = twr >= 0 ? "+" : "";
 
-    // Component-breakdown voor verificatie
-    const onger     = sam.totaalPnL         ?? 0;
-    const ger       = sam.totaalGerealiseerd ?? 0;
-    const div       = sam.totaalDividend     ?? 0;
-    const somComp   = onger + ger + div;
-
-    const rijen_invest = totInvest != null ? [
-      "<div style=\"display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:1px solid rgba(30,30,46,0.6)\">",
-        "<span style=\"font-size:11px;color:var(--muted)\">Besteed aan aankopen</span>",
-        "<span style=\"font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)\">-" + fmtEUR(totInvest, 2) + "</span>",
-      "</div>",
-      "<div style=\"display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:1px solid var(--border)\">",
-        "<span style=\"font-size:11px;color:var(--muted)\">Ontvangen uit verkopen</span>",
-        "<span style=\"font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)\">+" + fmtEUR(totOntv, 2) + "</span>",
-      "</div>",
-    ].join("") : "";
-
-    // Expliciete component-breakdown zodat je elk getal kunt verifiëren
-    const rij_breakdown = [
-      "<div style=\"margin-top:10px;padding:8px 10px;border-radius:6px;background:rgba(255,255,255,0.03);border:1px solid var(--border)\">",
-        "<div style=\"font-size:10px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.06em\">Rendement-opbouw</div>",
-        "<div style=\"display:flex;justify-content:space-between;padding:3px 0;font-size:11px\">",
-          "<span style=\"color:var(--muted)\">Ongerealiseerd P&L</span>",
-          "<span style=\"font-family:'DM Mono',monospace;color:" + (onger>=0?"var(--pos)":"var(--neg)") + "\">" + (onger>=0?"+":"") + fmtEUR(onger,2) + "</span>",
+    function rij(label, val, kleur, border) {
+      return [
+        "<div style=\"display:flex;justify-content:space-between;padding:7px 0;" + (border?"border-bottom:1px solid var(--border);":"") + "\">",
+          "<span style=\"font-size:12px;color:var(--muted)\">" + label + "</span>",
+          "<span style=\"font-family:'DM Mono',monospace;font-size:13px;color:" + (kleur||"var(--text)") + "\">" + val + "</span>",
         "</div>",
-        "<div style=\"display:flex;justify-content:space-between;padding:3px 0;font-size:11px\">",
-          "<span style=\"color:var(--muted)\">Gerealiseerd P&L</span>",
-          "<span style=\"font-family:'DM Mono',monospace;color:" + (ger>=0?"var(--pos)":"var(--neg)") + "\">" + (ger>=0?"+":"") + fmtEUR(ger,2) + "</span>",
-        "</div>",
-        "<div style=\"display:flex;justify-content:space-between;padding:3px 0 5px;font-size:11px;border-bottom:1px solid var(--border)\">",
-          "<span style=\"color:var(--muted)\">Dividend (netto)</span>",
-          "<span style=\"font-family:'DM Mono',monospace;color:var(--pos)\">+" + fmtEUR(div,2) + "</span>",
-        "</div>",
-        "<div style=\"display:flex;justify-content:space-between;padding:5px 0 0;font-size:12px;font-weight:600\">",
-          "<span style=\"color:var(--text)\">Som componenten</span>",
-          "<span style=\"font-family:'DM Mono',monospace;color:" + absKleur + "\">" + absPrefix + fmtEUR(somComp,2) + "</span>",
-        "</div>",
-      "</div>",
-    ].join("");
-
-    const rij_return = absReturn != null ? [
-      "<div style=\"display:flex;justify-content:space-between;align-items:baseline;padding:8px 0 6px;border-bottom:1px solid var(--border)\">",
-        "<span style=\"font-size:12px;font-weight:600;color:var(--text)\">Absoluut rendement</span>",
-        "<span style=\"font-family:'DM Mono',monospace;font-size:14px;font-weight:500;color:" + absKleur + "\">" + absPrefix + fmtEUR(absReturn, 2) + "</span>",
-      "</div>",
-    ].join("") : "";
+      ].join("");
+    }
 
     return [
       "<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1.5rem\">",
 
-      // Linker kaart: bancaire transfers
+      // Linker kaart: belegd kapitaal
       "<div style=\"background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem\">",
-        "<div style=\"font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:1rem\">",
-          "Bancaire transfers",
+        "<div style=\"font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.75rem\">Belegd kapitaal</div>",
+        rij("Kostenbasis open posities", fmtEUR(kostenbasis, 2), "var(--text)", true),
+        rij("Huidige marktwaarde",       fmtEUR(waarde, 2),      "var(--text)", true),
+        "<div style=\"display:flex;justify-content:space-between;padding:8px 0 0\">",
+          "<span style=\"font-size:13px;font-weight:600;color:var(--text)\">Ongerealiseerd P&L</span>",
+          "<span style=\"font-family:'DM Mono',monospace;font-size:15px;font-weight:500;color:" + (onger>=0?"var(--pos)":"var(--neg)") + "\">" + (onger>=0?"+":"") + fmtEUR(onger,2) + "</span>",
         "</div>",
-        "<div style=\"display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--border)\">",
-          "<span style=\"font-size:12px;color:var(--text)\">Totaal gestort naar DEGIRO</span>",
-          "<span style=\"font-family:'DM Mono',monospace;font-size:13px;color:var(--gold)\">" + fmtEUR(gestort, 2) + "</span>",
-        "</div>",
-        "<div style=\"display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--border)\">",
-          "<span style=\"font-size:12px;color:var(--text)\">Totaal teruggehaald</span>",
-          "<span style=\"font-family:'DM Mono',monospace;font-size:13px;color:var(--neg)\">-" + fmtEUR(onttrokken, 2) + "</span>",
-        "</div>",
-        "<div style=\"display:flex;justify-content:space-between;align-items:baseline;padding:10px 0 0\">",
-          "<span style=\"font-size:12px;font-weight:600;color:var(--text)\">Netto eigen inleg</span>",
-          "<span style=\"font-family:'DM Mono',monospace;font-size:15px;font-weight:500;color:var(--gold)\">" + fmtEUR(nettoInleg, 2) + "</span>",
-        "</div>",
-        "<div style=\"margin-top:8px;font-size:10px;color:var(--muted);line-height:1.6\">",
-          "Het verschil tussen netto inleg en portefeuillewaarde is jouw rendement.",
-        "</div>",
+        (ger !== 0 ? [
+          "<div style=\"margin-top:8px;padding:8px;border-radius:6px;background:rgba(255,255,255,0.03);border:1px solid var(--border)\">",
+            "<div style=\"font-size:10px;color:var(--muted);margin-bottom:4px\">Gesloten posities</div>",
+            rij("Gerealiseerd P&L", (ger>=0?"+":"") + fmtEUR(ger,2), ger>=0?"var(--pos)":"var(--neg)", false),
+          "</div>",
+        ].join("") : ""),
       "</div>",
 
-      // Rechter kaart: rendement-verificatie
+      // Rechter kaart: totaal rendement
       "<div style=\"background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem\">",
-        "<div style=\"font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:1rem\">",
-          "Rendement-verificatie",
+        "<div style=\"font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.75rem\">Totaal rendement</div>",
+        "<div style=\"padding:8px;border-radius:6px;background:rgba(255,255,255,0.03);border:1px solid var(--border);margin-bottom:10px\">",
+          rij("Ongerealiseerd P&L",   (onger>=0?"+":"") + fmtEUR(onger,2), onger>=0?"var(--pos)":"var(--neg)", true),
+          rij("Gerealiseerd P&L",     (ger>=0?"+":"")   + fmtEUR(ger,2),   ger>=0?"var(--pos)":"var(--neg)",   true),
+          rij("Dividend (netto)",     "+"               + fmtEUR(div,2),   "var(--pos)",                       true),
+          rij("Transactiekosten",     "-"               + fmtEUR(kosten,2),"var(--neg)",                       false),
         "</div>",
-        "<div style=\"display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--border)\">",
-          "<span style=\"font-size:12px;color:var(--text)\">Portefeuillewaarde nu</span>",
-          "<span style=\"font-family:'DM Mono',monospace;font-size:13px;color:var(--text)\">" + fmtEUR(portWaarde, 2) + "</span>",
+        "<div style=\"display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)\">",
+          "<span style=\"font-size:12px;font-weight:600;color:var(--text)\">Totaal rendement</span>",
+          "<span style=\"font-family:'DM Mono',monospace;font-size:14px;font-weight:500;color:" + (absReturn>=0?"var(--pos)":"var(--neg)") + "\">" + (absReturn>=0?"+":"") + fmtEUR(absReturn,2) + "</span>",
         "</div>",
-        rijen_invest,
-        rij_breakdown,
-        rij_return,
         "<div style=\"margin-top:10px;padding:10px;border-radius:6px;background:rgba(96,165,250,0.07);border:1px solid rgba(96,165,250,0.2)\">",
-          "<div style=\"font-size:10px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.06em\">" + twrLabel + "</div>",
-          "<div style=\"font-family:'DM Mono',monospace;font-size:18px;font-weight:500;color:" + twrKleur + "\">",
-            twrPrefix + (twr * 100).toFixed(2) + "%",
-          "</div>",
-          "<div style=\"font-size:10px;color:var(--muted);margin-top:6px;line-height:1.7\">",
+          "<div style=\"font-size:10px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.06em\">TWR</div>",
+          "<div style=\"font-family:'DM Mono',monospace;font-size:20px;font-weight:500;color:" + twrKleur + "\">" + twrPrefix + (twr*100).toFixed(2) + "%</div>",
+          "<div style=\"font-size:10px;color:var(--muted);margin-top:5px;line-height:1.6\">",
+            "Rendement t.o.v. kostenbasis open posities<br>",
             "&#10003; Koersrendement + dividend + gerealiseerd<br>",
-            "&#10003; Transactiekosten afgetrokken<br>",
-            "&#10007; Stortingen / onttrekkingen uitgesloten<br>",
-            "<span style=\"color:var(--text)\">Noemer: " + (cfSam.twrNoemer != null ? fmtEUR(cfSam.twrNoemer, 0) + " netto inleg" : "netto inleg") + "</span>",
+            "&#10007; Stortingen / onttrekkingen hebben geen invloed",
           "</div>",
         "</div>",
       "</div>",
-
       "</div>",
     ].join("");
   }
+
 
     // ── Methodologie ──────────────────────────────────────────────────
   function renderMethodologie(isProxy) {
