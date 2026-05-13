@@ -184,6 +184,7 @@ const Rendement = (() => {
       totaalGeïnvesteerd: safeNum(cf.totaalGeïnvesteerd, null),
       totaalOntvangen:    safeNum(cf.totaalOntvangen,    null),
       totalReturnEUR:     safeNum(cf.totalReturnEUR,     null),
+      twrNoemer:          safeNum(cf.twrNoemer,          null),
     };
 
     const meta = {
@@ -780,7 +781,8 @@ const Rendement = (() => {
           "<div style=\"font-size:10px;color:var(--muted);margin-top:6px;line-height:1.7\">",
             "&#10003; Koersrendement + dividend + gerealiseerd<br>",
             "&#10003; Transactiekosten afgetrokken<br>",
-            "&#10007; Stortingen / onttrekkingen uitgesloten",
+            "&#10007; Stortingen / onttrekkingen uitgesloten<br>",
+            "<span style=\"color:var(--text)\">Noemer: " + (cfSam.twrNoemer != null ? fmtEUR(cfSam.twrNoemer, 0) + " netto inleg" : "netto inleg") + "</span>",
           "</div>",
         "</div>",
       "</div>",
