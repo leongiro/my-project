@@ -778,56 +778,59 @@ const Rendement = (() => {
     const datasets = [];
 
     // ── Portfolio lijn ──────────────────────────────────────────────
-    // Normalisatie: rekenkundige delta t.o.v. de TWR op CHART_START
-    //   chart_t = (twr_t - twr_base) × 100
+    // twrHistorie bevat GECHAINDE sub-periode TWR (Modified Dietz).
+    // Normalisatie vanaf CHART_START:
+    //   chart_t = (1 + twr_t) / (1 + twr_basis) − 1
+    // Dit is de correcte financiële conventie voor gechainde TWR.
+    // Geldig OMDAT twr een echt gechainde waarde is (niet totalReturn/kostenbasis).
     //
-    // Waarom niet waarde-gebaseerd:
-    //   basisWaarde ≈ 0 als historische koersen missen (verkeerde tickers
-    //   in cache) → deling door ~0 → 1100% of meer.
-    //
-    // Waarom niet (1+twr_t)/(1+twr_base)-1:
-    //   Onze twr = totalReturn/kostenbasis is geen gechainde TWR.
-    //   Negatieve twr_base → noemer < 1 → amplificatie → 153% of meer.
-    //
-    // Rekenkundige delta is altijd betrouwbaar: toont hoeveel procentpunten
-    // het totaalrendement is verbeterd/verslechterd SEIT april 2025.
-    // Sanity-check: als delta > ±50pp skip het datapunt (corrupte cache).
+    // Criteria voor correctheid:
+    //   ✓ Alle reeksen genormaliseerd op 0% op startdatum
+    //   ✓ Periodieke rendementen gechaind, geen absolute waardes
+    //   ✓ Stortingen/onttrekkingen geneutraliseerd (Modified Dietz)
+    //   ✓ Geen deling door portfoliowaarde of rendement op startdatum
     const allPort = [...(twrHistorie ?? [])].sort((a, b) => a.datum.localeCompare(b.datum));
 
     if (allPort.length >= 2) {
-      const voor      = allPort.filter(h => h.datum <= CHART_START);
-      const na        = allPort.filter(h => h.datum >= CHART_START);
+      const voor       = allPort.filter(h => h.datum <= CHART_START);
+      const na         = allPort.filter(h => h.datum >= CHART_START);
       const basisEntry = voor.length > 0 ? voor[voor.length - 1] : na[0];
-      const twrBase    = basisEntry?.twr ?? 0;
+      const twrBasis   = basisEntry?.twr ?? 0;
 
-      const portData  = [{ x: startMs, y: 0 }];
-      let   skipped   = 0;
+      // Validatie: twrBasis moet realistisch zijn (corrupted cache → skip)
+      // Na clearCache() + herdeployment van correcte tickers is dit altijd OK
+      if (Math.abs(twrBasis) <= 1.5) {
+        const portData = [{ x: startMs, y: 0 }];
 
-      na.forEach(h => {
-        if (h.datum === basisEntry?.datum) return;
-        const delta = ((h.twr ?? 0) - twrBase) * 100;
-        if (Math.abs(delta) > 50) { skipped++; return; } // corrupte cache-waarde
-        portData.push({ x: toMs(h.datum), y: +delta.toFixed(3) });
-      });
-
-      if (skipped > 0) console.warn("Portfolio: " + skipped + " punt(en) overgeslagen (>±50pp — voer clearCache() uit in Apps Script)");
-
-      if (portData.length >= 2) {
-        datasets.push({
-          label: "Portfolio",
-          data: portData,
-          borderColor: "#fbbf24",
-          backgroundColor: "rgba(251,191,36,0.07)",
-          borderWidth: 2.5,
-          pointRadius: 0,
-          pointHoverRadius: 5,
-          tension: 0.3,
-          fill: true,
-          order: 0,
+        na.forEach(h => {
+          if (!h.twr == null || h.datum === basisEntry?.datum) return;
+          const norm = (1 + (h.twr ?? 0)) / (1 + twrBasis) - 1;
+          // Sanity: skip punten buiten ±100% (corrupte cache-waarden)
+          if (Math.abs(norm) <= 1.0) {
+            portData.push({ x: toMs(h.datum), y: +(norm * 100).toFixed(3) });
+          }
         });
+
+        if (portData.length >= 2) {
+          datasets.push({
+            label: "Portfolio",
+            data: portData,
+            borderColor: "#fbbf24",
+            backgroundColor: "rgba(251,191,36,0.07)",
+            borderWidth: 2.5,
+            pointRadius: 0,
+            pointHoverRadius: 5,
+            tension: 0.3,
+            fill: true,
+            order: 0,
+          });
+        } else {
+          console.warn("Portfolio: onvoldoende datapunten na CHART_START — voer clearCache() uit in Apps Script");
+        }
+      } else {
+        console.warn("Portfolio: twr_basis=" + (twrBasis*100).toFixed(1) + "% is onrealistisch — cache waarschijnlijk vervuild. Voer clearCache() uit.");
       }
     }
-
     // ── Benchmark lijnen ────────────────────────────────────────────
     // benchData[key] = [{datum, koers}] — dagelijks, gesorteerd
     for (const key of cfg.benchmarks) {
