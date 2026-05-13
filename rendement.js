@@ -688,21 +688,50 @@ const Rendement = (() => {
     const absPrefix  = absReturn >= 0 ? "+" : "";
     const twrPrefix  = twr >= 0 ? "+" : "";
 
+    // Component-breakdown voor verificatie
+    const onger     = sam.totaalPnL         ?? 0;
+    const ger       = sam.totaalGerealiseerd ?? 0;
+    const div       = sam.totaalDividend     ?? 0;
+    const somComp   = onger + ger + div;
+
     const rijen_invest = totInvest != null ? [
-      "<div style=\"display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--border)\">",
-        "<span style=\"font-size:12px;color:var(--muted)\">Besteed aan aankopen</span>",
-        "<span style=\"font-family:'DM Mono',monospace;font-size:12px;color:var(--muted)\">-" + fmtEUR(totInvest, 2) + "</span>",
+      "<div style=\"display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:1px solid rgba(30,30,46,0.6)\">",
+        "<span style=\"font-size:11px;color:var(--muted)\">Besteed aan aankopen</span>",
+        "<span style=\"font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)\">-" + fmtEUR(totInvest, 2) + "</span>",
       "</div>",
-      "<div style=\"display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--border)\">",
-        "<span style=\"font-size:12px;color:var(--muted)\">Ontvangen uit verkopen</span>",
-        "<span style=\"font-family:'DM Mono',monospace;font-size:12px;color:var(--muted)\">+" + fmtEUR(totOntv, 2) + "</span>",
+      "<div style=\"display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:1px solid var(--border)\">",
+        "<span style=\"font-size:11px;color:var(--muted)\">Ontvangen uit verkopen</span>",
+        "<span style=\"font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)\">+" + fmtEUR(totOntv, 2) + "</span>",
       "</div>",
     ].join("") : "";
 
+    // Expliciete component-breakdown zodat je elk getal kunt verifiëren
+    const rij_breakdown = [
+      "<div style=\"margin-top:10px;padding:8px 10px;border-radius:6px;background:rgba(255,255,255,0.03);border:1px solid var(--border)\">",
+        "<div style=\"font-size:10px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.06em\">Rendement-opbouw</div>",
+        "<div style=\"display:flex;justify-content:space-between;padding:3px 0;font-size:11px\">",
+          "<span style=\"color:var(--muted)\">Ongerealiseerd P&L</span>",
+          "<span style=\"font-family:'DM Mono',monospace;color:" + (onger>=0?"var(--pos)":"var(--neg)") + "\">" + (onger>=0?"+":"") + fmtEUR(onger,2) + "</span>",
+        "</div>",
+        "<div style=\"display:flex;justify-content:space-between;padding:3px 0;font-size:11px\">",
+          "<span style=\"color:var(--muted)\">Gerealiseerd P&L</span>",
+          "<span style=\"font-family:'DM Mono',monospace;color:" + (ger>=0?"var(--pos)":"var(--neg)") + "\">" + (ger>=0?"+":"") + fmtEUR(ger,2) + "</span>",
+        "</div>",
+        "<div style=\"display:flex;justify-content:space-between;padding:3px 0 5px;font-size:11px;border-bottom:1px solid var(--border)\">",
+          "<span style=\"color:var(--muted)\">Dividend (netto)</span>",
+          "<span style=\"font-family:'DM Mono',monospace;color:var(--pos)\">+" + fmtEUR(div,2) + "</span>",
+        "</div>",
+        "<div style=\"display:flex;justify-content:space-between;padding:5px 0 0;font-size:12px;font-weight:600\">",
+          "<span style=\"color:var(--text)\">Som componenten</span>",
+          "<span style=\"font-family:'DM Mono',monospace;color:" + absKleur + "\">" + absPrefix + fmtEUR(somComp,2) + "</span>",
+        "</div>",
+      "</div>",
+    ].join("");
+
     const rij_return = absReturn != null ? [
-      "<div style=\"display:flex;justify-content:space-between;align-items:baseline;padding:10px 0 6px;border-bottom:1px solid var(--border)\">",
+      "<div style=\"display:flex;justify-content:space-between;align-items:baseline;padding:8px 0 6px;border-bottom:1px solid var(--border)\">",
         "<span style=\"font-size:12px;font-weight:600;color:var(--text)\">Absoluut rendement</span>",
-        "<span style=\"font-family:'DM Mono',monospace;font-size:15px;font-weight:500;color:" + absKleur + "\">" + absPrefix + fmtEUR(absReturn, 2) + "</span>",
+        "<span style=\"font-family:'DM Mono',monospace;font-size:14px;font-weight:500;color:" + absKleur + "\">" + absPrefix + fmtEUR(absReturn, 2) + "</span>",
       "</div>",
     ].join("") : "";
 
@@ -741,6 +770,7 @@ const Rendement = (() => {
           "<span style=\"font-family:'DM Mono',monospace;font-size:13px;color:var(--text)\">" + fmtEUR(portWaarde, 2) + "</span>",
         "</div>",
         rijen_invest,
+        rij_breakdown,
         rij_return,
         "<div style=\"margin-top:10px;padding:10px;border-radius:6px;background:rgba(96,165,250,0.07);border:1px solid rgba(96,165,250,0.2)\">",
           "<div style=\"font-size:10px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.06em\">" + twrLabel + "</div>",
