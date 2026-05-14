@@ -930,76 +930,90 @@ Return ONLY the JSON array of classified positions.`
   // Gebaseerd op transactiedata (KOOP/VERKOOP) — betrouwbaar.
   // Bancaire transfers worden NIET gebruikt: DEGIRO-omschrijvingen
   // wisselen per periode en geven stelselmatig foute bedragen.
-  function renderCashflowGrid(cashflows, cfSam, sam) {
+function renderCashflowGrid(cashflows, cfSam, sam) {
     const kostenbasis = cfSam.totaalKostenbasis ?? (sam.totaalWaarde - (sam.totaalPnL ?? 0));
     const waarde      = sam.totaalWaarde      ?? 0;
     const onger       = sam.totaalPnL         ?? 0;
     const ger         = sam.totaalGerealiseerd ?? 0;
     const div         = sam.totaalDividend     ?? 0;
     const kosten      = sam.totaalKosten       ?? 0;
-    const absReturn   = cfSam.totalReturnEUR   ?? (onger + ger + div);
-    const twr         = sam.twr               ?? 0;
-    const twrKleur    = twr >= 0 ? "var(--pos)" : "var(--neg)";
-    const twrPrefix   = twr >= 0 ? "+" : "";
+
+    // absReturn = onger + ger + div  (kosten al verrekend in kostenbasis via abs(TotaalEUR))
+    // Gebruik server-waarde als beschikbaar, anders bereken consistent zonder kosten
+    const absReturn = cfSam.totalReturnEUR ?? (onger + ger + div);
+
+    const twr       = sam.twr ?? 0;
+    const twrKleur  = twr >= 0 ? "var(--pos)" : "var(--neg)";
+    const twrPrefix = twr >= 0 ? "+" : "";
 
     function rij(label, val, kleur, border) {
       return [
-        "<div style=\"display:flex;justify-content:space-between;padding:7px 0;" + (border?"border-bottom:1px solid var(--border);":"") + "\">",
-          "<span style=\"font-size:12px;color:var(--muted)\">" + label + "</span>",
-          "<span style=\"font-family:'DM Mono',monospace;font-size:13px;color:" + (kleur||"var(--text)") + "\">" + val + "</span>",
+        `<div style="display:flex;justify-content:space-between;padding:7px 0;${border ? "border-bottom:1px solid var(--border);" : ""}">`,
+          `<span style="font-size:12px;color:var(--muted)">${label}</span>`,
+          `<span style="font-family:'DM Mono',monospace;font-size:13px;color:${kleur || "var(--text)"}">${val}</span>`,
         "</div>",
       ].join("");
     }
 
     return [
-      "<div style=\"display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1.5rem\">",
+      `<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1.5rem">`,
 
-      // Linker kaart: belegd kapitaal
-      "<div style=\"background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem\">",
-        "<div style=\"font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.75rem\">Belegd kapitaal</div>",
+      // ── Linker kaart: belegd kapitaal ──
+      `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem">`,
+        `<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.75rem">Belegd kapitaal</div>`,
         rij("Kostenbasis open posities", fmtEUR(kostenbasis, 2), "var(--text)", true),
         rij("Huidige marktwaarde",       fmtEUR(waarde, 2),      "var(--text)", true),
-        "<div style=\"display:flex;justify-content:space-between;padding:8px 0 0\">",
-          "<span style=\"font-size:13px;font-weight:600;color:var(--text)\">Ongerealiseerd P&L</span>",
-          "<span style=\"font-family:'DM Mono',monospace;font-size:15px;font-weight:500;color:" + (onger>=0?"var(--pos)":"var(--neg)") + "\">" + (onger>=0?"+":"") + fmtEUR(onger,2) + "</span>",
-        "</div>",
-        (ger !== 0 ? [
-          "<div style=\"margin-top:8px;padding:8px;border-radius:6px;background:rgba(255,255,255,0.03);border:1px solid var(--border)\">",
-            "<div style=\"font-size:10px;color:var(--muted);margin-bottom:4px\">Gesloten posities</div>",
-            rij("Gerealiseerd P&L", (ger>=0?"+":"") + fmtEUR(ger,2), ger>=0?"var(--pos)":"var(--neg)", false),
-          "</div>",
-        ].join("") : ""),
-      "</div>",
+        `<div style="display:flex;justify-content:space-between;padding:8px 0 0">`,
+          `<span style="font-size:13px;font-weight:600;color:var(--text)">Ongerealiseerd P&L</span>`,
+          `<span style="font-family:'DM Mono',monospace;font-size:15px;font-weight:500;color:${onger >= 0 ? "var(--pos)" : "var(--neg)"}">${onger >= 0 ? "+" : ""}${fmtEUR(onger, 2)}</span>`,
+        `</div>`,
+        ger !== 0 ? [
+          `<div style="margin-top:8px;padding:8px;border-radius:6px;background:rgba(255,255,255,0.03);border:1px solid var(--border)">`,
+            `<div style="font-size:10px;color:var(--muted);margin-bottom:4px">Gesloten posities</div>`,
+            rij("Gerealiseerd P&L", `${ger >= 0 ? "+" : ""}${fmtEUR(ger, 2)}`, ger >= 0 ? "var(--pos)" : "var(--neg)", false),
+          `</div>`,
+        ].join("") : "",
+      `</div>`,
 
-      // Rechter kaart: totaal rendement
-      "<div style=\"background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem\">",
-        "<div style=\"font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.75rem\">Totaal rendement</div>",
-        "<div style=\"padding:8px;border-radius:6px;background:rgba(255,255,255,0.03);border:1px solid var(--border);margin-bottom:10px\">",
-          rij("Ongerealiseerd P&L",   (onger>=0?"+":"") + fmtEUR(onger,2), onger>=0?"var(--pos)":"var(--neg)", true),
-          rij("Gerealiseerd P&L",     (ger>=0?"+":"")   + fmtEUR(ger,2),   ger>=0?"var(--pos)":"var(--neg)",   true),
-          rij("Dividend (netto)",     "+"               + fmtEUR(div,2),   "var(--pos)",                       true),
-          rij("Transactiekosten",     "-"               + fmtEUR(kosten,2),"var(--neg)",                       false),
-        "</div>",
-        "<div style=\"display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)\">",
-          "<span style=\"font-size:12px;font-weight:600;color:var(--text)\">Totaal rendement</span>",
-          "<span style=\"font-family:'DM Mono',monospace;font-size:14px;font-weight:500;color:" + (absReturn>=0?"var(--pos)":"var(--neg)") + "\">" + (absReturn>=0?"+":"") + fmtEUR(absReturn,2) + "</span>",
-        "</div>",
-        "<div style=\"margin-top:10px;padding:10px;border-radius:6px;background:rgba(96,165,250,0.07);border:1px solid rgba(96,165,250,0.2)\">",
-          "<div style=\"font-size:10px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.06em\">TWR</div>",
-          "<div style=\"font-family:'DM Mono',monospace;font-size:20px;font-weight:500;color:" + twrKleur + "\">" + twrPrefix + (twr*100).toFixed(2) + "%</div>",
-          "<div style=\"font-size:10px;color:var(--muted);margin-top:5px;line-height:1.6\">",
-            "Rendement t.o.v. kostenbasis open posities<br>",
-            "&#10003; Koersrendement + dividend + gerealiseerd<br>",
-            "&#10007; Stortingen / onttrekkingen hebben geen invloed",
-          "</div>",
-        "</div>",
-      "</div>",
-      "</div>",
+      // ── Rechter kaart: totaal rendement ──
+      `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem">`,
+        `<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.75rem">Totaal rendement</div>`,
+
+        // Optelbox — alleen de 3 componenten die daadwerkelijk optellen tot het totaal
+        `<div style="padding:8px;border-radius:6px;background:rgba(255,255,255,0.03);border:1px solid var(--border);margin-bottom:10px">`,
+          rij("Ongerealiseerd P&L",  `${onger >= 0 ? "+" : ""}${fmtEUR(onger, 2)}`, onger >= 0 ? "var(--pos)" : "var(--neg)", true),
+          rij("Gerealiseerd P&L",    `${ger >= 0 ? "+" : ""}${fmtEUR(ger, 2)}`,     ger >= 0 ? "var(--pos)" : "var(--neg)",   true),
+          rij("Dividend (netto)",    `+${fmtEUR(div, 2)}`,                           "var(--pos)",                             false),
+        `</div>`,
+
+        // Totaalregel
+        `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">`,
+          `<span style="font-size:12px;font-weight:600;color:var(--text)">Totaal rendement</span>`,
+          `<span style="font-family:'DM Mono',monospace;font-size:14px;font-weight:500;color:${absReturn >= 0 ? "var(--pos)" : "var(--neg)"}">${absReturn >= 0 ? "+" : ""}${fmtEUR(absReturn, 2)}</span>`,
+        `</div>`,
+
+        // Kosten — informatief, BUITEN de optelling (al verrekend in kostenbasis)
+        `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0 8px">`,
+          `<span style="font-size:11px;color:var(--muted)">Transactiekosten <span style="font-size:9px;opacity:0.7">(verrekend in kostenbasis)</span></span>`,
+          `<span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--neg)">-${fmtEUR(kosten, 2)}</span>`,
+        `</div>`,
+
+        // TWR blok
+        `<div style="margin-top:4px;padding:10px;border-radius:6px;background:rgba(96,165,250,0.07);border:1px solid rgba(96,165,250,0.2)">`,
+          `<div style="font-size:10px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.06em">TWR</div>`,
+          `<div style="font-family:'DM Mono',monospace;font-size:20px;font-weight:500;color:${twrKleur}">${twrPrefix}${(twr * 100).toFixed(2)}%</div>`,
+          `<div style="font-size:10px;color:var(--muted);margin-top:5px;line-height:1.6">`,
+            `Kosten al verrekend via kostenbasis (abs TotaalEUR)<br>`,
+            `&#10003; Koersrendement + dividend + gerealiseerd<br>`,
+            `&#10007; Stortingen / onttrekkingen hebben geen invloed`,
+          `</div>`,
+        `</div>`,
+      `</div>`,
+      `</div>`,
     ].join("");
   }
 
-
-    // ── Methodologie ──────────────────────────────────────────────────
+  // ── Methodologie ──────────────────────────────────────────────────
   function renderMethodologie(isProxy) {
     const uitleg = isProxy
       ? `<strong>P&L Rendement</strong> — (huidige waarde − kostenbasis) / kostenbasis. Geen cashflow-correctie.
