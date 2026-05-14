@@ -1023,34 +1023,20 @@ Return ONLY the JSON array of classified positions.`
         });
 
         if (portData.length >= 2) {
-          datasets.push({
-            label: "Portfolio",
-            data: portData,
-            borderColor: "#fbbf24",
-            backgroundColor: "rgba(251,191,36,0.07)",
-            borderWidth: 2.5,
-            // Zichtbare punten bij weinig maanddata
-            pointRadius: portData.length < 20 ? 3 : 0,
-            pointBackgroundColor: "#fbbf24",
-            pointHoverRadius: 6,
-            tension: 0.4,
-            fill: true,
-            order: 0,
-            segment: {
-              // Gestippelde lijn als er >45 dagen zit tussen twee maandpunten
-              borderDash: ctx => {
-                const gap = ctx.p1.parsed.x - ctx.p0.parsed.x;
-                return gap > 45 * 86400000 ? [5, 4] : undefined;
-              },
-            },
-          });
-        } else {
-          console.warn("Portfolio: onvoldoende datapunten na CHART_START — voer clearCache() uit in Apps Script");
-        }
-      } else {
-        console.warn(`Portfolio: twr_basis=${(twrBasis*100).toFixed(1)}% onrealistisch — voer clearCache() uit`);
-      }
-    }
+         datasets.push({
+  label: "Portfolio",
+  data: portData,
+  borderColor: "#fbbf24",
+  backgroundColor: "rgba(251,191,36,0.07)",
+  borderWidth: 2.5,
+  pointRadius: portData.length < 20 ? 3 : 0,
+  pointBackgroundColor: "#fbbf24",
+  pointHoverRadius: 6,
+  tension: 0.4,
+  fill: true,
+  order: 0,
+  // geen segment/borderDash meer
+});
 
     // ── Benchmark lijnen ────────────────────────────────────────────
     for (const key of cfg.benchmarks) {
