@@ -1,14 +1,12 @@
 /**
- * rendement.js — Portfolio Rendement Module v2.3
+ * rendement.js — Portfolio Rendement Module v2.4
  * TWR + CAGR + Benchmarks + Allocatie Donut + Verbeterde grafiek
  *
- * v2.3 nieuw:
- * - Grafiek: lineaire tijdas (geen categorische string-as meer)
- * - Grafiek: alle lijnen genormaliseerd op 0% op CHART_START (2025-04-01)
- * - Grafiek: dagelijkse benchmark data via Apps Script (1d interval)
- * - Grafiek: AEX kleur onderscheidend van Portfolio (goud → rood)
- * - Portfolio: correct genormaliseerd via gechainde TWR-benadering
- * - Tooltip: datum + alle 4 lijnen tegelijk
+ * v2.4 fixes:
+ * - renderCashflowGrid: kosten uit de optelbox gehaald (waren al verrekend in kostenbasis)
+ * - drawChart: null-check fix (!h.twr == null → h.twr == null)
+ * - drawChart: portfolio lijn gecapped op vandaag (geen toekomstige datums)
+ * - drawChart: zichtbare datapunten + segment borderDash bij maanddata
  */
 
 const Rendement = (() => {
@@ -19,39 +17,35 @@ const Rendement = (() => {
   const BENCHMARK_COLORS  = { SPX: "#60a5fa", MSCI_WORLD: "#4ade80", AEX: "#f87171" };
   const PERIODE_MAANDEN   = { "1M":1,"3M":3,"6M":6,"YTD":0,"1J":12,"3J":36,"MAX":999 };
 
-  // Vaste startdatum voor de rendementsgrafiek (normalisatie op 0%)
   const CHART_START = "2025-04-01";
 
-  // Allocatie-kleurenpalet (past bij de dark-theme design tokens)
   const ALLOC_COLORS = [
     "#fbbf24","#60a5fa","#4ade80","#f87171",
     "#a78bfa","#fb923c","#34d399","#38bdf8",
     "#e879f9","#f472b6","#86efac","#fde68a",
   ];
 
-  // Cashflow type-mapping (Apps Script → intern formaat)
   const CF_TYPE_MAP = {
     deposit: "STORTING", storting: "STORTING", inleg: "STORTING", buy: "STORTING",
     withdrawal: "OPNAME", opname: "OPNAME", onttrekking: "OPNAME", sell: "OPNAME",
     dividend: "DIVIDEND",
   };
 
-  // CORS-proxies voor Yahoo Finance (volgorde van voorkeur)
   const PROXIES = [
     url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
     url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
   ];
 
   // ── MODULE STATE ──────────────────────────────────────────────────
-  let cfg                  = {};
-  let portfolioData        = null;
-  let benchData            = {};
-  let activePeriod         = "1J";
-  let chartInstance        = null;
+  let cfg                    = {};
+  let portfolioData          = null;
+  let benchData              = {};
+  let activePeriod           = "1J";
+  let chartInstance          = null;
   let allocatieChartInstance = null;
-  let toonGesloten         = false;
-  let allocatieData        = null;   // gecachede API-classificaties
-  let allocatieAnalyseInst = {};     // chart-instanties per categorie
+  let toonGesloten           = false;
+  let allocatieData          = null;
+  let allocatieAnalyseInst   = {};
 
   // ══════════════════════════════════════════════════════════════════
   // INITIALISATIE
@@ -150,10 +144,6 @@ const Rendement = (() => {
     const totaalPnL         = actief.reduce((s, p) => s + p.pnl, 0);
     const totaalDividend    = actief.reduce((s, p) => s + p.dividend, 0);
 
-    // ── KOSTEN: gebruik altijd de Apps Script totalen ─────────────────
-    // De Apps Script telt AutoFX + broker over ALLE transacties (incl. verkopen).
-    // Het frontend mag dit NOOIT zelf herberekenen vanuit actieve posities alleen
-    // (dat geeft een te laag getal — zie bug waarbij €385 → €113 werd).
     const totaalKosten      = safeNum(raw.samenvatting?.totaalKosten,
                                 actief.reduce((s, p) => s + p.kosten, 0));
     const totaalAutoFX      = safeNum(raw.samenvatting?.totaalAutoFX, null);
@@ -178,7 +168,6 @@ const Rendement = (() => {
       cagr: safeNum(raw.samenvatting?.cagr, null),
     };
 
-    // Cashflow-samenvatting: stortingen/onttrekkingen (bancaire transfers)
     const cf = raw.cashflowSamenvatting ?? {};
     const cashflowSamenvatting = {
       totaalStorting:     safeNum(cf.totaalStorting,     null),
@@ -308,7 +297,6 @@ const Rendement = (() => {
     const cagr        = berekenCAGR(samenvatting.twr, aantalJaren);
     const twr         = samenvatting.twr ?? 0;
 
-    // Badge
     const badge = document.getElementById("twr-badge");
     if (badge) {
       badge.textContent  = `${samenvatting.twrIsProxy ? "P&L" : "TWR"} ${twr >= 0 ? "+" : ""}${(twr*100).toFixed(2)}%`;
@@ -317,7 +305,6 @@ const Rendement = (() => {
       badge.style.background  = twr >= 0 ? "rgba(74,222,128,0.1)"  : "rgba(248,113,113,0.1)";
     }
 
-    // Timestamp
     const lu = document.getElementById("last-update");
     if (lu && meta.gegenereerd) {
       lu.textContent = "bijgewerkt: " + new Date(meta.gegenereerd).toLocaleString("nl-NL",
@@ -339,14 +326,12 @@ const Rendement = (() => {
     html += renderSectionTitle(`Benchmark Vergelijking — ${activePeriod}`);
     html += renderBenchmarkGrid(startDatum, twr);
 
-    // ── Allocatie donut ──────────────────────────────────────────
     if (actief.length > 0) {
       html += renderSectionTitle("Portfolio Allocatie");
       html += renderAllocatieGrafiek(actief);
       html += renderAllocatieAnalyseSectie();
     }
 
-    // Posities header met toggle
     html += renderPositiesSectionHeader(actief.length, gesloten.length);
     if (!toonGesloten) {
       html += renderPosTable(actief, samenvatting.totaalWaarde);
@@ -354,7 +339,6 @@ const Rendement = (() => {
       html += renderGeslotenTable(gesloten);
     }
 
-    // Cashflow-sectie altijd tonen (ook als transactie-cashflows leeg zijn)
     html += renderSectionTitle("Cashflows & Eigen Inleg");
     html += renderCashflowGrid(cashflows, cashflowSamenvatting, samenvatting);
 
@@ -427,7 +411,6 @@ const Rendement = (() => {
     const data       = gesorteerd.map(p => p.waarde);
     const colors     = gesorteerd.map((_, i) => ALLOC_COLORS[i % ALLOC_COLORS.length]);
 
-    // Plugin: center-tekst in de donut
     const centerPlugin = {
       id: "donutCenter",
       afterDraw(chart) {
@@ -540,12 +523,9 @@ const Rendement = (() => {
 </div>`;
   }
 
-
   // ══════════════════════════════════════════════════════════════════
-  // ALLOCATIE ANALYSE — AI-powered classificatie per positie
-  // Categorieën: Sector · Regio · Valuta · Marktcap · Assetklasse
+  // ALLOCATIE ANALYSE
   // ══════════════════════════════════════════════════════════════════
-
   const ALLOC_PALETTES = {
     sector:     ["#60a5fa","#4ade80","#fbbf24","#f87171","#a78bfa","#fb923c","#34d399","#38bdf8","#e879f9","#5a5a7a"],
     regio:      ["#60a5fa","#4ade80","#fbbf24","#f87171","#a78bfa","#34d399","#5a5a7a"],
@@ -616,9 +596,6 @@ For each position return a JSON object with these fields:
 - marktcap: object with Large/Mid/Small keys, percentages (sum=100)
 - assetklasse: single string from: Aandelen/Obligaties/Commodity/Cash/Overig
 
-Example for iShares MSCI World ETF:
-{"isin":"IE00B4L5Y983","sector":{"Technologie":22,"Financials":16,"Gezondheidszorg":12,"Industrie":11,"Cyclische consument":11,"Niet-cyclisch":7,"Energie":5,"Materialen":4,"Overig":12},"regio":{"VS":70,"Europa":15,"Japan":6,"Azië-Pacific":4,"EM":3,"Overig":2},"valuta":{"USD":70,"EUR":12,"JPY":6,"GBP":5,"Overig":7},"marktcap":{"Large":89,"Mid":10,"Small":1},"assetklasse":"Aandelen"}
-
 Return ONLY the JSON array of classified positions.`
         }]
       })
@@ -653,7 +630,6 @@ Return ONLY the JSON array of classified positions.`
       cats.assetklasse[ak] = (cats.assetklasse[ak] || 0) + w;
     });
 
-    // Normaliseer + sorteer per categorie
     const result = {};
     Object.entries(cats).forEach(([cat, raw]) => {
       const total = Object.values(raw).reduce((s, v) => s + v, 0);
@@ -661,12 +637,10 @@ Return ONLY the JSON array of classified positions.`
       result[cat] = Object.entries(raw)
         .map(([k, v]) => ({ label: k, pct: Math.round(v / total * 1000) / 10 }))
         .sort((a, b) => b.pct - a.pct);
-      // Herbereken zodat som exact 100 is
       const sum = result[cat].reduce((s, x) => s + x.pct, 0);
       if (result[cat].length > 0) result[cat][0].pct += Math.round((100 - sum) * 10) / 10;
     });
 
-    // Valuta: bundel alles <5% als "Overig"
     if (result.valuta) {
       const groot = result.valuta.filter(x => x.pct >= 5);
       const klein = result.valuta.filter(x => x.pct < 5);
@@ -686,9 +660,7 @@ Return ONLY the JSON array of classified positions.`
     const el = document.getElementById('alloc-analyse-content');
     if (!el) return;
 
-    const agg = aggregeerAllocatie(classificaties, posities);
-
-    // Top 5 posities op gewicht
+    const agg  = aggregeerAllocatie(classificaties, posities);
     const top5 = [...posities].sort((a, b) => (b.gewicht ?? 0) - (a.gewicht ?? 0)).slice(0, 5);
     const hoogsteSector = agg.sector?.[0];
     const hoogsteRegio  = agg.regio?.[0];
@@ -748,7 +720,6 @@ Return ONLY the JSON array of classified positions.`
         </div>
       </div>`;
 
-    // Destroy old chart instances
     Object.values(allocatieAnalyseInst).forEach(ci => { try { ci.destroy(); } catch(_){} });
     allocatieAnalyseInst = {};
 
@@ -779,7 +750,7 @@ Return ONLY the JSON array of classified positions.`
       });
     }
 
-    drawDonut('ch-sector', 'leg-sector', agg.sector,     ALLOC_PALETTES.sector);
+    drawDonut('ch-sector', 'leg-sector', agg.sector,      ALLOC_PALETTES.sector);
     drawDonut('ch-asset',  'leg-asset',  agg.assetklasse, ALLOC_PALETTES.assetklasse);
     drawDonut('ch-regio',  'leg-regio',  agg.regio,       ALLOC_PALETTES.regio);
     drawDonut('ch-valuta', 'leg-valuta', agg.valuta,      ALLOC_PALETTES.valuta);
@@ -788,8 +759,6 @@ Return ONLY the JSON array of classified positions.`
 
   // ── Rendement vs benchmark grafiek ───────────────────────────────
   function renderGrafiekSectie() {
-    // Periode-knoppen sturen de benchmark-vergelijkingskaarten aan (niet de grafiek)
-    // De grafiek is altijd genormaliseerd op CHART_START = 2025-04-01
     const periodes = ["1M","3M","6M","YTD","1J","3J","MAX"];
     const knoppen  = periodes.map(p =>
       `<button class="pf${activePeriod===p?" active":""}" onclick="Rendement._setPeriod('${p}')">${p}</button>`
@@ -810,7 +779,7 @@ Return ONLY the JSON array of classified positions.`
     <div>
       <div class="chart-title">Rendement vs Benchmarks</div>
       <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-top:3px">
-        genormaliseerd op 0% · 1 apr 2025 t/m vandaag
+        genormaliseerd op 0% · 1 apr 2025 t/m vandaag · portfolio = maanddata (---) · indices = dagdata
       </div>
     </div>
     <div class="period-filters" title="Stuurt de benchmark-vergelijkingskaarten aan">${knoppen}</div>
@@ -926,11 +895,10 @@ Return ONLY the JSON array of classified positions.`
 </div>`;
   }
 
-  // ── Cashflow / rendement-sectie ──────────────────────────────────
-  // Gebaseerd op transactiedata (KOOP/VERKOOP) — betrouwbaar.
-  // Bancaire transfers worden NIET gebruikt: DEGIRO-omschrijvingen
-  // wisselen per periode en geven stelselmatig foute bedragen.
-function renderCashflowGrid(cashflows, cfSam, sam) {
+  // ── Cashflow / rendement-sectie ───────────────────────────────────
+  // FIX v2.4: kosten uit de optelbox gehaald — al verrekend in kostenbasis
+  // via abs(TotaalEUR). Tonen als informatieregel onder het totaal.
+  function renderCashflowGrid(cashflows, cfSam, sam) {
     const kostenbasis = cfSam.totaalKostenbasis ?? (sam.totaalWaarde - (sam.totaalPnL ?? 0));
     const waarde      = sam.totaalWaarde      ?? 0;
     const onger       = sam.totaalPnL         ?? 0;
@@ -938,8 +906,7 @@ function renderCashflowGrid(cashflows, cfSam, sam) {
     const div         = sam.totaalDividend     ?? 0;
     const kosten      = sam.totaalKosten       ?? 0;
 
-    // absReturn = onger + ger + div  (kosten al verrekend in kostenbasis via abs(TotaalEUR))
-    // Gebruik server-waarde als beschikbaar, anders bereken consistent zonder kosten
+    // absReturn = onger + ger + div  (kosten al verrekend in kostenbasis)
     const absReturn = cfSam.totalReturnEUR ?? (onger + ger + div);
 
     const twr       = sam.twr ?? 0;
@@ -951,7 +918,7 @@ function renderCashflowGrid(cashflows, cfSam, sam) {
         `<div style="display:flex;justify-content:space-between;padding:7px 0;${border ? "border-bottom:1px solid var(--border);" : ""}">`,
           `<span style="font-size:12px;color:var(--muted)">${label}</span>`,
           `<span style="font-family:'DM Mono',monospace;font-size:13px;color:${kleur || "var(--text)"}">${val}</span>`,
-        "</div>",
+        `</div>`,
       ].join("");
     }
 
@@ -992,7 +959,7 @@ function renderCashflowGrid(cashflows, cfSam, sam) {
           `<span style="font-family:'DM Mono',monospace;font-size:14px;font-weight:500;color:${absReturn >= 0 ? "var(--pos)" : "var(--neg)"}">${absReturn >= 0 ? "+" : ""}${fmtEUR(absReturn, 2)}</span>`,
         `</div>`,
 
-        // Kosten — informatief, BUITEN de optelling (al verrekend in kostenbasis)
+        // Kosten — informatief, BUITEN de optelling (al verrekend in kostenbasis via abs TotaalEUR)
         `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0 8px">`,
           `<span style="font-size:11px;color:var(--muted)">Transactiekosten <span style="font-size:9px;opacity:0.7">(verrekend in kostenbasis)</span></span>`,
           `<span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--neg)">-${fmtEUR(kosten, 2)}</span>`,
@@ -1013,66 +980,43 @@ function renderCashflowGrid(cashflows, cfSam, sam) {
     ].join("");
   }
 
-  // ── Methodologie ──────────────────────────────────────────────────
-  function renderMethodologie(isProxy) {
-    const uitleg = isProxy
-      ? `<strong>P&L Rendement</strong> — (huidige waarde − kostenbasis) / kostenbasis. Geen cashflow-correctie.
-         <br><br>Voor echte <strong>TWR</strong>: voeg <code>twrHistorie: [{ datum, twr }, …]</code> toe aan je Apps Script output.`
-      : `<strong>Time-Weighted Return (TWR)</strong> — elimineert externe cashflows.
-         Formule: <strong>(EindWaarde − Cashflow) / StartWaarde − 1</strong> per subperiode, geketend.`;
-    return `<div class="method-box">${uitleg}<br><br>
-      <strong>CAGR</strong> = <strong>(1 + TWR)^(1/jaren) − 1</strong><br><br>
-      Benchmarks: S&amp;P 500 (^GSPC), MSCI All World (URTH proxy), AEX (^AEX) via Yahoo Finance.
-    </div>`;
-  }
-
   // ══════════════════════════════════════════════════════════════════
   // RENDEMENT-CHART (lijndiagram)
-  // Tijdas: lineaire schaal op epoch-ms → correcte chronologische volgorde
-  // Normalisatie: alle lijnen starten op 0% op CHART_START (2025-04-01)
-  // Benchmarks: dagelijkse data (1d interval) uit Apps Script
-  // Portfolio: maandelijkse gecumuleerde TWR, genormaliseerd vanuit CHART_START
+  //
+  // FIX v2.4:
+  // - Portfolio lijn gecapped op TODAY (geen toekomstige datums)
+  // - Null-check fix: h.twr == null (was: !h.twr == null → altijd false)
+  // - Zichtbare punten bij maanddata (portData.length < 20)
+  // - Gestippelde lijn (segment borderDash) tussen maandpunten >45 dagen
+  // - Subtitel verduidelijkt: portfolio = maanddata, indices = dagdata
   // ══════════════════════════════════════════════════════════════════
   function drawChart(startDatum, twrHistorie) {
     const canvas = document.getElementById("rend-chart");
     if (!canvas) return;
     if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
 
-    // Helper: datum-string → epoch ms (voor lineaire x-as zonder date-adapter)
-    const toMs = d => new Date(d).getTime();
+    const toMs    = d => new Date(d).getTime();
     const startMs = toMs(CHART_START);
+    const TODAY   = new Date().toISOString().substring(0, 10);
 
     const datasets = [];
 
     // ── Portfolio lijn ──────────────────────────────────────────────
-    // twrHistorie bevat GECHAINDE sub-periode TWR (Modified Dietz).
-    // Normalisatie vanaf CHART_START:
-    //   chart_t = (1 + twr_t) / (1 + twr_basis) − 1
-    // Dit is de correcte financiële conventie voor gechainde TWR.
-    // Geldig OMDAT twr een echt gechainde waarde is (niet totalReturn/kostenbasis).
-    //
-    // Criteria voor correctheid:
-    //   ✓ Alle reeksen genormaliseerd op 0% op startdatum
-    //   ✓ Periodieke rendementen gechaind, geen absolute waardes
-    //   ✓ Stortingen/onttrekkingen geneutraliseerd (Modified Dietz)
-    //   ✓ Geen deling door portfoliowaarde of rendement op startdatum
     const allPort = [...(twrHistorie ?? [])].sort((a, b) => a.datum.localeCompare(b.datum));
 
     if (allPort.length >= 2) {
-      const voor       = allPort.filter(h => h.datum <= CHART_START);
-      const na         = allPort.filter(h => h.datum >= CHART_START);
+      const voor  = allPort.filter(h => h.datum <= CHART_START);
+      const na    = allPort.filter(h => h.datum >= CHART_START && h.datum <= TODAY); // cap op vandaag
       const basisEntry = voor.length > 0 ? voor[voor.length - 1] : na[0];
       const twrBasis   = basisEntry?.twr ?? 0;
 
-      // Validatie: twrBasis moet realistisch zijn (corrupted cache → skip)
-      // Na clearCache() + herdeployment van correcte tickers is dit altijd OK
       if (Math.abs(twrBasis) <= 1.5) {
         const portData = [{ x: startMs, y: 0 }];
 
         na.forEach(h => {
-          if (!h.twr == null || h.datum === basisEntry?.datum) return;
+          // FIX: was "!h.twr == null" (altijd false) → nu correct "h.twr == null"
+          if (h.twr == null || h.datum === basisEntry?.datum) return;
           const norm = (1 + (h.twr ?? 0)) / (1 + twrBasis) - 1;
-          // Sanity: skip punten buiten ±100% (corrupte cache-waarden)
           if (Math.abs(norm) <= 1.0) {
             portData.push({ x: toMs(h.datum), y: +(norm * 100).toFixed(3) });
           }
@@ -1085,35 +1029,40 @@ function renderCashflowGrid(cashflows, cfSam, sam) {
             borderColor: "#fbbf24",
             backgroundColor: "rgba(251,191,36,0.07)",
             borderWidth: 2.5,
-            pointRadius: 0,
-            pointHoverRadius: 5,
-            tension: 0.3,
+            // Zichtbare punten bij weinig maanddata
+            pointRadius: portData.length < 20 ? 3 : 0,
+            pointBackgroundColor: "#fbbf24",
+            pointHoverRadius: 6,
+            tension: 0.4,
             fill: true,
             order: 0,
+            segment: {
+              // Gestippelde lijn als er >45 dagen zit tussen twee maandpunten
+              borderDash: ctx => {
+                const gap = ctx.p1.parsed.x - ctx.p0.parsed.x;
+                return gap > 45 * 86400000 ? [5, 4] : undefined;
+              },
+            },
           });
         } else {
           console.warn("Portfolio: onvoldoende datapunten na CHART_START — voer clearCache() uit in Apps Script");
         }
       } else {
-        console.warn("Portfolio: twr_basis=" + (twrBasis*100).toFixed(1) + "% is onrealistisch — cache waarschijnlijk vervuild. Voer clearCache() uit.");
+        console.warn(`Portfolio: twr_basis=${(twrBasis*100).toFixed(1)}% onrealistisch — voer clearCache() uit`);
       }
     }
+
     // ── Benchmark lijnen ────────────────────────────────────────────
-    // benchData[key] = [{datum, koers}] — dagelijks, gesorteerd
     for (const key of cfg.benchmarks) {
       const serie = [...(benchData[key] ?? [])].sort((a, b) => a.datum.localeCompare(b.datum));
       if (serie.length < 2) continue;
 
-      // Basisprijs: dichtstbijzijnde koers op/voor CHART_START
       const voor  = serie.filter(d => d.datum <= CHART_START);
       const na    = serie.filter(d => d.datum >= CHART_START);
       const basis = voor.length > 0 ? voor[voor.length - 1] : na[0];
       if (!basis?.koers) continue;
 
-      const bmData = [];
-      // Synthetisch 0%-punt op CHART_START
-      bmData.push({ x: startMs, y: 0 });
-
+      const bmData = [{ x: startMs, y: 0 }];
       na.forEach(d => {
         if (d.datum === basis.datum) return;
         bmData.push({
@@ -1145,7 +1094,6 @@ function renderCashflowGrid(cashflows, cfSam, sam) {
       return;
     }
 
-    // Nul-lijn plugin (horizontale referentielijn op y=0)
     const nullLijnPlugin = {
       id: "nullLijn",
       afterDraw(chart) {
@@ -1189,17 +1137,14 @@ function renderCashflowGrid(cashflows, cfSam, sam) {
                 const v = ctx.parsed.y;
                 return ` ${ctx.dataset.label}: ${v >= 0 ? "+" : ""}${v.toFixed(2)}%`;
               },
-              afterBody: () => "",
             },
           },
         },
         scales: {
           x: {
-            // Lineaire schaal op epoch-ms: garandeert chronologische volgorde
-            // zonder externe date-adapter nodig
             type: "linear",
             min:  startMs,
-            grid: { color: "#1e1e2e" },
+            grid:   { color: "#1e1e2e" },
             border: { color: "#1e1e2e" },
             ticks: {
               color: "#5a5a7a",
