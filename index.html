@@ -62,6 +62,7 @@
   </div>
   <script>
     document.getElementById("year-label").textContent = new Date().getFullYear() + " year-to-date";
+
     const PALETTE = [
       "#60a5fa","#4ade80","#fbbf24","#f472b6","#a78bfa",
       "#fb923c","#22d3ee","#e879f9","#f87171","#34d399",
@@ -69,65 +70,99 @@
       "#6ee7b7","#fdba74"
     ];
     const PERIODS = [
-      { label: "1W", days: 7 },{ label: "1M", days: 30 },{ label: "3M", days: 90 },
-      { label: "6M", days: 180 },{ label: "YTD", days: null },{ label: "1J", days: 365 },
-      { label: "2J", days: 730 },{ label: "5J", days: 1825 },
+      { label: "1W",  days: 7    },
+      { label: "1M",  days: 30   },
+      { label: "3M",  days: 90   },
+      { label: "6M",  days: 180  },
+      { label: "YTD", days: null },
+      { label: "1J",  days: 365  },
+      { label: "2J",  days: 730  },
+      { label: "5J",  days: 1825 },
     ];
-    let activePeriod = "1J";
+
+    let activePeriod     = "1J";
     let lineChartInstance = null;
-    let allWeeks = [], rawDatasets = [];
+    let allWeeks          = [];
+    let rawDatasets       = [];
 
     function getWeekKey(dateStr) {
-      const d = new Date(dateStr); const day = d.getDay();
+      const d    = new Date(dateStr);
+      const day  = d.getDay();
       const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-      const mon = new Date(d.setDate(diff)); return mon.toISOString().slice(0, 10);
+      const mon  = new Date(d.setDate(diff));
+      return mon.toISOString().slice(0, 10);
     }
+
     function getCutoffDate(period) {
       const now = new Date();
       if (period.label === "YTD") return new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
-      const cutoff = new Date(now); cutoff.setDate(cutoff.getDate() - period.days);
+      const cutoff = new Date(now);
+      cutoff.setDate(cutoff.getDate() - period.days);
       return cutoff.toISOString().slice(0, 10);
     }
+
+    // Rebase vanuit ruwe slotkoersen — berekent % tov eerste prijs in het venster
     function rebaseFromCutoff(weeks, datasets, cutoff) {
       const startIdx = weeks.findIndex(w => w >= cutoff);
       if (startIdx === -1) return { labels: weeks, rebased: datasets };
-      const labels = weeks.slice(startIdx);
+      const labels  = weeks.slice(startIdx);
       const rebased = datasets.map(ds => {
-        const sliced = ds.data.slice(startIdx);
-        const firstVal = sliced.find(v => v !== null);
-        if (firstVal === undefined) return { ...ds, data: sliced };
-        return { ...ds, data: sliced.map(v => v !== null ? parseFloat((v - firstVal).toFixed(2)) : null) };
+        const sliced    = ds.data.slice(startIdx);
+        const basePrice = sliced.find(v => v !== null && v > 0);
+        if (!basePrice) return { ...ds, data: sliced.map(() => null) };
+        return {
+          ...ds,
+          data: sliced.map(v => v !== null
+            ? parseFloat(((v - basePrice) / basePrice * 100).toFixed(2))
+            : null),
+        };
       });
       return { labels, rebased };
     }
+
     function updateLineChart(period) {
       activePeriod = period.label;
-      document.querySelectorAll(".tf").forEach(btn => btn.classList.toggle("active", btn.dataset.period === period.label));
+      document.querySelectorAll(".tf").forEach(btn =>
+        btn.classList.toggle("active", btn.dataset.period === period.label));
       const cutoff = getCutoffDate(period);
       const { labels, rebased } = rebaseFromCutoff(allWeeks, rawDatasets, cutoff);
       lineChartInstance.data.labels = labels;
       lineChartInstance.data.datasets.forEach((ds, i) => { ds.data = rebased[i].data; });
       lineChartInstance.update();
     }
+
     function niceStep(range) {
-      const rough = range / 8, mag = Math.pow(10, Math.floor(Math.log10(rough)));
-      const norm = rough / mag;
-      let step; if (norm < 1.5) step=1; else if (norm < 3) step=2; else if (norm < 7) step=5; else step=10;
+      const rough = range / 8;
+      const mag   = Math.pow(10, Math.floor(Math.log10(rough)));
+      const norm  = rough / mag;
+      let step;
+      if (norm < 1.5) step = 1;
+      else if (norm < 3) step = 2;
+      else if (norm < 7) step = 5;
+      else step = 10;
       return step * mag;
     }
+
     async function load() {
       try {
-        const res = await fetch("/api/finance?_t=" + new Date().toDateString()); const json = await res.json();
-        if (!json.ok) throw new Error(json.error); render(json.data);
+        // _t verandert elke dag — voorkomt dat browser de oude API-response cachet
+        const res  = await fetch("/api/finance?_t=" + new Date().toDateString());
+        const json = await res.json();
+        if (!json.ok) throw new Error(json.error);
+        render(json.data);
       } catch (err) {
-        document.getElementById("content").innerHTML = `<div class="error">Kon data niet laden: ${err.message}</div>`;
+        document.getElementById("content").innerHTML =
+          `<div class="error">Kon data niet laden: ${err.message}</div>`;
       }
     }
+
     function render(data) {
       document.getElementById("content").innerHTML = `
         <div class="charts-row">
           <div class="chart-wrap">
-            <div class="chart-top"><div class="chart-label">YTD % — <span id="current-year"></span></div></div>
+            <div class="chart-top">
+              <div class="chart-label">YTD % — <span id="current-year"></span></div>
+            </div>
             <canvas id="bar-chart"></canvas>
           </div>
           <div class="chart-wrap">
@@ -139,40 +174,139 @@
             <div class="legend" id="legend"></div>
           </div>
         </div>`;
+
       document.getElementById("current-year").textContent = new Date().getFullYear();
+
+      // ── Tijdfilter knoppen ───────────────────────────────────────────
       const filtersEl = document.getElementById("time-filters");
-      filtersEl.innerHTML = PERIODS.map(p => `<button class="tf ${p.label===activePeriod?"active":""}" data-period="${p.label}">${p.label}</button>`).join("");
-      const sorted = [...data].map(d => ({ name: d.name, pct: d.ytd[d.ytd.length-1]?.pct??0 })).sort((a,b) => a.pct-b.pct);
-      const barLabels=sorted.map(d=>d.name), barValues=sorted.map(d=>d.pct);
-      const barColors=barValues.map(v=>v>=0?"#4ade80":"#f87171");
-      const minVal=Math.min(...barValues), maxVal=Math.max(...barValues);
-      const range=maxVal-minVal||10, step=niceStep(range);
-      const yMin=Math.floor(minVal/step)*step, yMax=Math.ceil(maxVal/step)*step;
+      filtersEl.innerHTML = PERIODS.map(p =>
+        `<button class="tf ${p.label === activePeriod ? "active" : ""}" data-period="${p.label}">${p.label}</button>`
+      ).join("");
+
+      // ── Bar chart (YTD %) — gebruikt ytd[].pct van API ──────────────
+      const sorted    = [...data]
+        .map(d => ({ name: d.name, pct: d.ytd[d.ytd.length - 1]?.pct ?? 0 }))
+        .sort((a, b) => a.pct - b.pct);
+      const barLabels = sorted.map(d => d.name);
+      const barValues = sorted.map(d => d.pct);
+      const barColors = barValues.map(v => v >= 0 ? "#4ade80" : "#f87171");
+      const minVal    = Math.min(...barValues);
+      const maxVal    = Math.max(...barValues);
+      const range     = maxVal - minVal || 10;
+      const step      = niceStep(range);
+      const yMin      = Math.floor(minVal / step) * step;
+      const yMax      = Math.ceil(maxVal  / step) * step;
+
       new Chart(document.getElementById("bar-chart"), {
-        type:"bar", data:{labels:barLabels,datasets:[{data:barValues,backgroundColor:barColors,borderRadius:4,borderSkipped:false}]},
-        options:{indexAxis:"y",responsive:true,plugins:{legend:{display:false},tooltip:{backgroundColor:"#12121a",borderColor:"#1e1e2e",borderWidth:1,titleColor:"#5a5a7a",bodyColor:"#e8e8f0",callbacks:{label:ctx=>` ${ctx.parsed.x>=0?"+":""}${ctx.parsed.x.toFixed(2)}%`}}},
-          scales:{x:{min:yMin,max:yMax,grid:{color:"#1e1e2e"},ticks:{stepSize:step,color:"#5a5a7a",font:{family:"DM Mono",size:11},callback:v=>(v>=0?"+":"")+v.toFixed(0)+"%"}},y:{grid:{color:"transparent"},ticks:{color:"#e8e8f0",font:{family:"DM Sans",size:11}}}}}
+        type: "bar",
+        data: {
+          labels:   barLabels,
+          datasets: [{ data: barValues, backgroundColor: barColors, borderRadius: 4, borderSkipped: false }],
+        },
+        options: {
+          indexAxis: "y", responsive: true,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: "#12121a", borderColor: "#1e1e2e", borderWidth: 1,
+              titleColor: "#5a5a7a", bodyColor: "#e8e8f0",
+              callbacks: { label: ctx => ` ${ctx.parsed.x >= 0 ? "+" : ""}${ctx.parsed.x.toFixed(2)}%` },
+            },
+          },
+          scales: {
+            x: {
+              min: yMin, max: yMax, grid: { color: "#1e1e2e" },
+              ticks: { stepSize: step, color: "#5a5a7a", font: { family: "DM Mono", size: 11 },
+                callback: v => (v >= 0 ? "+" : "") + v.toFixed(0) + "%" },
+            },
+            y: { grid: { color: "transparent" }, ticks: { color: "#e8e8f0", font: { family: "DM Sans", size: 11 } } },
+          },
+        },
       });
-      const weekMaps = data.map(({hist}) => { const map={}; hist.forEach(p=>{map[getWeekKey(p.date)]=p.pct;}); return map; });
-      allWeeks = [...new Set(weekMaps.flatMap(m=>Object.keys(m)))].sort();
-      rawDatasets = data.map(({name},i) => ({label:name,data:allWeeks.map(w=>weekMaps[i][w]??null),borderColor:PALETTE[i%PALETTE.length],backgroundColor:"transparent",borderWidth:1.5,pointRadius:0,tension:0.3,spanGaps:true}));
-      const defaultPeriod = PERIODS.find(p=>p.label===activePeriod);
-      const cutoff = getCutoffDate(defaultPeriod);
-      const {labels:initLabels,rebased:initData} = rebaseFromCutoff(allWeeks,rawDatasets,cutoff);
+
+      // ── Line chart — gebruikt hist[].close van API (ruwe prijzen) ───
+      // weekMaps slaat close-prijzen op per week — geen voorberekende %
+      const weekMaps = data.map(({ hist }) => {
+        const map = {};
+        hist.forEach(p => { map[getWeekKey(p.date)] = p.close; });
+        return map;
+      });
+
+      allWeeks    = [...new Set(weekMaps.flatMap(m => Object.keys(m)))].sort();
+      rawDatasets = data.map(({ name }, i) => ({
+        label:           name,
+        data:            allWeeks.map(w => weekMaps[i][w] ?? null), // ruwe slotkoersen
+        borderColor:     PALETTE[i % PALETTE.length],
+        backgroundColor: "transparent",
+        borderWidth:     1.5,
+        pointRadius:     0,
+        tension:         0.3,
+        spanGaps:        true,
+      }));
+
+      // Initiële render: rebase vanuit slotkoersen naar %
+      const defaultPeriod              = PERIODS.find(p => p.label === activePeriod);
+      const cutoff                     = getCutoffDate(defaultPeriod);
+      const { labels: initLabels, rebased: initData } = rebaseFromCutoff(allWeeks, rawDatasets, cutoff);
+
       lineChartInstance = new Chart(document.getElementById("line-chart"), {
-        type:"line", data:{labels:initLabels,datasets:initData.map((ds,i)=>({...rawDatasets[i],data:ds.data}))},
-        options:{responsive:true,interaction:{mode:"nearest",intersect:true},plugins:{legend:{display:false},tooltip:{backgroundColor:"#12121a",borderColor:"#1e1e2e",borderWidth:1,titleColor:"#5a5a7a",bodyColor:"#e8e8f0",callbacks:{label:ctx=>ctx.parsed.y!==null?` ${ctx.dataset.label}: ${ctx.parsed.y>=0?"+":""}${ctx.parsed.y.toFixed(2)}%`:null}}},
-          scales:{x:{grid:{color:"#1e1e2e"},ticks:{color:"#5a5a7a",maxTicksLimit:8,font:{family:"DM Mono",size:11}}},y:{grid:{color:"#1e1e2e"},ticks:{color:"#5a5a7a",font:{family:"DM Mono",size:11},callback:v=>(v>=0?"+":"")+v+"%"}}}}
+        type: "line",
+        data: {
+          labels:   initLabels,
+          datasets: initData.map((ds, i) => ({ ...rawDatasets[i], data: ds.data })),
+        },
+        options: {
+          responsive: true,
+          interaction: { mode: "nearest", intersect: true },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: "#12121a", borderColor: "#1e1e2e", borderWidth: 1,
+              titleColor: "#5a5a7a", bodyColor: "#e8e8f0",
+              callbacks: {
+                label: ctx => ctx.parsed.y !== null
+                  ? ` ${ctx.dataset.label}: ${ctx.parsed.y >= 0 ? "+" : ""}${ctx.parsed.y.toFixed(2)}%`
+                  : null,
+              },
+            },
+          },
+          scales: {
+            x: { grid: { color: "#1e1e2e" },
+                 ticks: { color: "#5a5a7a", maxTicksLimit: 8, font: { family: "DM Mono", size: 11 } } },
+            y: { grid: { color: "#1e1e2e" },
+                 ticks: { color: "#5a5a7a", font: { family: "DM Mono", size: 11 },
+                   callback: v => (v >= 0 ? "+" : "") + v + "%" } },
+          },
+        },
       });
+
+      // Tijdfilter events
       filtersEl.querySelectorAll(".tf").forEach(btn => {
-        btn.addEventListener("click", () => { const period=PERIODS.find(p=>p.label===btn.dataset.period); updateLineChart(period); });
+        btn.addEventListener("click", () => {
+          const period = PERIODS.find(p => p.label === btn.dataset.period);
+          updateLineChart(period);
+        });
       });
+
+      // Legenda
       const legend = document.getElementById("legend");
-      legend.innerHTML = data.map((d,i) => `<div class="legend-item" onclick="toggleLine(${i})"><div class="legend-dot" id="dot-${i}" style="background:${PALETTE[i%PALETTE.length]}"></div>${d.name}</div>`).join("");
-      window.toggleLine = (i) => { const meta=lineChartInstance.getDatasetMeta(i); meta.hidden=!meta.hidden; document.getElementById(`dot-${i}`).style.opacity=meta.hidden?"0.3":"1"; lineChartInstance.update(); };
+      legend.innerHTML = data.map((d, i) =>
+        `<div class="legend-item" onclick="toggleLine(${i})">
+          <div class="legend-dot" id="dot-${i}" style="background:${PALETTE[i % PALETTE.length]}"></div>
+          ${d.name}
+        </div>`
+      ).join("");
+
+      window.toggleLine = (i) => {
+        const meta = lineChartInstance.getDatasetMeta(i);
+        meta.hidden = !meta.hidden;
+        document.getElementById(`dot-${i}`).style.opacity = meta.hidden ? "0.3" : "1";
+        lineChartInstance.update();
+      };
     }
+
     load();
-    setInterval(load, 60 * 60 * 1000);
+    setInterval(load, 60 * 60 * 1000); // herlaad elk uur als pagina open blijft
   </script>
 
 <!-- ══════════════════════════════════════════════════════════════
@@ -189,8 +323,6 @@
 @keyframes es-pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
 .es-refresh-btn { padding:4px 12px; border-radius:5px; border:1px solid #1e1e2e; background:#12121a; color:#5a5a7a; font-family:'DM Mono',monospace; font-size:10px; cursor:pointer; transition:all .15s; }
 .es-refresh-btn:hover { border-color:#60a5fa; color:#e8e8f0; }
-
-/* Signaaluitleg balk */
 .es-model-bar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; padding:10px 16px; background:#12121a; border:1px solid #1e1e2e; border-radius:8px; font-size:10px; align-items:center; }
 .es-model-chip { padding:3px 9px; border-radius:4px; font-size:10px; font-weight:600; border:1px solid; }
 .es-chip-purple { background:rgba(167,139,250,.1); border-color:rgba(167,139,250,.3); color:#a78bfa; }
@@ -198,59 +330,45 @@
 .es-chip-yellow { background:rgba(251,191,36,.1);  border-color:rgba(251,191,36,.3);  color:#fbbf24; }
 .es-chip-red    { background:rgba(248,113,113,.1); border-color:rgba(248,113,113,.3); color:#f87171; }
 .es-chip-muted  { background:transparent; border-color:#1e1e2e; color:#5a5a7a; }
-
-/* Blokken */
 .es-blocks { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
 @media(max-width:1200px) { .es-blocks { grid-template-columns:1fr 1fr; } }
 @media(max-width:700px)  { .es-blocks { grid-template-columns:1fr; } }
-
 .es-block { background:#12121a; border:1px solid #1e1e2e; border-radius:12px; overflow:hidden; }
 .es-block-header { padding:10px 16px; font-family:'DM Sans',sans-serif; font-weight:600; font-size:12px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #1e1e2e; }
 .es-block-header.instroom  { background:rgba(74,222,128,.07);  color:#4ade80; }
 .es-block-header.uitstroom { background:rgba(248,113,113,.07); color:#f87171; }
 .es-block-header.transitie { background:rgba(251,191,36,.07);  color:#fbbf24; }
 .es-block-count { font-size:10px; font-weight:400; opacity:.6; }
-
 .es-table { width:100%; border-collapse:collapse; font-size:11px; }
 .es-table th { padding:5px 10px; text-align:left; font-size:9px; color:#5a5a7a; font-weight:600; text-transform:uppercase; letter-spacing:.6px; border-bottom:1px solid #1e1e2e; background:#0f0f18; }
 .es-table td { padding:8px 10px; border-bottom:1px solid #181825; vertical-align:middle; }
 .es-table tr:last-child td { border-bottom:none; }
 .es-table tr:hover td { background:#181825; }
-
 .es-seg-name { font-weight:600; color:#e8e8f0; font-size:11px; }
 .es-seg-sub  { color:#5a5a7a; font-size:9px; margin-top:1px; }
-
-/* ACCUM score badge */
 .es-accum-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 7px; border-radius:4px; font-size:10px; font-weight:700; }
 .es-accum-5plus { background:rgba(167,139,250,.15); color:#a78bfa; border:1px solid rgba(167,139,250,.25); }
 .es-accum-3plus { background:rgba(251,191,36,.10);  color:#fbbf24; border:1px solid rgba(251,191,36,.2); }
 .es-accum-low   { background:rgba(30,30,46,.5);     color:#5a5a7a; border:1px solid #1e1e2e; }
 .es-accum-nb    { color:#5a5a7a; font-size:10px; }
-
-/* EMA+Mans dots (2 dots: EMA + Mansfield) */
 .es-score-dots { display:flex; gap:3px; align-items:center; }
 .es-dot { width:7px; height:7px; border-radius:50%; }
 .es-dot-g { background:#4ade80; }
 .es-dot-p { background:#a78bfa; }
 .es-dot-y { background:#fbbf24; }
 .es-dot-o { background:#1e1e2e; }
-
-/* Tags */
 .es-tag { display:inline-block; padding:1px 6px; border-radius:3px; font-size:9px; font-weight:700; letter-spacing:.4px; }
 .es-tag-g  { background:rgba(74,222,128,.12);  color:#4ade80; }
 .es-tag-r  { background:rgba(248,113,113,.12); color:#f87171; }
 .es-tag-p  { background:rgba(167,139,250,.12); color:#a78bfa; }
 .es-tag-y  { background:rgba(251,191,36,.12);  color:#fbbf24; }
 .es-tag-c  { background:rgba(34,211,238,.12);  color:#22d3ee; }
-
-/* Actie badge */
 .es-action { display:inline-flex; align-items:center; gap:3px; padding:2px 8px; border-radius:4px; font-size:9px; font-weight:700; white-space:nowrap; }
 .es-action-buy    { background:rgba(74,222,128,.1);  color:#4ade80; border:1px solid rgba(74,222,128,.2); }
 .es-action-sell   { background:rgba(248,113,113,.1); color:#f87171; border:1px solid rgba(248,113,113,.2); }
 .es-action-watch  { background:rgba(251,191,36,.1);  color:#fbbf24; border:1px solid rgba(251,191,36,.2); }
 .es-action-reduce { background:rgba(248,113,113,.06);color:#f87171; border:1px solid rgba(248,113,113,.15); }
 .es-action-purple { background:rgba(167,139,250,.1); color:#a78bfa; border:1px solid rgba(167,139,250,.2); }
-
 .es-empty   { padding:24px; text-align:center; color:#5a5a7a; font-size:11px; }
 .es-loading { padding:40px; text-align:center; color:#5a5a7a; font-size:11px; }
 </style>
@@ -268,8 +386,6 @@
       <a href="sector-deep.html" style="color:#60a5fa;font-size:10px;text-decoration:none">→ Deep Dive</a>
     </div>
   </div>
-
-  <!-- Signaalmodel uitleg -->
   <div class="es-model-bar">
     <span style="color:#5a5a7a;font-size:10px;text-transform:uppercase;letter-spacing:.06em">Signaallagen:</span>
     <span class="es-model-chip es-chip-purple">① ACCUM ≥5pt — vóór prijs</span>
@@ -283,38 +399,26 @@
     <span style="flex:1"></span>
     <span style="color:#5a5a7a;font-size:9px">ACCUM kolom: n/b = deepdive.gs nog niet bijgewerkt</span>
   </div>
-
   <div id="esContent">
     <div class="es-loading">📡 Kapitaalrotatie signalen laden...</div>
   </div>
 </div>
 
 <script>
-// ══════════════════════════════════════════════════════════════════════
-// EXECUTIVE SUMMARY v2 — Kapitaalrotatie Signalen
-// Vier signaallagen: ACCUM · Mansfield early · EMA cross · RS40
-// ══════════════════════════════════════════════════════════════════════
-
 var ES_CACHE_KEY    = "es_data_v2_cache";
 var ES_CACHE_TS_KEY = "es_data_v2_ts";
 var ES_CACHE_TTL    = 30 * 60 * 1000;
 
-// ── LAAG 2: EMA+Mansfield signaal (max 4pt) ───────────────────────────
-// Identiek aan sector-deep.html computeEarlySignal()
 function esComputeEarlySignal(seg) {
-  // EMA8/21 cross (0-2pt)
   var emaPts = 0, freshCross = false, preCross = false;
   if (seg.freshCross !== undefined) {
     freshCross = !!seg.freshCross;
     preCross   = !!seg.preCross;
     emaPts = freshCross ? 2 : preCross ? 1 : 0;
   } else {
-    // Proxy via ema8align
     freshCross = seg.ema8align === "bull";
     emaPts = freshCross ? 2 : (seg.ema8align === "strong-bull") ? 1 : 0;
   }
-
-  // Mansfield early recovery (0-2pt)
   var mansfieldPts = 0, mansfieldEarly = false, mansfieldConfirm = false;
   if (seg.mansfieldEarlyRecov !== undefined) {
     mansfieldEarly   = !!seg.mansfieldEarlyRecov;
@@ -330,7 +434,6 @@ function esComputeEarlySignal(seg) {
   return { score: emaPts + mansfieldPts, emaPts, mansfieldPts, freshCross, preCross, mansfieldEarly, mansfieldConfirm };
 }
 
-// ── LAAG 3: Bevestigd signaal (max 4pt) ───────────────────────────────
 function esComputeConfSignal(seg) {
   var cross  = ["bull","bull-cross"].includes(seg.ema21x50) ? 1 : 0;
   var struct = seg.structure === "HH/HL" ? 1 : 0;
@@ -339,18 +442,6 @@ function esComputeConfSignal(seg) {
   return { score: cross+struct+wTrend+vol2x };
 }
 
-// ── CLASSIFICATIE ──────────────────────────────────────────────────────
-//
-//  INSTROOM  = ACCUM ≥5 (kapitaal stroomt in vóór prijs)
-//              OF iScore ≥6 als ACCUM niet beschikbaar
-//
-//  TRANSITIE = Mansfield early recovery (RS draait, M nog negatief)
-//              OF ACCUM 3-4 (opbouwend)
-//              OF verse EMA21x50 cross
-//              OF momentum uitputting (RSI>70 + M>2 + RS daalt)
-//
-//  UITSTROOM = sterke bearish condities
-//
 function esClassify(seg, earlySignal, confSignal) {
   var accumScore  = (seg.accumScore != null) ? seg.accumScore : null;
   var hasAccum    = accumScore !== null;
@@ -359,43 +450,28 @@ function esClassify(seg, earlySignal, confSignal) {
   var isExhausted = (seg.rsi||50) > 70 && (seg.mansfield||0) > 2.0 && seg.rsTrend === "down";
   var isBearCross = seg.ema21x50 === "bear-cross";
   var isBullCross = seg.ema21x50 === "bull-cross";
-
-  // Uitstroom condities
   var bearish = (seg.ema8align === "strong-bear" || seg.ema8align === "bear") &&
                 (seg.weeklyTrend === "DOWN" || seg.trend === "DOWN") &&
                 (seg.structure === "LH/LL" || (seg.mansfield||0) < -0.5);
-
-  // INSTROOM — kapitaalinstroomvóór prijs (hoogste prioriteit)
-  if (hasAccum && accumScore >= 5) {
+  if (hasAccum && accumScore >= 5)
     return { type:"instroom", accumScore, earlyScore, confScore, isExhausted: false };
-  }
-  // INSTROOM fallback (geen ACCUM data): sterke instroom score
   if (!hasAccum) {
     var iScore = esFallbackInstroomScore(seg);
     if (iScore >= 6) return { type:"instroom", accumScore:null, iScore, earlyScore, confScore, isExhausted:false };
   }
-
-  // UITSTROOM
-  if (bearish || (isExhausted && confScore <= 1) || isBearCross) {
+  if (bearish || (isExhausted && confScore <= 1) || isBearCross)
     return { type:"uitstroom", accumScore, earlyScore, confScore, isExhausted, isBearCross };
-  }
-
-  // TRANSITIE — signaal opbouwend
-  var inTransitie = earlySignal.mansfieldEarly          // RS draait, M nog negatief
-                 || (hasAccum && accumScore >= 3)        // ACCUM opbouwend
-                 || isBullCross                          // verse bull cross
-                 || isExhausted                          // momentum uitputting
-                 || (earlyScore >= 2 && confScore >= 1); // EMA + bevestiging opbouwend
-
-  if (inTransitie) {
+  var inTransitie = earlySignal.mansfieldEarly
+                 || (hasAccum && accumScore >= 3)
+                 || isBullCross
+                 || isExhausted
+                 || (earlyScore >= 2 && confScore >= 1);
+  if (inTransitie)
     return { type:"transitie", accumScore, earlyScore, confScore, isExhausted, isBullCross,
              mansfieldEarly: earlySignal.mansfieldEarly };
-  }
-
   return { type:"neutraal", accumScore, earlyScore, confScore };
 }
 
-// Fallback instroomscore als ACCUM niet beschikbaar (old logic)
 function esFallbackInstroomScore(seg) {
   var score = 0;
   if (seg.ema8align === "strong-bull") score += 2; else if (seg.ema8align === "bull") score += 1;
@@ -407,63 +483,51 @@ function esFallbackInstroomScore(seg) {
   return score;
 }
 
-// ── ACTIE BEPALEN ──────────────────────────────────────────────────────
 function esAction(seg, cls) {
   var type = cls.type, acc = cls.accumScore, early = cls.earlyScore, conf = cls.confScore;
-
-   if (type === "instroom") {
-    // RS40 bevestiging na ACCUM — hoogste prioriteit
-    if (seg.isRS40AfterAccum5) return { label:"★★ RS40-ACCUM",  cls:"es-action-buy",   tip:"RS40 breuk na ACCUM≥5 — T+60 88% win, α+16% · volle positie" };
-    if (seg.isRS40AfterAccum3) return { label:"★ RS40-vroeg",   cls:"es-action-watch", tip:"RS40 breuk na ACCUM≥3 — T+90 α+19% · kleinere positie" };
-    // Ideale combinatie: ACCUM + EMA cross
-    if (acc >= 5 && early >= 3) return { label:"⚡ ACCUM+Entry",   cls:"es-action-buy",    tip:"ACCUM≥5 + EMA cross bevestigd — ideale combinatie" };
-    // PRE-signaal: ACCUM hoog maar EMA cross nog niet
-    if (acc >= 5 && early <= 2) return { label:"📊 PRE-signaal",   cls:"es-action-purple", tip:"ACCUM≥5 maar EMA cross nog niet — wacht op cross" };
-    if (acc >= 7)               return { label:"📊 ACCUM-MAX",     cls:"es-action-buy",    tip:"ACCUM-MAX: alle volumecomponenten actief" };
-    // Fallback
-    if (conf >= 3 && early >= 3)return { label:"📈 Zoek aandelen", cls:"es-action-buy",    tip:"Sterk instroom + bevestigd" };
-    return { label:"👀 Monitor",  cls:"es-action-watch", tip:"Instroom bevestigt, houd aan" };
+  if (type === "instroom") {
+    if (seg.isRS40AfterAccum5) return { label:"★★ RS40-ACCUM",  cls:"es-action-buy",    tip:"RS40 breuk na ACCUM≥5 — T+60 88% win, α+16% · volle positie" };
+    if (seg.isRS40AfterAccum3) return { label:"★ RS40-vroeg",   cls:"es-action-watch",  tip:"RS40 breuk na ACCUM≥3 — T+90 α+19% · kleinere positie" };
+    if (acc >= 5 && early >= 3) return { label:"⚡ ACCUM+Entry",  cls:"es-action-buy",    tip:"ACCUM≥5 + EMA cross bevestigd — ideale combinatie" };
+    if (acc >= 5 && early <= 2) return { label:"📊 PRE-signaal",  cls:"es-action-purple", tip:"ACCUM≥5 maar EMA cross nog niet — wacht op cross" };
+    if (acc >= 7)               return { label:"📊 ACCUM-MAX",    cls:"es-action-buy",    tip:"ACCUM-MAX: alle volumecomponenten actief" };
+    if (conf >= 3 && early >= 3)return { label:"📈 Zoek aandelen",cls:"es-action-buy",    tip:"Sterk instroom + bevestigd" };
+    return { label:"👀 Monitor", cls:"es-action-watch", tip:"Instroom bevestigt, houd aan" };
   }
-
   if (type === "uitstroom") {
-    if (cls.isExhausted)  return { label:"⚠️ Neem winst",   cls:"es-action-reduce", tip:"Momentum uitgeput: RSI overbought + Mansfield hoog + RS daalt" };
-    if (cls.isBearCross)  return { label:"🚪 Bear cross",   cls:"es-action-sell",   tip:"EMA21 kruiste net onder EMA50 — momentum keert negatief" };
+    if (cls.isExhausted) return { label:"⚠️ Neem winst",   cls:"es-action-reduce", tip:"Momentum uitgeput: RSI overbought + Mansfield hoog + RS daalt" };
+    if (cls.isBearCross) return { label:"🚪 Bear cross",   cls:"es-action-sell",   tip:"EMA21 kruiste net onder EMA50 — momentum keert negatief" };
     return { label:"⬇️ Roteer weg", cls:"es-action-sell", tip:"Kapitaal stroomt uit — roteer naar sterker segment" };
   }
-
   if (type === "transitie") {
-    if (cls.mansfieldEarly && acc >= 3) return { label:"🔄 RS draait",    cls:"es-action-watch",  tip:"Mansfield early recovery + ACCUM opbouwend — wacht op EMA cross" };
-    if (cls.mansfieldEarly)             return { label:"🔄 RS draait",    cls:"es-action-watch",  tip:"RS slope positief maar Mansfield nog negatief — vroeg signaal" };
-    if (cls.isBullCross)                return { label:"⚡ Verse cross",  cls:"es-action-watch",  tip:"EMA21 kruiste net boven EMA50 — bevestiging nodig" };
-    if (cls.isExhausted)                return { label:"⚠️ Uitgeput",    cls:"es-action-reduce", tip:"Trend ver gevorderd: wacht op reset" };
-    if (early >= 3 && conf >= 2)        return { label:"📈 Opbouwend",   cls:"es-action-watch",  tip:"EMA cross + Mansfield + bevestiging opbouwend" };
+    if (cls.mansfieldEarly && acc >= 3) return { label:"🔄 RS draait",   cls:"es-action-watch",  tip:"Mansfield early recovery + ACCUM opbouwend — wacht op EMA cross" };
+    if (cls.mansfieldEarly)             return { label:"🔄 RS draait",   cls:"es-action-watch",  tip:"RS slope positief maar Mansfield nog negatief — vroeg signaal" };
+    if (cls.isBullCross)                return { label:"⚡ Verse cross", cls:"es-action-watch",  tip:"EMA21 kruiste net boven EMA50 — bevestiging nodig" };
+    if (cls.isExhausted)                return { label:"⚠️ Uitgeput",   cls:"es-action-reduce", tip:"Trend ver gevorderd: wacht op reset" };
+    if (early >= 3 && conf >= 2)        return { label:"📈 Opbouwend",  cls:"es-action-watch",  tip:"EMA cross + Mansfield + bevestiging opbouwend" };
     return { label:"👀 Opbouwend", cls:"es-action-watch", tip:"Signaal opbouwend — nog geen vol bevestiging" };
   }
-
   return null;
 }
 
-// ── DATA LADEN ──────────────────────────────────────────────────────────
 function loadExecutiveSummary(forceRefresh) {
   var url = localStorage.getItem("deepdive_appsscript_url");
   if (!url) { renderESSkeleton(); return; }
-
   if (!forceRefresh) {
-    var ts = parseInt(localStorage.getItem(ES_CACHE_TS_KEY)||"0");
+    var ts   = parseInt(localStorage.getItem(ES_CACHE_TS_KEY)||"0");
     var blob = localStorage.getItem(ES_CACHE_KEY);
     if (blob && Date.now()-ts < ES_CACHE_TTL) {
       try { var p=JSON.parse(blob); renderES(p.data); updateESMeta(p.lastUpdated,false); return; } catch(e){}
     }
   }
-
   updateESMeta(null,true);
   fetch(url+"?tab=deepdive&_t="+Date.now())
-    .then(function(r){return r.json();})
+    .then(function(r){ return r.json(); })
     .then(function(json){
       if(!json.data) throw new Error("Geen data");
-      localStorage.setItem(ES_CACHE_KEY,JSON.stringify(json));
-      localStorage.setItem(ES_CACHE_TS_KEY,String(Date.now()));
-      renderES(json.data); updateESMeta(json.lastUpdated,false);
+      localStorage.setItem(ES_CACHE_KEY, JSON.stringify(json));
+      localStorage.setItem(ES_CACHE_TS_KEY, String(Date.now()));
+      renderES(json.data); updateESMeta(json.lastUpdated, false);
     })
     .catch(function(e){
       document.getElementById("esContent").innerHTML='<div class="es-loading" style="color:#f87171">⚠️ '+e.message+'</div>';
@@ -471,16 +535,15 @@ function loadExecutiveSummary(forceRefresh) {
     });
 }
 
-function updateESMeta(lastUpdated,loading){
-  var pulse=document.getElementById("esPulse"), upd=document.getElementById("esLastUpdate");
-  if(loading){ pulse.style.background="#fbbf24"; upd.textContent="Laden..."; }
+function updateESMeta(lastUpdated, loading){
+  var pulse = document.getElementById("esPulse");
+  var upd   = document.getElementById("esLastUpdate");
+  if (loading) { pulse.style.background="#fbbf24"; upd.textContent="Laden..."; }
   else { pulse.style.background="#4ade80"; upd.textContent="Bijgewerkt: "+(lastUpdated?new Date(lastUpdated).toLocaleTimeString("nl-NL"):new Date().toLocaleTimeString("nl-NL")); }
 }
 
-// ── RENDER ──────────────────────────────────────────────────────────────
 function renderES(data){
   var instroom=[], uitstroom=[], transitie=[];
-
   data.forEach(function(seg){
     var early = esComputeEarlySignal(seg);
     var conf  = esComputeConfSignal(seg);
@@ -492,17 +555,14 @@ function renderES(data){
     if(cls.type==="uitstroom") uitstroom.push(item);
     if(cls.type==="transitie") transitie.push(item);
   });
-
-  // Sorteren: instroom op accumScore desc, uitstroom op -earlyScore
   instroom.sort(function(a,b){ return (b.cls.accumScore||0)-(a.cls.accumScore||0) || b.cls.earlyScore-a.cls.earlyScore; });
   uitstroom.sort(function(a,b){ return b.cls.confScore-a.cls.confScore; });
   transitie.sort(function(a,b){ return (b.cls.accumScore||0)-(a.cls.accumScore||0) || b.cls.earlyScore-a.cls.earlyScore; });
-
   document.getElementById("esContent").innerHTML =
     '<div class="es-blocks">'+
-    renderESBlock("instroom",  "🟢 Instroom",  "instroom",  instroom) +
-    renderESBlock("transitie", "🟡 Transitie", "transitie", transitie) +
-    renderESBlock("uitstroom", "🔴 Uitstroom", "uitstroom", uitstroom) +
+    renderESBlock("instroom",  "🟢 Instroom",  "instroom",  instroom)+
+    renderESBlock("transitie", "🟡 Transitie", "transitie", transitie)+
+    renderESBlock("uitstroom", "🔴 Uitstroom", "uitstroom", uitstroom)+
     '</div>';
 }
 
@@ -529,9 +589,6 @@ function renderESBlock(id, title, cls, items){
     '</tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 
-// ── CELL RENDERERS ──────────────────────────────────────────────────────
-
-// ACCUM badge — toont score als backend het levert, anders "n/b"
 function esAccumBadge(score){
   if(score===null||score===undefined) return '<span class="es-accum-nb">n/b</span>';
   if(score>=5) return '<span class="es-accum-badge es-accum-5plus">'+score+'/8</span>';
@@ -539,10 +596,9 @@ function esAccumBadge(score){
   return '<span class="es-accum-badge es-accum-low">'+score+'/8</span>';
 }
 
-// EMA+Mansfield: 2 dots (EMA dot + Mansfield dot)
 function esEarlyDots(early){
-  var emaDot  = early.emaPts >= 2   ? "es-dot-g" : early.emaPts===1 ? "es-dot-y" : "es-dot-o";
-  var mansDot = early.mansfieldPts>=2? "es-dot-p" : early.mansfieldPts===1?"es-dot-y":"es-dot-o";
+  var emaDot  = early.emaPts>=2    ? "es-dot-g" : early.emaPts===1   ? "es-dot-y" : "es-dot-o";
+  var mansDot = early.mansfieldPts>=2?"es-dot-p" : early.mansfieldPts===1?"es-dot-y":"es-dot-o";
   var eLabel  = early.freshCross?"vers cross":early.preCross?"nadert":"geen";
   var mLabel  = early.mansfieldEarly?"early":early.mansfieldConfirm?"bev":"geen";
   return '<div class="es-score-dots">'+
@@ -552,27 +608,24 @@ function esEarlyDots(early){
   '</div>';
 }
 
-// Mansfield waarde met kleur + early recovery indicator
 function esMansfield(v, isEarly, isConfirm){
   if(v==null) return '<span style="color:#5a5a7a">—</span>';
   var color = v>0?"#4ade80":v<0?"#f87171":"#5a5a7a";
   var sign  = v>0?"+":"";
-  var tag   = isEarly   ?'<span class="es-tag es-tag-p" style="margin-left:4px">▲E</span>'
-             :isConfirm ?'<span class="es-tag es-tag-g" style="margin-left:4px">▲B</span>'
-             :"";
+  var tag   = isEarly    ? '<span class="es-tag es-tag-p" style="margin-left:4px">▲E</span>'
+             : isConfirm ? '<span class="es-tag es-tag-g" style="margin-left:4px">▲B</span>'
+             : "";
   return '<span style="color:'+color+';font-size:10px">'+sign+v.toFixed(1)+'</span>'+tag;
 }
 
-// ── SKELETON ────────────────────────────────────────────────────────────
 function renderESSkeleton(){
   document.getElementById("esContent").innerHTML=
     '<div class="es-loading">🔗 Stel je Apps Script URL in via de <a href="sector-deep.html" style="color:#60a5fa">Deep Dive pagina</a> om live rotatie signalen te zien.</div>';
 }
 
-// ── INIT ────────────────────────────────────────────────────────────────
 (function(){
   if(document.readyState==="loading"){
-    document.addEventListener("DOMContentLoaded",function(){loadExecutiveSummary(false);});
+    document.addEventListener("DOMContentLoaded", function(){ loadExecutiveSummary(false); });
   } else { loadExecutiveSummary(false); }
 })();
 </script>
