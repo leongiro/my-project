@@ -857,7 +857,13 @@ function confSignalCell(sig) {
     </div>
   </div>`;
 }
-
+function rs40AfterAccumCell(s) {
+  if (s.isRS40AfterAccum5)
+    return '<span style="color:var(--purple);font-weight:700;font-size:11px" data-tip="RS40 breuk na ACCUM≥5 — T+60 88% win, α+16% · volle positie">★★ sterk</span>';
+  if (s.isRS40AfterAccum3)
+    return '<span style="color:var(--yellow);font-weight:700;font-size:11px" data-tip="RS40 breuk na ACCUM≥3 — T+90 α+19% · kleinere positie">★ vroeg</span>';
+  return '<span class="neu">—</span>';
+}
 // ══════════════════════════════════════════════════════════════
 // SORTERING
 // ══════════════════════════════════════════════════════════════
