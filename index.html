@@ -62,46 +62,32 @@
   </div>
   <script>
     document.getElementById("year-label").textContent = new Date().getFullYear() + " year-to-date";
-
     const PALETTE = [
       "#60a5fa","#4ade80","#fbbf24","#f472b6","#a78bfa",
       "#fb923c","#22d3ee","#e879f9","#f87171","#34d399",
       "#facc15","#38bdf8","#c084fc","#86efac","#fca5a5",
       "#6ee7b7","#fdba74"
     ];
-
     const PERIODS = [
-      { label: "1W", days: 7 },
-      { label: "1M", days: 30 },
-      { label: "3M", days: 90 },
-      { label: "6M", days: 180 },
-      { label: "YTD", days: null },
-      { label: "1J",  days: 365 },
-      { label: "2J",  days: 730 },
-      { label: "5J",  days: 1825 },
+      { label: "1W", days: 7 },{ label: "1M", days: 30 },{ label: "3M", days: 90 },
+      { label: "6M", days: 180 },{ label: "YTD", days: null },{ label: "1J", days: 365 },
+      { label: "2J", days: 730 },{ label: "5J", days: 1825 },
     ];
-
     let activePeriod = "1J";
     let lineChartInstance = null;
-    let allWeeks = [];
-    let rawDatasets = [];
+    let allWeeks = [], rawDatasets = [];
 
     function getWeekKey(dateStr) {
-      const d = new Date(dateStr);
-      const day = d.getDay();
+      const d = new Date(dateStr); const day = d.getDay();
       const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-      const mon = new Date(d.setDate(diff));
-      return mon.toISOString().slice(0, 10);
+      const mon = new Date(d.setDate(diff)); return mon.toISOString().slice(0, 10);
     }
-
     function getCutoffDate(period) {
       const now = new Date();
       if (period.label === "YTD") return new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
-      const cutoff = new Date(now);
-      cutoff.setDate(cutoff.getDate() - period.days);
+      const cutoff = new Date(now); cutoff.setDate(cutoff.getDate() - period.days);
       return cutoff.toISOString().slice(0, 10);
     }
-
     function rebaseFromCutoff(weeks, datasets, cutoff) {
       const startIdx = weeks.findIndex(w => w >= cutoff);
       if (startIdx === -1) return { labels: weeks, rebased: datasets };
@@ -110,56 +96,38 @@
         const sliced = ds.data.slice(startIdx);
         const firstVal = sliced.find(v => v !== null);
         if (firstVal === undefined) return { ...ds, data: sliced };
-        return {
-          ...ds,
-          data: sliced.map(v => v !== null ? parseFloat((v - firstVal).toFixed(2)) : null)
-        };
+        return { ...ds, data: sliced.map(v => v !== null ? parseFloat((v - firstVal).toFixed(2)) : null) };
       });
       return { labels, rebased };
     }
-
     function updateLineChart(period) {
       activePeriod = period.label;
-      document.querySelectorAll(".tf").forEach(btn => {
-        btn.classList.toggle("active", btn.dataset.period === period.label);
-      });
+      document.querySelectorAll(".tf").forEach(btn => btn.classList.toggle("active", btn.dataset.period === period.label));
       const cutoff = getCutoffDate(period);
       const { labels, rebased } = rebaseFromCutoff(allWeeks, rawDatasets, cutoff);
       lineChartInstance.data.labels = labels;
       lineChartInstance.data.datasets.forEach((ds, i) => { ds.data = rebased[i].data; });
       lineChartInstance.update();
     }
-
     function niceStep(range) {
-      const rough = range / 8;
-      const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+      const rough = range / 8, mag = Math.pow(10, Math.floor(Math.log10(rough)));
       const norm = rough / mag;
-      let step;
-      if (norm < 1.5) step = 1;
-      else if (norm < 3) step = 2;
-      else if (norm < 7) step = 5;
-      else step = 10;
+      let step; if (norm < 1.5) step=1; else if (norm < 3) step=2; else if (norm < 7) step=5; else step=10;
       return step * mag;
     }
-
     async function load() {
       try {
-        const res  = await fetch("/api/finance");
-        const json = await res.json();
-        if (!json.ok) throw new Error(json.error);
-        render(json.data);
+        const res = await fetch("/api/finance"); const json = await res.json();
+        if (!json.ok) throw new Error(json.error); render(json.data);
       } catch (err) {
         document.getElementById("content").innerHTML = `<div class="error">Kon data niet laden: ${err.message}</div>`;
       }
     }
-
     function render(data) {
       document.getElementById("content").innerHTML = `
         <div class="charts-row">
           <div class="chart-wrap">
-            <div class="chart-top">
-              <div class="chart-label">YTD % — <span id="current-year"></span></div>
-            </div>
+            <div class="chart-top"><div class="chart-label">YTD % — <span id="current-year"></span></div></div>
             <canvas id="bar-chart"></canvas>
           </div>
           <div class="chart-wrap">
@@ -170,293 +138,148 @@
             <canvas id="line-chart"></canvas>
             <div class="legend" id="legend"></div>
           </div>
-        </div>
-      `;
+        </div>`;
       document.getElementById("current-year").textContent = new Date().getFullYear();
-
       const filtersEl = document.getElementById("time-filters");
-      filtersEl.innerHTML = PERIODS.map(p => `
-        <button class="tf ${p.label === activePeriod ? "active" : ""}" data-period="${p.label}">${p.label}</button>
-      `).join("");
-
-      const sorted = [...data]
-        .map(d => ({ name: d.name, pct: d.ytd[d.ytd.length - 1]?.pct ?? 0 }))
-        .sort((a, b) => a.pct - b.pct);
-      const barLabels = sorted.map(d => d.name);
-      const barValues = sorted.map(d => d.pct);
-      const barColors = barValues.map(v => v >= 0 ? "#4ade80" : "#f87171");
-      const minVal = Math.min(...barValues);
-      const maxVal = Math.max(...barValues);
-      const range  = maxVal - minVal || 10;
-      const step   = niceStep(range);
-      const yMin   = Math.floor(minVal / step) * step;
-      const yMax   = Math.ceil(maxVal / step) * step;
-
+      filtersEl.innerHTML = PERIODS.map(p => `<button class="tf ${p.label===activePeriod?"active":""}" data-period="${p.label}">${p.label}</button>`).join("");
+      const sorted = [...data].map(d => ({ name: d.name, pct: d.ytd[d.ytd.length-1]?.pct??0 })).sort((a,b) => a.pct-b.pct);
+      const barLabels=sorted.map(d=>d.name), barValues=sorted.map(d=>d.pct);
+      const barColors=barValues.map(v=>v>=0?"#4ade80":"#f87171");
+      const minVal=Math.min(...barValues), maxVal=Math.max(...barValues);
+      const range=maxVal-minVal||10, step=niceStep(range);
+      const yMin=Math.floor(minVal/step)*step, yMax=Math.ceil(maxVal/step)*step;
       new Chart(document.getElementById("bar-chart"), {
-        type: "bar",
-        data: { labels: barLabels, datasets: [{ data: barValues, backgroundColor: barColors, borderRadius: 4, borderSkipped: false }] },
-        options: {
-          indexAxis: "y", responsive: true,
-          plugins: {
-            legend: { display: false },
-            tooltip: { backgroundColor: "#12121a", borderColor: "#1e1e2e", borderWidth: 1, titleColor: "#5a5a7a", bodyColor: "#e8e8f0", callbacks: { label: ctx => ` ${ctx.parsed.x >= 0 ? "+" : ""}${ctx.parsed.x.toFixed(2)}%` } }
-          },
-          scales: {
-            x: { min: yMin, max: yMax, grid: { color: "#1e1e2e" }, ticks: { stepSize: step, color: "#5a5a7a", font: { family: "DM Mono", size: 11 }, callback: v => (v >= 0 ? "+" : "") + v.toFixed(0) + "%" } },
-            y: { grid: { color: "transparent" }, ticks: { color: "#e8e8f0", font: { family: "DM Sans", size: 11 } } }
-          }
-        }
+        type:"bar", data:{labels:barLabels,datasets:[{data:barValues,backgroundColor:barColors,borderRadius:4,borderSkipped:false}]},
+        options:{indexAxis:"y",responsive:true,plugins:{legend:{display:false},tooltip:{backgroundColor:"#12121a",borderColor:"#1e1e2e",borderWidth:1,titleColor:"#5a5a7a",bodyColor:"#e8e8f0",callbacks:{label:ctx=>` ${ctx.parsed.x>=0?"+":""}${ctx.parsed.x.toFixed(2)}%`}}},
+          scales:{x:{min:yMin,max:yMax,grid:{color:"#1e1e2e"},ticks:{stepSize:step,color:"#5a5a7a",font:{family:"DM Mono",size:11},callback:v=>(v>=0?"+":"")+v.toFixed(0)+"%"}},y:{grid:{color:"transparent"},ticks:{color:"#e8e8f0",font:{family:"DM Sans",size:11}}}}}
       });
-
-      const weekMaps = data.map(({ hist }) => {
-        const map = {};
-        hist.forEach(p => { map[getWeekKey(p.date)] = p.pct; });
-        return map;
-      });
-      allWeeks = [...new Set(weekMaps.flatMap(m => Object.keys(m)))].sort();
-      rawDatasets = data.map(({ name }, i) => ({
-        label: name,
-        data: allWeeks.map(w => weekMaps[i][w] ?? null),
-        borderColor: PALETTE[i % PALETTE.length],
-        backgroundColor: "transparent",
-        borderWidth: 1.5, pointRadius: 0, tension: 0.3, spanGaps: true,
-      }));
-
-      const defaultPeriod = PERIODS.find(p => p.label === activePeriod);
+      const weekMaps = data.map(({hist}) => { const map={}; hist.forEach(p=>{map[getWeekKey(p.date)]=p.pct;}); return map; });
+      allWeeks = [...new Set(weekMaps.flatMap(m=>Object.keys(m)))].sort();
+      rawDatasets = data.map(({name},i) => ({label:name,data:allWeeks.map(w=>weekMaps[i][w]??null),borderColor:PALETTE[i%PALETTE.length],backgroundColor:"transparent",borderWidth:1.5,pointRadius:0,tension:0.3,spanGaps:true}));
+      const defaultPeriod = PERIODS.find(p=>p.label===activePeriod);
       const cutoff = getCutoffDate(defaultPeriod);
-      const { labels: initLabels, rebased: initData } = rebaseFromCutoff(allWeeks, rawDatasets, cutoff);
-
+      const {labels:initLabels,rebased:initData} = rebaseFromCutoff(allWeeks,rawDatasets,cutoff);
       lineChartInstance = new Chart(document.getElementById("line-chart"), {
-        type: "line",
-        data: { labels: initLabels, datasets: initData.map((ds, i) => ({ ...rawDatasets[i], data: ds.data })) },
-        options: {
-          responsive: true,
-          interaction: { mode: "nearest", intersect: true },
-          plugins: {
-            legend: { display: false },
-            tooltip: { backgroundColor: "#12121a", borderColor: "#1e1e2e", borderWidth: 1, titleColor: "#5a5a7a", bodyColor: "#e8e8f0", callbacks: { label: ctx => ctx.parsed.y !== null ? ` ${ctx.dataset.label}: ${ctx.parsed.y >= 0 ? "+" : ""}${ctx.parsed.y.toFixed(2)}%` : null } }
-          },
-          scales: {
-            x: { grid: { color: "#1e1e2e" }, ticks: { color: "#5a5a7a", maxTicksLimit: 8, font: { family: "DM Mono", size: 11 } } },
-            y: { grid: { color: "#1e1e2e" }, ticks: { color: "#5a5a7a", font: { family: "DM Mono", size: 11 }, callback: v => (v >= 0 ? "+" : "") + v + "%" } }
-          }
-        }
+        type:"line", data:{labels:initLabels,datasets:initData.map((ds,i)=>({...rawDatasets[i],data:ds.data}))},
+        options:{responsive:true,interaction:{mode:"nearest",intersect:true},plugins:{legend:{display:false},tooltip:{backgroundColor:"#12121a",borderColor:"#1e1e2e",borderWidth:1,titleColor:"#5a5a7a",bodyColor:"#e8e8f0",callbacks:{label:ctx=>ctx.parsed.y!==null?` ${ctx.dataset.label}: ${ctx.parsed.y>=0?"+":""}${ctx.parsed.y.toFixed(2)}%`:null}}},
+          scales:{x:{grid:{color:"#1e1e2e"},ticks:{color:"#5a5a7a",maxTicksLimit:8,font:{family:"DM Mono",size:11}}},y:{grid:{color:"#1e1e2e"},ticks:{color:"#5a5a7a",font:{family:"DM Mono",size:11},callback:v=>(v>=0?"+":"")+v+"%"}}}}
       });
-
       filtersEl.querySelectorAll(".tf").forEach(btn => {
-        btn.addEventListener("click", () => {
-          const period = PERIODS.find(p => p.label === btn.dataset.period);
-          updateLineChart(period);
-        });
+        btn.addEventListener("click", () => { const period=PERIODS.find(p=>p.label===btn.dataset.period); updateLineChart(period); });
       });
-
       const legend = document.getElementById("legend");
-      legend.innerHTML = data.map((d, i) => `
-        <div class="legend-item" onclick="toggleLine(${i})">
-          <div class="legend-dot" id="dot-${i}" style="background:${PALETTE[i % PALETTE.length]}"></div>
-          ${d.name}
-        </div>
-      `).join("");
-
-      window.toggleLine = (i) => {
-        const meta = lineChartInstance.getDatasetMeta(i);
-        meta.hidden = !meta.hidden;
-        document.getElementById(`dot-${i}`).style.opacity = meta.hidden ? "0.3" : "1";
-        lineChartInstance.update();
-      };
+      legend.innerHTML = data.map((d,i) => `<div class="legend-item" onclick="toggleLine(${i})"><div class="legend-dot" id="dot-${i}" style="background:${PALETTE[i%PALETTE.length]}"></div>${d.name}</div>`).join("");
+      window.toggleLine = (i) => { const meta=lineChartInstance.getDatasetMeta(i); meta.hidden=!meta.hidden; document.getElementById(`dot-${i}`).style.opacity=meta.hidden?"0.3":"1"; lineChartInstance.update(); };
     }
-
     load();
   </script>
+
 <!-- ══════════════════════════════════════════════════════════════
-     EXECUTIVE SUMMARY — Kapitaalrotatie Signalen
-     Plak dit snippet onderaan index.html, net voor </body>
+     EXECUTIVE SUMMARY — Kapitaalrotatie Signalen v2
+     Signaallagen: ACCUM (backend) · EMA+Mansfield · Bevestigd
      ══════════════════════════════════════════════════════════════ -->
-
 <style>
-/* ── Executive Summary styles ─────────────────────────────────── */
-.es-section {
-  max-width: 1800px;
-  margin: 32px auto 0;
-  padding: 0 20px 40px;
-  font-family: 'JetBrains Mono', monospace;
-}
-.es-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-.es-title {
-  font-family: 'Syne', sans-serif;
-  font-size: 20px;
-  font-weight: 800;
-  letter-spacing: -.4px;
-  color: #e8eaf0;
-}
-.es-title span { color: #5b9cf8; }
-.es-meta {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 10px;
-  color: #6b7591;
-}
-.es-pulse {
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: #22c55e;
-  animation: es-pulse 2s infinite;
-}
+.es-section { max-width:1800px; margin:32px auto 0; padding:0 20px 40px; font-family:'DM Mono',monospace; }
+.es-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px; }
+.es-title { font-family:'DM Sans',sans-serif; font-size:20px; font-weight:600; letter-spacing:-.02em; color:#e8e8f0; }
+.es-title span { color:#60a5fa; }
+.es-meta { display:flex; align-items:center; gap:12px; font-size:10px; color:#5a5a7a; }
+.es-pulse { width:6px; height:6px; border-radius:50%; background:#4ade80; animation:es-pulse 2s infinite; }
 @keyframes es-pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
-.es-refresh-btn {
-  padding: 4px 12px;
-  border-radius: 5px;
-  border: 1px solid #2e3647;
-  background: #181c23;
-  color: #6b7591;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  cursor: pointer;
-  transition: all .15s;
-}
-.es-refresh-btn:hover { border-color: #3d82f6; color: #e8eaf0; }
+.es-refresh-btn { padding:4px 12px; border-radius:5px; border:1px solid #1e1e2e; background:#12121a; color:#5a5a7a; font-family:'DM Mono',monospace; font-size:10px; cursor:pointer; transition:all .15s; }
+.es-refresh-btn:hover { border-color:#60a5fa; color:#e8e8f0; }
 
-/* Signal blocks */
-.es-blocks {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 16px;
-}
-@media(max-width:1100px) { .es-blocks { grid-template-columns: 1fr 1fr; } }
-@media(max-width:700px)  { .es-blocks { grid-template-columns: 1fr; } }
+/* Signaaluitleg balk */
+.es-model-bar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; padding:10px 16px; background:#12121a; border:1px solid #1e1e2e; border-radius:8px; font-size:10px; align-items:center; }
+.es-model-chip { padding:3px 9px; border-radius:4px; font-size:10px; font-weight:600; border:1px solid; }
+.es-chip-purple { background:rgba(167,139,250,.1); border-color:rgba(167,139,250,.3); color:#a78bfa; }
+.es-chip-green  { background:rgba(74,222,128,.1);  border-color:rgba(74,222,128,.3);  color:#4ade80; }
+.es-chip-yellow { background:rgba(251,191,36,.1);  border-color:rgba(251,191,36,.3);  color:#fbbf24; }
+.es-chip-red    { background:rgba(248,113,113,.1); border-color:rgba(248,113,113,.3); color:#f87171; }
+.es-chip-muted  { background:transparent; border-color:#1e1e2e; color:#5a5a7a; }
 
-.es-block {
-  background: #111318;
-  border: 1px solid #252b38;
-  border-radius: 12px;
-  overflow: hidden;
-}
-.es-block-header {
-  padding: 10px 16px;
-  font-family: 'Syne', sans-serif;
-  font-weight: 700;
-  font-size: 12px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border-bottom: 1px solid #252b38;
-}
-.es-block-header.instroom  { background: rgba(34,197,94,.08);  color: #22c55e; }
-.es-block-header.uitstroom { background: rgba(239,68,68,.08);   color: #ef4444; }
-.es-block-header.transitie { background: rgba(245,158,11,.08);  color: #f59e0b; }
+/* Blokken */
+.es-blocks { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
+@media(max-width:1200px) { .es-blocks { grid-template-columns:1fr 1fr; } }
+@media(max-width:700px)  { .es-blocks { grid-template-columns:1fr; } }
 
-.es-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 11px;
-}
-.es-table th {
-  padding: 6px 10px;
-  text-align: left;
-  font-size: 9px;
-  color: #6b7591;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: .6px;
-  border-bottom: 1px solid #1e2330;
-  background: #0f1217;
-}
-.es-table td {
-  padding: 8px 10px;
-  border-bottom: 1px solid #1a1f2a;
-  vertical-align: middle;
-}
-.es-table tr:last-child td { border-bottom: none; }
-.es-table tr:hover td { background: #181c23; }
+.es-block { background:#12121a; border:1px solid #1e1e2e; border-radius:12px; overflow:hidden; }
+.es-block-header { padding:10px 16px; font-family:'DM Sans',sans-serif; font-weight:600; font-size:12px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #1e1e2e; }
+.es-block-header.instroom  { background:rgba(74,222,128,.07);  color:#4ade80; }
+.es-block-header.uitstroom { background:rgba(248,113,113,.07); color:#f87171; }
+.es-block-header.transitie { background:rgba(251,191,36,.07);  color:#fbbf24; }
+.es-block-count { font-size:10px; font-weight:400; opacity:.6; }
 
-/* Segment name */
-.es-seg-name { font-weight: 600; color: #e8eaf0; font-size: 11px; }
-.es-seg-sub  { color: #6b7591; font-size: 9px; margin-top: 1px; }
+.es-table { width:100%; border-collapse:collapse; font-size:11px; }
+.es-table th { padding:5px 10px; text-align:left; font-size:9px; color:#5a5a7a; font-weight:600; text-transform:uppercase; letter-spacing:.6px; border-bottom:1px solid #1e1e2e; background:#0f0f18; }
+.es-table td { padding:8px 10px; border-bottom:1px solid #181825; vertical-align:middle; }
+.es-table tr:last-child td { border-bottom:none; }
+.es-table tr:hover td { background:#181825; }
 
-/* Signal strength bar */
-.es-bar-wrap { display: flex; align-items: center; gap: 5px; }
-.es-bar      { width: 36px; height: 4px; background: #1e2330; border-radius: 2px; overflow: hidden; }
-.es-bar-fill { height: 100%; border-radius: 2px; }
+.es-seg-name { font-weight:600; color:#e8e8f0; font-size:11px; }
+.es-seg-sub  { color:#5a5a7a; font-size:9px; margin-top:1px; }
+
+/* ACCUM score badge */
+.es-accum-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 7px; border-radius:4px; font-size:10px; font-weight:700; }
+.es-accum-5plus { background:rgba(167,139,250,.15); color:#a78bfa; border:1px solid rgba(167,139,250,.25); }
+.es-accum-3plus { background:rgba(251,191,36,.10);  color:#fbbf24; border:1px solid rgba(251,191,36,.2); }
+.es-accum-low   { background:rgba(30,30,46,.5);     color:#5a5a7a; border:1px solid #1e1e2e; }
+.es-accum-nb    { color:#5a5a7a; font-size:10px; }
+
+/* EMA+Mans dots (2 dots: EMA + Mansfield) */
+.es-score-dots { display:flex; gap:3px; align-items:center; }
+.es-dot { width:7px; height:7px; border-radius:50%; }
+.es-dot-g { background:#4ade80; }
+.es-dot-p { background:#a78bfa; }
+.es-dot-y { background:#fbbf24; }
+.es-dot-o { background:#1e1e2e; }
 
 /* Tags */
-.es-tag {
-  display: inline-block;
-  padding: 1px 6px;
-  border-radius: 3px;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: .4px;
-}
-.es-tag-bull-cross { background: rgba(34,197,94,.15);  color: #22c55e; }
-.es-tag-bear-cross { background: rgba(239,68,68,.15);  color: #ef4444; }
-.es-tag-sbull      { background: rgba(6,182,212,.12);  color: #06b6d4; }
-.es-tag-sbear      { background: rgba(239,68,68,.10);  color: #f87171; }
-.es-tag-exhaust    { background: rgba(245,158,11,.12); color: #f59e0b; }
-.es-tag-early      { background: rgba(167,139,250,.12);color: #a78bfa; }
+.es-tag { display:inline-block; padding:1px 6px; border-radius:3px; font-size:9px; font-weight:700; letter-spacing:.4px; }
+.es-tag-g  { background:rgba(74,222,128,.12);  color:#4ade80; }
+.es-tag-r  { background:rgba(248,113,113,.12); color:#f87171; }
+.es-tag-p  { background:rgba(167,139,250,.12); color:#a78bfa; }
+.es-tag-y  { background:rgba(251,191,36,.12);  color:#fbbf24; }
+.es-tag-c  { background:rgba(34,211,238,.12);  color:#22d3ee; }
 
-/* Action badge */
-.es-action {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 9px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-.es-action-buy     { background: rgba(34,197,94,.12);  color: #22c55e; border: 1px solid rgba(34,197,94,.2); }
-.es-action-sell    { background: rgba(239,68,68,.12);  color: #ef4444; border: 1px solid rgba(239,68,68,.2); }
-.es-action-watch   { background: rgba(245,158,11,.12); color: #f59e0b; border: 1px solid rgba(245,158,11,.2); }
-.es-action-reduce  { background: rgba(239,68,68,.06);  color: #f87171; border: 1px solid rgba(239,68,68,.15); }
+/* Actie badge */
+.es-action { display:inline-flex; align-items:center; gap:3px; padding:2px 8px; border-radius:4px; font-size:9px; font-weight:700; white-space:nowrap; }
+.es-action-buy    { background:rgba(74,222,128,.1);  color:#4ade80; border:1px solid rgba(74,222,128,.2); }
+.es-action-sell   { background:rgba(248,113,113,.1); color:#f87171; border:1px solid rgba(248,113,113,.2); }
+.es-action-watch  { background:rgba(251,191,36,.1);  color:#fbbf24; border:1px solid rgba(251,191,36,.2); }
+.es-action-reduce { background:rgba(248,113,113,.06);color:#f87171; border:1px solid rgba(248,113,113,.15); }
+.es-action-purple { background:rgba(167,139,250,.1); color:#a78bfa; border:1px solid rgba(167,139,250,.2); }
 
-/* Composite score dots */
-.es-score-dots { display: flex; gap: 2px; }
-.es-dot { width: 7px; height: 7px; border-radius: 50%; }
-.es-dot-on  { background: #22c55e; }
-.es-dot-warn{ background: #f59e0b; }
-.es-dot-off { background: #2e3647; }
-
-/* Empty state */
-.es-empty {
-  padding: 24px;
-  text-align: center;
-  color: #6b7591;
-  font-size: 11px;
-}
-
-/* Loading */
-.es-loading {
-  padding: 40px;
-  text-align: center;
-  color: #6b7591;
-  font-size: 11px;
-}
+.es-empty   { padding:24px; text-align:center; color:#5a5a7a; font-size:11px; }
+.es-loading { padding:40px; text-align:center; color:#5a5a7a; font-size:11px; }
 </style>
 
-<!-- EXECUTIVE SUMMARY SECTION -->
 <div class="es-section" id="executiveSummary">
   <div class="es-header">
     <div>
       <div class="es-title">Kapitaalrotatie <span>Signalen</span></div>
-      <div style="color:#6b7591;font-size:10px;margin-top:3px">
-        Instroom · Uitstroom · Transitie — live data uit Deep Dive dashboard
-      </div>
+      <div style="color:#5a5a7a;font-size:10px;margin-top:3px">Instroom · Transitie · Uitstroom — vier signaallagen</div>
     </div>
     <div class="es-meta">
-      <div class="es-pulse" id="esPulse" style="background:#6b7591"></div>
+      <div class="es-pulse" id="esPulse" style="background:#5a5a7a"></div>
       <span id="esLastUpdate">Laden...</span>
       <button class="es-refresh-btn" onclick="loadExecutiveSummary(true)">↻ Refresh</button>
-      <a href="sector-deep.html" style="color:#3d82f6;font-size:10px;text-decoration:none">→ Deep Dive</a>
+      <a href="sector-deep.html" style="color:#60a5fa;font-size:10px;text-decoration:none">→ Deep Dive</a>
     </div>
+  </div>
+
+  <!-- Signaalmodel uitleg -->
+  <div class="es-model-bar">
+    <span style="color:#5a5a7a;font-size:10px;text-transform:uppercase;letter-spacing:.06em">Signaallagen:</span>
+    <span class="es-model-chip es-chip-purple">① ACCUM ≥5pt — vóór prijs</span>
+    <span style="color:#5a5a7a">→</span>
+    <span class="es-model-chip es-chip-yellow">② Mansfield early — RS draait</span>
+    <span style="color:#5a5a7a">→</span>
+    <span class="es-model-chip es-chip-green">③ EMA8/21 cross — entry</span>
+    <span style="color:#5a5a7a">→</span>
+    <span class="es-model-chip es-chip-muted">④ RS40 — continuatie</span>
+    <span style="flex:1"></span>
+    <span style="color:#5a5a7a;font-size:9px">ACCUM kolom: n/b = deepdive.gs nog niet bijgewerkt</span>
   </div>
 
   <div id="esContent">
@@ -465,344 +288,290 @@
 </div>
 
 <script>
-// ══════════════════════════════════════════════════════════════════
-// EXECUTIVE SUMMARY — Kapitaalrotatie Signalen
-// Classificeert alle 69 subsegmenten in Instroom / Uitstroom / Transitie
-// ══════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════
+// EXECUTIVE SUMMARY v2 — Kapitaalrotatie Signalen
+// Vier signaallagen: ACCUM · Mansfield early · EMA cross · RS40
+// ══════════════════════════════════════════════════════════════════════
 
-var ES_CACHE_KEY    = "es_data_cache";
-var ES_CACHE_TS_KEY = "es_data_ts";
-var ES_CACHE_TTL    = 30 * 60 * 1000; // 30 min
+var ES_CACHE_KEY    = "es_data_v2_cache";
+var ES_CACHE_TS_KEY = "es_data_v2_ts";
+var ES_CACHE_TTL    = 30 * 60 * 1000;
 
-// ──────────────────────────────────────────────────────────────────
-// CLASSIFICATIE LOGICA
-// ──────────────────────────────────────────────────────────────────
+// ── LAAG 2: EMA+Mansfield signaal (max 4pt) ───────────────────────────
+// Identiek aan sector-deep.html computeEarlySignal()
+function esComputeEarlySignal(seg) {
+  // EMA8/21 cross (0-2pt)
+  var emaPts = 0, freshCross = false, preCross = false;
+  if (seg.freshCross !== undefined) {
+    freshCross = !!seg.freshCross;
+    preCross   = !!seg.preCross;
+    emaPts = freshCross ? 2 : preCross ? 1 : 0;
+  } else {
+    // Proxy via ema8align
+    freshCross = seg.ema8align === "bull";
+    emaPts = freshCross ? 2 : (seg.ema8align === "strong-bull") ? 1 : 0;
+  }
 
-// Instroom score (0-10): hoe sterk is het instroom signaal?
-function esInstroomScore(seg) {
+  // Mansfield early recovery (0-2pt)
+  var mansfieldPts = 0, mansfieldEarly = false, mansfieldConfirm = false;
+  if (seg.mansfieldEarlyRecov !== undefined) {
+    mansfieldEarly   = !!seg.mansfieldEarlyRecov;
+    mansfieldConfirm = !!seg.mansfieldConfirmed;
+    mansfieldPts = (mansfieldEarly || mansfieldConfirm) ? 2
+                 : ((seg.mansfield||0) > 0 || seg.rsTrend === "up") ? 1 : 0;
+  } else {
+    var mNeg = (seg.mansfield||0) < 0, mPos = (seg.mansfield||0) > 0, rsUp = seg.rsTrend === "up";
+    mansfieldEarly   = mNeg && rsUp;
+    mansfieldConfirm = mPos && rsUp;
+    mansfieldPts = (mansfieldEarly || mansfieldConfirm) ? 2 : (mPos || rsUp) ? 1 : 0;
+  }
+  return { score: emaPts + mansfieldPts, emaPts, mansfieldPts, freshCross, preCross, mansfieldEarly, mansfieldConfirm };
+}
+
+// ── LAAG 3: Bevestigd signaal (max 4pt) ───────────────────────────────
+function esComputeConfSignal(seg) {
+  var cross  = ["bull","bull-cross"].includes(seg.ema21x50) ? 1 : 0;
+  var struct = seg.structure === "HH/HL" ? 1 : 0;
+  var wTrend = seg.weeklyTrend === "UP"  ? 1 : 0;
+  var vol2x  = (seg.volFlow||0) >= 2.0   ? 1 : 0;
+  return { score: cross+struct+wTrend+vol2x };
+}
+
+// ── CLASSIFICATIE ──────────────────────────────────────────────────────
+//
+//  INSTROOM  = ACCUM ≥5 (kapitaal stroomt in vóór prijs)
+//              OF iScore ≥6 als ACCUM niet beschikbaar
+//
+//  TRANSITIE = Mansfield early recovery (RS draait, M nog negatief)
+//              OF ACCUM 3-4 (opbouwend)
+//              OF verse EMA21x50 cross
+//              OF momentum uitputting (RSI>70 + M>2 + RS daalt)
+//
+//  UITSTROOM = sterke bearish condities
+//
+function esClassify(seg, earlySignal, confSignal) {
+  var accumScore  = (seg.accumScore != null) ? seg.accumScore : null;
+  var hasAccum    = accumScore !== null;
+  var earlyScore  = earlySignal.score;
+  var confScore   = confSignal.score;
+  var isExhausted = (seg.rsi||50) > 70 && (seg.mansfield||0) > 2.0 && seg.rsTrend === "down";
+  var isBearCross = seg.ema21x50 === "bear-cross";
+  var isBullCross = seg.ema21x50 === "bull-cross";
+
+  // Uitstroom condities
+  var bearish = (seg.ema8align === "strong-bear" || seg.ema8align === "bear") &&
+                (seg.weeklyTrend === "DOWN" || seg.trend === "DOWN") &&
+                (seg.structure === "LH/LL" || (seg.mansfield||0) < -0.5);
+
+  // INSTROOM — kapitaalinstroomvóór prijs (hoogste prioriteit)
+  if (hasAccum && accumScore >= 5) {
+    return { type:"instroom", accumScore, earlyScore, confScore, isExhausted: false };
+  }
+  // INSTROOM fallback (geen ACCUM data): sterke instroom score
+  if (!hasAccum) {
+    var iScore = esFallbackInstroomScore(seg);
+    if (iScore >= 6) return { type:"instroom", accumScore:null, iScore, earlyScore, confScore, isExhausted:false };
+  }
+
+  // UITSTROOM
+  if (bearish || (isExhausted && confScore <= 1) || isBearCross) {
+    return { type:"uitstroom", accumScore, earlyScore, confScore, isExhausted, isBearCross };
+  }
+
+  // TRANSITIE — signaal opbouwend
+  var inTransitie = earlySignal.mansfieldEarly          // RS draait, M nog negatief
+                 || (hasAccum && accumScore >= 3)        // ACCUM opbouwend
+                 || isBullCross                          // verse bull cross
+                 || isExhausted                          // momentum uitputting
+                 || (earlyScore >= 2 && confScore >= 1); // EMA + bevestiging opbouwend
+
+  if (inTransitie) {
+    return { type:"transitie", accumScore, earlyScore, confScore, isExhausted, isBullCross,
+             mansfieldEarly: earlySignal.mansfieldEarly };
+  }
+
+  return { type:"neutraal", accumScore, earlyScore, confScore };
+}
+
+// Fallback instroomscore als ACCUM niet beschikbaar (old logic)
+function esFallbackInstroomScore(seg) {
   var score = 0;
-
-  // EMA8 alignment — vroegste momentum indicator (gewicht 2)
-  if (seg.ema8align === "strong-bull") score += 2;
-  else if (seg.ema8align === "bull")   score += 1;
-
-  // RS Breuk omhoog — sector begint te leiden (gewicht 2)
-  if (seg.rsBreak === "up" && (seg.rs || 0) > 0) score += 2;
-  else if (seg.rsBreak === "up") score += 1;
-
-  // Volume bevestiging (gewicht 2)
-  if ((seg.volFlow || 0) >= 2.0) score += 2;
-  else if ((seg.volFlow || 0) >= 1.5) score += 1;
-
-  // Wekelijkse trend (gewicht 1)
+  if (seg.ema8align === "strong-bull") score += 2; else if (seg.ema8align === "bull") score += 1;
+  if (seg.rsBreak === "up" && (seg.rs||0) > 0) score += 2; else if (seg.rsBreak === "up") score += 1;
+  if ((seg.volFlow||0) >= 2.0) score += 2; else if ((seg.volFlow||0) >= 1.5) score += 1;
   if (seg.weeklyTrend === "UP") score += 1;
-
-  // Dagelijkse structuur (gewicht 1)
   if (seg.structure === "HH/HL") score += 1;
-
-  // Mansfield positief en stijgend (gewicht 1)
-  if ((seg.mansfield || 0) > 0 && seg.rsTrend === "up") score += 1;
-
-  return score; // max 10
+  if ((seg.mansfield||0) > 0 && seg.rsTrend === "up") score += 1;
+  return score;
 }
 
-// Uitstroom score (0-10): hoe sterk is het uitstroom signaal?
-function esUitstroomScore(seg) {
-  var score = 0;
-
-  // EMA8 negatief (gewicht 2)
-  if (seg.ema8align === "strong-bear") score += 2;
-  else if (seg.ema8align === "bear")   score += 1;
-
-  // RS Breuk omlaag (gewicht 2)
-  if (seg.rsBreak === "down" && (seg.rs || 0) < 0) score += 2;
-  else if (seg.rsBreak === "down") score += 1;
-
-  // Bearish structuur (gewicht 2)
-  if (seg.structure === "LH/LL") score += 2;
-
-  // Wekelijkse trend neerwaarts (gewicht 1)
-  if (seg.weeklyTrend === "DOWN") score += 1;
-
-  // Mansfield negatief (gewicht 1)
-  if ((seg.mansfield || 0) < -0.5) score += 1;
-
-  // Volume droogt op (gewicht 1)
-  if ((seg.volFlow || 0) < 0.9) score += 1;
-
-  // Momentum uitputting: hoog RSI + hoge Mansfield (gewicht 1)
-  if ((seg.rsi || 50) > 70 && (seg.mansfield || 0) > 2.5) score += 1;
-
-  return score; // max 11
-}
-
-// Classificeer een segment
-function esClassify(seg) {
-  var iScore = esInstroomScore(seg);
-  var uScore = esUitstroomScore(seg);
-  var earlyScore = seg._earlyScore || 0;
-
-  // Momentum uitputting: hoog RSI + Mansfield maar RS begint te dalen
-  var isExhausted = (seg.rsi || 50) > 70 &&
-                    (seg.mansfield || 0) > 2.0 &&
-                    seg.rsTrend === "down";
-
-  // Verse cross (bull of bear) = transitie
-  var isFreshCross = seg.ema21x50 === "bull-cross" || seg.ema21x50 === "bear-cross";
-
-  // INSTROOM: duidelijk positief signaal
-  if (iScore >= 6 && uScore <= 2) {
-    return { type: "instroom", iScore: iScore, uScore: uScore, isExhausted: false };
-  }
-
-  // UITSTROOM: duidelijk negatief
-  if (uScore >= 5 && iScore <= 2) {
-    return { type: "uitstroom", iScore: iScore, uScore: uScore, isExhausted: isExhausted };
-  }
-
-  // TRANSITIE: verse cross OF momentum uitputting OF signaal opbouwend
-  if (isFreshCross || isExhausted || (earlyScore === 3)) {
-    return { type: "transitie", iScore: iScore, uScore: uScore,
-             isExhausted: isExhausted, isFreshCross: isFreshCross };
-  }
-
-  return { type: "neutraal", iScore: iScore, uScore: uScore };
-}
-
-// ──────────────────────────────────────────────────────────────────
-// ACTIE BEPALEN
-// ──────────────────────────────────────────────────────────────────
-function esAction(seg, classification) {
-  var type = classification.type;
+// ── ACTIE BEPALEN ──────────────────────────────────────────────────────
+function esAction(seg, cls) {
+  var type = cls.type, acc = cls.accumScore, early = cls.earlyScore, conf = cls.confScore;
 
   if (type === "instroom") {
-    if (classification.iScore >= 8) {
-      return { label: "📈 Zoek aandelen", cls: "es-action-buy",
-               tip: "Sterk instroom signaal — selecteer aandelen binnen dit segment" };
-    }
-    return { label: "👀 Monitor", cls: "es-action-watch",
-             tip: "Instroom bevestigt — houd aan voor bevestiging" };
+    // Ideale combinatie: ACCUM + EMA cross
+    if (acc >= 5 && early >= 3) return { label:"⚡ ACCUM+Entry",   cls:"es-action-buy",    tip:"ACCUM≥5 + EMA cross bevestigd — ideale combinatie" };
+    // PRE-signaal: ACCUM hoog maar EMA cross nog niet
+    if (acc >= 5 && early <= 2) return { label:"📊 PRE-signaal",   cls:"es-action-purple", tip:"ACCUM≥5 maar EMA cross nog niet — wacht op cross" };
+    if (acc >= 7)               return { label:"📊 ACCUM-MAX",     cls:"es-action-buy",    tip:"ACCUM-MAX: alle volumecomponenten actief" };
+    // Fallback
+    if (conf >= 3 && early >= 3)return { label:"📈 Zoek aandelen", cls:"es-action-buy",    tip:"Sterk instroom + bevestigd" };
+    return { label:"👀 Monitor",  cls:"es-action-watch", tip:"Instroom bevestigt, houd aan" };
   }
 
   if (type === "uitstroom") {
-    if (classification.isExhausted) {
-      return { label: "⚠️ Neem winst", cls: "es-action-reduce",
-               tip: "Momentum uitgeput: RSI>70 + Mansfield hoog maar RS daalt" };
-    }
-    if (classification.uScore >= 7) {
-      return { label: "🚪 Roteer weg", cls: "es-action-sell",
-               tip: "Kapitaal stroomt uit — exit positie of roteer naar sterker segment" };
-    }
-    return { label: "⬇️ Verlaag pos.", cls: "es-action-reduce",
-             tip: "Zwakker wordend segment — verlaag positiegrootte" };
+    if (cls.isExhausted)  return { label:"⚠️ Neem winst",   cls:"es-action-reduce", tip:"Momentum uitgeput: RSI overbought + Mansfield hoog + RS daalt" };
+    if (cls.isBearCross)  return { label:"🚪 Bear cross",   cls:"es-action-sell",   tip:"EMA21 kruiste net onder EMA50 — momentum keert negatief" };
+    return { label:"⬇️ Roteer weg", cls:"es-action-sell", tip:"Kapitaal stroomt uit — roteer naar sterker segment" };
   }
 
   if (type === "transitie") {
-    if (classification.isFreshCross && seg.ema21x50 === "bull-cross") {
-      return { label: "⚡ Verse cross", cls: "es-action-watch",
-               tip: "EMA21 kruiste net boven EMA50 — vroeg maar nog niet bevestigd" };
-    }
-    if (classification.isFreshCross && seg.ema21x50 === "bear-cross") {
-      return { label: "⚠️ Bear cross", cls: "es-action-reduce",
-               tip: "EMA21 kruiste net onder EMA50 — momentum keert negatief" };
-    }
-    if (classification.isExhausted) {
-      return { label: "⚠️ Uitgeput", cls: "es-action-reduce",
-               tip: "Trend ver gevorderd: RSI overbought + Mansfield hoog + RS draait" };
-    }
-    return { label: "👀 Opbouwend", cls: "es-action-watch",
-             tip: "Signaal aan het opbouwen — nog geen vol bevestiging" };
+    if (cls.mansfieldEarly && acc >= 3) return { label:"🔄 RS draait",    cls:"es-action-watch",  tip:"Mansfield early recovery + ACCUM opbouwend — wacht op EMA cross" };
+    if (cls.mansfieldEarly)             return { label:"🔄 RS draait",    cls:"es-action-watch",  tip:"RS slope positief maar Mansfield nog negatief — vroeg signaal" };
+    if (cls.isBullCross)                return { label:"⚡ Verse cross",  cls:"es-action-watch",  tip:"EMA21 kruiste net boven EMA50 — bevestiging nodig" };
+    if (cls.isExhausted)                return { label:"⚠️ Uitgeput",    cls:"es-action-reduce", tip:"Trend ver gevorderd: wacht op reset" };
+    if (early >= 3 && conf >= 2)        return { label:"📈 Opbouwend",   cls:"es-action-watch",  tip:"EMA cross + Mansfield + bevestiging opbouwend" };
+    return { label:"👀 Opbouwend", cls:"es-action-watch", tip:"Signaal opbouwend — nog geen vol bevestiging" };
   }
 
-  return null; // neutraal — niet tonen
+  return null;
 }
 
-// ──────────────────────────────────────────────────────────────────
-// DATA LADEN
-// ──────────────────────────────────────────────────────────────────
+// ── DATA LADEN ──────────────────────────────────────────────────────────
 function loadExecutiveSummary(forceRefresh) {
   var url = localStorage.getItem("deepdive_appsscript_url");
-  if (!url) {
-    renderESSkeleton();
-    return;
-  }
+  if (!url) { renderESSkeleton(); return; }
 
-  // Check cache
   if (!forceRefresh) {
-    var ts   = parseInt(localStorage.getItem(ES_CACHE_TS_KEY) || "0");
+    var ts = parseInt(localStorage.getItem(ES_CACHE_TS_KEY)||"0");
     var blob = localStorage.getItem(ES_CACHE_KEY);
-    if (blob && Date.now() - ts < ES_CACHE_TTL) {
-      try {
-        var parsed = JSON.parse(blob);
-        renderES(parsed.data);
-        updateESMeta(parsed.lastUpdated, false);
-        return;
-      } catch(e) {}
+    if (blob && Date.now()-ts < ES_CACHE_TTL) {
+      try { var p=JSON.parse(blob); renderES(p.data); updateESMeta(p.lastUpdated,false); return; } catch(e){}
     }
   }
 
-  updateESMeta(null, true);
-  fetch(url + "?tab=deepdive&_t=" + Date.now())
-    .then(function(r) { return r.json(); })
-    .then(function(json) {
-      if (!json.data) throw new Error("Geen data");
-      localStorage.setItem(ES_CACHE_KEY,    JSON.stringify(json));
-      localStorage.setItem(ES_CACHE_TS_KEY, String(Date.now()));
-      renderES(json.data);
-      updateESMeta(json.lastUpdated, false);
+  updateESMeta(null,true);
+  fetch(url+"?tab=deepdive&_t="+Date.now())
+    .then(function(r){return r.json();})
+    .then(function(json){
+      if(!json.data) throw new Error("Geen data");
+      localStorage.setItem(ES_CACHE_KEY,JSON.stringify(json));
+      localStorage.setItem(ES_CACHE_TS_KEY,String(Date.now()));
+      renderES(json.data); updateESMeta(json.lastUpdated,false);
     })
-    .catch(function(e) {
-      document.getElementById("esContent").innerHTML =
-        '<div class="es-loading" style="color:#ef4444">⚠️ Kon data niet laden: ' + e.message + '</div>';
-      document.getElementById("esPulse").style.background = "#ef4444";
+    .catch(function(e){
+      document.getElementById("esContent").innerHTML='<div class="es-loading" style="color:#f87171">⚠️ '+e.message+'</div>';
+      document.getElementById("esPulse").style.background="#f87171";
     });
 }
 
-function updateESMeta(lastUpdated, loading) {
-  var pulse = document.getElementById("esPulse");
-  var upd   = document.getElementById("esLastUpdate");
-  if (loading) {
-    pulse.style.background = "#f59e0b";
-    upd.textContent = "Laden...";
-  } else {
-    pulse.style.background = "#22c55e";
-    var ts = lastUpdated ? new Date(lastUpdated).toLocaleTimeString("nl-NL") : new Date().toLocaleTimeString("nl-NL");
-    upd.textContent = "Bijgewerkt: " + ts;
-  }
+function updateESMeta(lastUpdated,loading){
+  var pulse=document.getElementById("esPulse"), upd=document.getElementById("esLastUpdate");
+  if(loading){ pulse.style.background="#fbbf24"; upd.textContent="Laden..."; }
+  else { pulse.style.background="#4ade80"; upd.textContent="Bijgewerkt: "+(lastUpdated?new Date(lastUpdated).toLocaleTimeString("nl-NL"):new Date().toLocaleTimeString("nl-NL")); }
 }
 
-// ──────────────────────────────────────────────────────────────────
-// RENDER
-// ──────────────────────────────────────────────────────────────────
-function renderES(data) {
-  // Verrijk data met computed signals
-  var enriched = data.map(function(seg) {
-    var earlyScore = esComputeEarlyScore(seg);
-    return Object.assign({}, seg, { _earlyScore: earlyScore });
+// ── RENDER ──────────────────────────────────────────────────────────────
+function renderES(data){
+  var instroom=[], uitstroom=[], transitie=[];
+
+  data.forEach(function(seg){
+    var early = esComputeEarlySignal(seg);
+    var conf  = esComputeConfSignal(seg);
+    var cls   = esClassify(seg, early, conf);
+    var act   = esAction(seg, cls);
+    if(!act) return;
+    var item = { seg:seg, early:early, conf:conf, cls:cls, action:act };
+    if(cls.type==="instroom")  instroom.push(item);
+    if(cls.type==="uitstroom") uitstroom.push(item);
+    if(cls.type==="transitie") transitie.push(item);
   });
 
-  // Classificeer alles
-  var instroom  = [];
-  var uitstroom = [];
-  var transitie = [];
-
-  enriched.forEach(function(seg) {
-    var cls = esClassify(seg);
-    var act = esAction(seg, cls);
-    if (!act) return; // neutraal overslaan
-
-    var item = { seg: seg, cls: cls, action: act };
-
-    if (cls.type === "instroom")  instroom.push(item);
-    if (cls.type === "uitstroom") uitstroom.push(item);
-    if (cls.type === "transitie") transitie.push(item);
-  });
-
-  // Sorteer op score
-  instroom.sort(function(a,b)  { return b.cls.iScore - a.cls.iScore; });
-  uitstroom.sort(function(a,b) { return b.cls.uScore - a.cls.uScore; });
+  // Sorteren: instroom op accumScore desc, uitstroom op -earlyScore
+  instroom.sort(function(a,b){ return (b.cls.accumScore||0)-(a.cls.accumScore||0) || b.cls.earlyScore-a.cls.earlyScore; });
+  uitstroom.sort(function(a,b){ return b.cls.confScore-a.cls.confScore; });
+  transitie.sort(function(a,b){ return (b.cls.accumScore||0)-(a.cls.accumScore||0) || b.cls.earlyScore-a.cls.earlyScore; });
 
   document.getElementById("esContent").innerHTML =
-    '<div class="es-blocks">' +
-    renderESBlock("instroom",  "🟢 Instroom", "instroom",  instroom,  10) +
-    renderESBlock("uitstroom", "🔴 Uitstroom","uitstroom", uitstroom, 11) +
-    renderESBlock("transitie", "🟡 Transitie","transitie", transitie, 10) +
+    '<div class="es-blocks">'+
+    renderESBlock("instroom",  "🟢 Instroom",  "instroom",  instroom) +
+    renderESBlock("transitie", "🟡 Transitie", "transitie", transitie) +
+    renderESBlock("uitstroom", "🔴 Uitstroom", "uitstroom", uitstroom) +
     '</div>';
 }
 
-function renderESBlock(id, title, cls, items, maxScore) {
+function renderESBlock(id, title, cls, items){
   var rows = "";
-  if (items.length === 0) {
-    rows = '<tr><td colspan="5"><div class="es-empty">Geen signalen momenteel</div></td></tr>';
+  if(items.length===0){
+    rows='<tr><td colspan="5"><div class="es-empty">Geen signalen momenteel</div></td></tr>';
   } else {
-    rows = items.slice(0, 8).map(function(item) {
-      var seg = item.seg, c = item.cls, act = item.action;
-      var scoreW = Math.round((cls === "instroom" ? c.iScore : c.uScore) / maxScore * 6);
-      var dots = "";
-      for (var i = 0; i < 6; i++) {
-        dots += '<div class="es-dot ' + (i < scoreW ? (cls==="uitstroom"?"es-dot-warn":"es-dot-on") : "es-dot-off") + '"></div>';
-      }
-      return '<tr>' +
-        '<td><div class="es-seg-name">' + (seg.icon||"") + " " + seg.name + '</div>' +
-             '<div class="es-seg-sub">' + (seg.proxy||"") + '</div></td>' +
-        '<td><div class="es-score-dots">' + dots + '</div></td>' +
-        '<td>' + esTagEMA8(seg.ema8align) + '</td>' +
-        '<td>' + esTagRS(seg.rsBreak, seg.rs) + '</td>' +
-        '<td><span class="es-action ' + act.cls + '" title="' + act.tip + '">' + act.label + '</span></td>' +
+    rows = items.slice(0,9).map(function(item){
+      var seg=item.seg, early=item.early, clas=item.cls, act=item.action;
+      return '<tr>'+
+        '<td><div class="es-seg-name">'+(seg.icon||"")+' '+seg.name+'</div><div class="es-seg-sub">'+(seg.proxy||"")+'</div></td>'+
+        '<td>'+esAccumBadge(clas.accumScore)+'</td>'+
+        '<td>'+esEarlyDots(early)+'</td>'+
+        '<td>'+esMansfield(seg.mansfield, early.mansfieldEarly, early.mansfieldConfirm)+'</td>'+
+        '<td><span class="es-action '+act.cls+'" title="'+act.tip+'">'+act.label+'</span></td>'+
       '</tr>';
     }).join("");
   }
-
-  return '<div class="es-block">' +
-    '<div class="es-block-header ' + cls + '">' + title +
-    '  <span style="opacity:.6;font-size:10px;font-weight:400">' + items.length + ' segment' + (items.length!==1?"en":"") + '</span></div>' +
-    '<table class="es-table">' +
-    '<thead><tr><th>Segment</th><th>Sterkte</th><th>EMA8</th><th>RS</th><th>Actie</th></tr></thead>' +
-    '<tbody>' + rows + '</tbody></table></div>';
+  return '<div class="es-block">'+
+    '<div class="es-block-header '+cls+'">'+title+'<span class="es-block-count">'+items.length+' segm.</span></div>'+
+    '<table class="es-table"><thead><tr>'+
+    '<th>Segment</th><th>ACCUM</th><th>EMA+Mans</th><th>Mansfield</th><th>Actie</th>'+
+    '</tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 
-// ──────────────────────────────────────────────────────────────────
-// CELL RENDERERS
-// ──────────────────────────────────────────────────────────────────
-function esTagEMA8(v) {
-  var map = {
-    "strong-bull": ["es-tag-sbull",  "⚡ S-Bull"],
-    "bull":        ["es-tag-bull-cross", "↑ Bull"],
-    "bull-cross":  ["es-tag-bull-cross", "↑ NEW"],
-    "bear":        ["es-tag-sbear",  "↓ Bear"],
-    "strong-bear": ["es-tag-sbear",  "⚡ S-Bear"],
-    "bear-cross":  ["es-tag-bear-cross", "↓ NEW"],
-  };
-  var info = map[v];
-  if (!info) return '<span style="color:#6b7591">—</span>';
-  return '<span class="es-tag ' + info[0] + '">' + info[1] + '</span>';
+// ── CELL RENDERERS ──────────────────────────────────────────────────────
+
+// ACCUM badge — toont score als backend het levert, anders "n/b"
+function esAccumBadge(score){
+  if(score===null||score===undefined) return '<span class="es-accum-nb">n/b</span>';
+  if(score>=5) return '<span class="es-accum-badge es-accum-5plus">'+score+'/8</span>';
+  if(score>=3) return '<span class="es-accum-badge es-accum-3plus">'+score+'/8</span>';
+  return '<span class="es-accum-badge es-accum-low">'+score+'/8</span>';
 }
 
-function esTagRS(rsBreak, rs) {
-  if (rsBreak === "up")   return '<span class="es-tag es-tag-bull-cross">🔼 Break</span>';
-  if (rsBreak === "down") return '<span class="es-tag es-tag-bear-cross">🔽 Break</span>';
-  if ((rs||0) > 1)  return '<span style="color:#22c55e;font-size:10px">+' + (rs||0).toFixed(1) + '</span>';
-  if ((rs||0) < -1) return '<span style="color:#ef4444;font-size:10px">' + (rs||0).toFixed(1) + '</span>';
-  return '<span style="color:#6b7591">—</span>';
+// EMA+Mansfield: 2 dots (EMA dot + Mansfield dot)
+function esEarlyDots(early){
+  var emaDot  = early.emaPts >= 2   ? "es-dot-g" : early.emaPts===1 ? "es-dot-y" : "es-dot-o";
+  var mansDot = early.mansfieldPts>=2? "es-dot-p" : early.mansfieldPts===1?"es-dot-y":"es-dot-o";
+  var eLabel  = early.freshCross?"vers cross":early.preCross?"nadert":"geen";
+  var mLabel  = early.mansfieldEarly?"early":early.mansfieldConfirm?"bev":"geen";
+  return '<div class="es-score-dots">'+
+    '<div class="es-dot '+emaDot+'" title="EMA8/21 ('+eLabel+'): '+early.emaPts+'/2pt"></div>'+
+    '<div class="es-dot '+mansDot+'" title="Mansfield ('+mLabel+'): '+early.mansfieldPts+'/2pt"></div>'+
+    '<span style="font-size:9px;color:#5a5a7a;margin-left:4px">'+early.score+'/4</span>'+
+  '</div>';
 }
 
-// ──────────────────────────────────────────────────────────────────
-// VROEG SCORE BEREKENING (zelfde als sector-deep.html)
-// ──────────────────────────────────────────────────────────────────
-function esComputeEarlyScore(seg) {
-  var ema8ok  = ["strong-bull","bull"].includes(seg.ema8align) ? 1 : 0;
-  var wtOk    = seg.weeklyTrend === "UP" ? 1 : 0;
-  var ema8pts = (ema8ok && wtOk) ? 2 : (ema8ok || wtOk) ? 1 : 0;
-  var rsBreakOk = seg.rsBreak === "up" ? 1 : 0;
-  var rsPosOk   = (seg.rs || 0) > 0 ? 1 : 0;
-  var rsPts   = (rsBreakOk && rsPosOk) ? 2 : rsBreakOk ? 1 : 0;
-  var vol5pts = (seg.volFlow   || 0) >= 1.5 ? 1 : 0;
-  var vol10pts= (seg.volFlow30 || 0) >= 1.3 ? 1 : 0;
-  return ema8pts + rsPts + vol5pts + vol10pts;
+// Mansfield waarde met kleur + early recovery indicator
+function esMansfield(v, isEarly, isConfirm){
+  if(v==null) return '<span style="color:#5a5a7a">—</span>';
+  var color = v>0?"#4ade80":v<0?"#f87171":"#5a5a7a";
+  var sign  = v>0?"+":"";
+  var tag   = isEarly   ?'<span class="es-tag es-tag-p" style="margin-left:4px">▲E</span>'
+             :isConfirm ?'<span class="es-tag es-tag-g" style="margin-left:4px">▲B</span>'
+             :"";
+  return '<span style="color:'+color+';font-size:10px">'+sign+v.toFixed(1)+'</span>'+tag;
 }
 
-// ──────────────────────────────────────────────────────────────────
-// SKELETON (geen URL ingesteld)
-// ──────────────────────────────────────────────────────────────────
-function renderESSkeleton() {
-  document.getElementById("esContent").innerHTML =
-    '<div class="es-loading" style="color:#6b7591">' +
-    '🔗 Stel je Apps Script URL in via de <a href="sector-deep.html" style="color:#3d82f6">Deep Dive pagina</a> om live rotatie signalen te zien.' +
-    '</div>';
+// ── SKELETON ────────────────────────────────────────────────────────────
+function renderESSkeleton(){
+  document.getElementById("esContent").innerHTML=
+    '<div class="es-loading">🔗 Stel je Apps Script URL in via de <a href="sector-deep.html" style="color:#60a5fa">Deep Dive pagina</a> om live rotatie signalen te zien.</div>';
 }
 
-// ──────────────────────────────────────────────────────────────────
-// INIT — laad automatisch bij pagina open
-// ──────────────────────────────────────────────────────────────────
-(function() {
-  // Wacht tot DOM geladen is
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", function() { loadExecutiveSummary(false); });
-  } else {
-    loadExecutiveSummary(false);
-  }
+// ── INIT ────────────────────────────────────────────────────────────────
+(function(){
+  if(document.readyState==="loading"){
+    document.addEventListener("DOMContentLoaded",function(){loadExecutiveSummary(false);});
+  } else { loadExecutiveSummary(false); }
 })();
 </script>
-<!-- ══ Einde Executive Summary snippet ══ -->  
+<!-- ══ Einde Executive Summary v2 ══ -->
+
 </body>
 </html>
