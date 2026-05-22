@@ -409,7 +409,10 @@ function esFallbackInstroomScore(seg) {
 function esAction(seg, cls) {
   var type = cls.type, acc = cls.accumScore, early = cls.earlyScore, conf = cls.confScore;
 
-  if (type === "instroom") {
+   if (type === "instroom") {
+    // RS40 bevestiging na ACCUM — hoogste prioriteit
+    if (seg.isRS40AfterAccum5) return { label:"★★ RS40-ACCUM",  cls:"es-action-buy",   tip:"RS40 breuk na ACCUM≥5 — T+60 88% win, α+16% · volle positie" };
+    if (seg.isRS40AfterAccum3) return { label:"★ RS40-vroeg",   cls:"es-action-watch", tip:"RS40 breuk na ACCUM≥3 — T+90 α+19% · kleinere positie" };
     // Ideale combinatie: ACCUM + EMA cross
     if (acc >= 5 && early >= 3) return { label:"⚡ ACCUM+Entry",   cls:"es-action-buy",    tip:"ACCUM≥5 + EMA cross bevestigd — ideale combinatie" };
     // PRE-signaal: ACCUM hoog maar EMA cross nog niet
