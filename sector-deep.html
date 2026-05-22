@@ -201,7 +201,7 @@
     </div>
   </div>
 
-  <div class="config-note" id="configNote">
+  <div class="config-note" id="configNote" style="display:none">
     ⚙️ <strong>Eenmalige instelling:</strong> Deploy <code>deepdive.gs</code> als Web App in Google Apps Script
     (Uitvoeren als: <strong>Ik</strong> · Toegang: <strong>Iedereen</strong>), kopieer de URL en plak hem hieronder.
     <br><span style="color:var(--muted);font-size:10px">Na opslaan wordt de URL lokaal bewaard — je hoeft dit maar één keer te doen.</span>
@@ -332,6 +332,7 @@
 
 <script>
 const LS_URL      = "deepdive_appsscript_url";
+  const DEFAULT_URL = "https://script.google.com/macros/s/AKfycbxE-6MTtiudEflPYD4U9y5LMGje_B0EYciiNYdCM6JuCTc3QhfFeF38nT9HTlCeHHZ7/exec";
 const LS_CACHE    = "deepdive_cache_v4";       // v4 — cache key bijgewerkt
 const LS_CACHE_TS = "deepdive_cache_ts_v4";
 const CACHE_TTL   = 30 * 60 * 1000;
@@ -369,8 +370,8 @@ function saveAndLoad() {
 }
 
 async function loadData(forceRefresh = false) {
-  const url = localStorage.getItem(LS_URL) || "";
-  if (!url) { showDemoMode(); return; }
+  const url = localStorage.getItem(LS_URL) || DEFAULT_URL;
+  // url altijd beschikbaar via DEFAULT_URL
   if (!forceRefresh) {
     const ts = parseInt(localStorage.getItem(LS_CACHE_TS) || "0");
     const blob = localStorage.getItem(LS_CACHE);
