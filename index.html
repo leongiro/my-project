@@ -117,7 +117,7 @@
     }
     async function load() {
       try {
-        const res = await fetch("/api/finance"); const json = await res.json();
+        const res = await fetch("/api/finance?_t=" + new Date().toDateString()); const json = await res.json();
         if (!json.ok) throw new Error(json.error); render(json.data);
       } catch (err) {
         document.getElementById("content").innerHTML = `<div class="error">Kon data niet laden: ${err.message}</div>`;
@@ -172,7 +172,7 @@
       window.toggleLine = (i) => { const meta=lineChartInstance.getDatasetMeta(i); meta.hidden=!meta.hidden; document.getElementById(`dot-${i}`).style.opacity=meta.hidden?"0.3":"1"; lineChartInstance.update(); };
     }
     load();
-    setInterval(load, 4 * 60 * 60 * 1000); // herlaad elke 4 uur
+    setInterval(load, 60 * 60 * 1000);
   </script>
 
 <!-- ══════════════════════════════════════════════════════════════
