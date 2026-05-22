@@ -172,6 +172,7 @@
       window.toggleLine = (i) => { const meta=lineChartInstance.getDatasetMeta(i); meta.hidden=!meta.hidden; document.getElementById(`dot-${i}`).style.opacity=meta.hidden?"0.3":"1"; lineChartInstance.update(); };
     }
     load();
+    setInterval(load, 4 * 60 * 60 * 1000); // herlaad elke 4 uur
   </script>
 
 <!-- ══════════════════════════════════════════════════════════════
