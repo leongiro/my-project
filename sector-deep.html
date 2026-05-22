@@ -435,6 +435,11 @@ function computeAccumSignal(seg) {
     score, isPreSignal, hasData: true,
     label: score >= 5 ? (isPreSignal ? "PRE" : "ACCUM") : score >= 3 ? "VROEG" : "GEEN",
     cls:   score >= 5 ? "sig-purple" : score >= 3 ? "sig-watch" : "sig-none",
+    // Component velden voor dots (komen uit backend via deepdive.gs)
+    cmfPhase:        seg.cmfPhase        || "NONE",
+    obvPhase:        seg.obvPhase        || "none",
+    udRatio:         seg.udRatio         ?? 0,
+    absorptionScore: seg.absorptionScore ?? 0,
   };
 }
 
@@ -786,33 +791,52 @@ function emaCell(v) {
   return `<span class="neu">${v}</span>`;
 }
 
-// ACCUM signaal cel — laag 1 (backend data)
+// ACCUM signaal cel — laag 1 (backend data) met 4 component dots
 function accumSignalCell(sig) {
   if(!sig.hasData) return `<span class="neu" style="font-size:10px" data-tip="Beschikbaar na update deepdive.gs">n/b</span>`;
   const preTag = sig.isPreSignal
     ? `<span style="font-size:9px;color:var(--purple);background:rgba(167,139,250,.15);padding:0 4px;border-radius:3px;margin-left:2px" data-tip="PRE: ACCUM≥5 maar prijs nog niet bevestigd (earlyScore≤2)">PRE</span>` : "";
+  // Component dots: CMF · OBV · UD · ATR
+  const cmfCls = sig.cmfPhase==="EARLY"?"cd-ok":sig.cmfPhase==="BUILD"?"cd-warn":"cd-no";
+  const cmfTip = `CMF: ${sig.cmfPhase||"NONE"} (${sig.cmfPhase==="EARLY"?2:sig.cmfPhase==="BUILD"?1:0}pt)`;
+  const obvCls = sig.obvPhase==="confirm"?"cd-ok":sig.obvPhase==="stealth"?"cd-warn":"cd-no";
+  const obvTip = `OBV: ${sig.obvPhase||"none"} (${sig.obvPhase==="confirm"?2:sig.obvPhase==="stealth"?1:0}pt)`;
+  const udCls  = (sig.udRatio||0)>1.2?"cd-ok":"cd-no";
+  const udTip  = `UD ratio: ${(sig.udRatio||0).toFixed(2)} (${(sig.udRatio||0)>1.2?"1pt":"0pt"})`;
+  const atrPts = sig.absorptionScore||0;
+  const atrCls = atrPts>=3?"cd-ok":atrPts>=2?"cd-ok":atrPts>=1?"cd-warn":"cd-no";
+  const atrClr = atrPts>=3?"var(--green)":atrPts>=2?"#4ade80":atrPts>=1?"var(--yellow)":"";
+  const atrTip = `ATR absorptie: ${atrPts}/3pt`;
   return `<div class="sig-cell ${sig.cls}">
     <div class="sig-dot"></div>
     <span>${sig.label}</span>
     <div style="margin-left:2px;font-size:10px;color:var(--muted)">${sig.score}/8</div>
     ${preTag}
+    <div class="cond-dots" style="margin-left:4px">
+      <div class="cd ${cmfCls}" data-tip="${cmfTip}"></div>
+      <div class="cd ${obvCls}" data-tip="${obvTip}"></div>
+      <div class="cd ${udCls}"  data-tip="${udTip}"></div>
+      <div class="cd ${atrCls}" style="${atrClr?"background:"+atrClr:""}" data-tip="${atrTip}"></div>
+    </div>
   </div>`;
 }
 
-// EMA+Mansfield cel — laag 2 (nieuw 4pt model, 2 dots)
+// EMA+Mansfield cel — laag 2 (nieuw 4pt model, 2 dots met uitgebreide tooltips)
 function earlySignalCell(sig) {
   if(!sig) return '<span class="neu">—</span>';
-  const emaLabel  = sig.ema8FreshCross ? "vers cross" : sig.ema8PreCross ? "nadert" : "geen cross";
-  const mansLabel = sig.mansfieldEarly ? "early recovery" : sig.mansfieldConfirm ? "bevestigd" : "geen";
+  const emaLabel  = sig.ema8FreshCross ? "vers cross (≤4d)" : sig.ema8PreCross ? "nadert (ratio 0.97-1.0↑)" : "geen cross";
+  const emaPtsTip = `EMA8/21: ${emaLabel} → ${sig.emaPts}/2pt`;
+  const mansLabel = sig.mansfieldEarly ? "early recovery (M<0 + RS↑)" : sig.mansfieldConfirm ? "bevestigd (M>0 + RS↑)" : "inactief";
+  const mansPtsTip= `Mansfield: ${mansLabel} → ${sig.mansfieldPts}/2pt`;
+  const emaCls    = sig.emaPts>=2?"cd-ok":sig.emaPts===1?"cd-warn":"cd-no";
+  const mansCls   = sig.mansfieldPts>=2?"cd-purple":sig.mansfieldPts===1?"cd-warn":"cd-no";
   return `<div class="sig-cell ${sig.cls}">
     <div class="sig-dot"></div>
     <span>${sig.label}</span>
     <div style="margin-left:2px;font-size:10px;color:var(--muted)">${sig.score}/4</div>
     <div class="cond-dots">
-      <div class="cd ${sig.emaPts>=2?"cd-ok":sig.emaPts===1?"cd-warn":"cd-no"}"
-           data-tip="EMA8/21 cross (${emaLabel}): ${sig.emaPts}/2pt"></div>
-      <div class="cd ${sig.mansfieldPts>=2?"cd-purple":sig.mansfieldPts===1?"cd-warn":"cd-no"}"
-           data-tip="Mansfield (${mansLabel}): ${sig.mansfieldPts}/2pt"></div>
+      <div class="cd ${emaCls}"  data-tip="${emaPtsTip}"></div>
+      <div class="cd ${mansCls}" data-tip="${mansPtsTip}"></div>
     </div>
   </div>`;
 }
