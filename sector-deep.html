@@ -19,13 +19,11 @@
   *{margin:0;padding:0;box-sizing:border-box}
   body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;min-height:100vh}
 
-  /* NAV */
   nav{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 20px;display:flex;gap:4px;align-items:center;height:52px;position:sticky;top:0;z-index:100;overflow-x:auto}
   nav a{color:var(--muted);text-decoration:none;padding:6px 14px;border-radius:6px;font-size:12px;font-family:'Syne',sans-serif;font-weight:600;transition:all .15s;display:flex;align-items:center;gap:6px;white-space:nowrap}
   nav a:hover{color:var(--text);background:var(--bg3)}
   nav a.active{color:#fff;background:var(--accent)}
 
-  /* PAGE */
   .page{max-width:1800px;margin:0 auto;padding:24px 20px}
   .page-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:16px}
   .page-title{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;letter-spacing:-.5px}
@@ -35,31 +33,26 @@
   .pulse{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 
-  /* LEGEND */
   .legend{display:flex;gap:16px;align-items:center;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 16px;font-size:11px;flex-wrap:wrap}
   .leg-item{display:flex;align-items:center;gap:6px}
   .leg-dot{width:9px;height:9px;border-radius:50%}
 
-  /* FORMULA */
   .formula-bar{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:12px 18px;margin-bottom:20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
   .formula-label{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.8px}
   .formula-parts{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .fp{padding:4px 10px;border-radius:5px;font-size:11px;font-weight:600;border:1px solid}
   .fp-cross{background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.3);color:var(--green)}
-  .fp-struct{background:rgba(6,182,212,.1);border-color:rgba(6,182,212,.3);color:var(--cyan)}
-  .fp-vol{background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.3);color:var(--purple)}
-  .fp-early{background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.3);color:var(--purple)}
+  .fp-early{background:rgba(6,182,212,.1);border-color:rgba(6,182,212,.3);color:var(--cyan)}
+  .fp-accum{background:rgba(167,139,250,.1);border-color:rgba(167,139,250,.3);color:var(--purple)}
   .fp-op{color:var(--muted);font-size:13px}
 
-  /* STATS */
-  .stats-bar{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:24px}
+  .stats-bar{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:24px}
   .stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
   .stat-label{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.8px}
   .stat-value{font-size:22px;font-weight:700;margin-top:4px;font-family:'Syne',sans-serif}
   .stat-value.green{color:var(--green)}.stat-value.yellow{color:var(--yellow)}
   .stat-value.red{color:var(--red)}.stat-value.accent{color:var(--accent2)}.stat-value.purple{color:var(--purple)}
 
-  /* FILTERS */
   .filters{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;align-items:center}
   .filter-label{color:var(--muted);font-size:11px;margin-right:2px}
   .btn{padding:5px 12px;border-radius:6px;border:1px solid var(--border2);background:var(--bg3);color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:11px;cursor:pointer;transition:all .15s}
@@ -68,13 +61,13 @@
   .btn-g.active{background:var(--green);border-color:var(--green)}
   .btn-y.active{background:var(--yellow);border-color:var(--yellow);color:#000}
   .btn-r.active{background:var(--red);border-color:var(--red)}
+  .btn-p.active{background:var(--purple);border-color:var(--purple)}
   .expand-all-wrap{margin-left:auto}
   .search-wrap{position:relative}
   .search-input{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12px;padding:6px 12px 6px 30px;width:200px;transition:border-color .15s;outline:none}
   .search-input:focus{border-color:var(--accent)}
   .search-icon{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:12px;pointer-events:none}
 
-  /* CONFIG NOTE */
   .config-note{background:rgba(61,130,246,.08);border:1px solid rgba(61,130,246,.25);border-radius:10px;padding:14px 18px;margin-bottom:20px;font-size:11px;line-height:1.8;color:var(--muted)}
   .config-note strong{color:var(--accent2)}
   .config-note code{background:var(--bg4);border:1px solid var(--border2);border-radius:3px;padding:1px 5px;font-size:10px;color:var(--text)}
@@ -84,7 +77,6 @@
   .save-btn{padding:7px 16px;border-radius:6px;background:var(--accent);border:none;color:#fff;font-family:'JetBrains Mono',monospace;font-size:11px;cursor:pointer;transition:opacity .15s;white-space:nowrap}
   .save-btn:hover{opacity:.85}
 
-  /* STATES */
   .state-panel{text-align:center;padding:60px 20px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;margin-bottom:20px}
   .state-icon{font-size:48px;margin-bottom:16px}
   .state-title{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;margin-bottom:8px}
@@ -95,7 +87,6 @@
   .retry-btn{margin-top:16px;padding:8px 20px;border-radius:8px;background:var(--accent);border:none;color:#fff;font-family:'JetBrains Mono',monospace;font-size:12px;cursor:pointer}
   .retry-btn:hover{opacity:.85}
 
-  /* CLUSTERS */
   .cluster{margin-bottom:14px;border:1px solid var(--border);border-radius:12px;overflow:hidden}
   .cluster-header{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;background:var(--bg2);cursor:pointer;user-select:none;transition:background .15s}
   .cluster-header:hover{background:var(--bg3)}
@@ -107,14 +98,14 @@
   .badge{padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;letter-spacing:.4px}
   .badge-green{background:var(--green-bg);color:var(--green);border:1px solid rgba(34,197,94,.3)}
   .badge-yellow{background:var(--yellow-bg);color:var(--yellow);border:1px solid rgba(245,158,11,.3)}
+  .badge-purple{background:rgba(167,139,250,.12);color:var(--purple);border:1px solid rgba(167,139,250,.3)}
   .badge-muted{background:var(--bg4);color:var(--muted);border:1px solid var(--border)}
   .chevron{color:var(--muted);transition:transform .25s;font-size:15px}
   .cluster.open .chevron{transform:rotate(180deg)}
   .cluster-body{display:none;overflow-x:auto}
   .cluster.open .cluster-body{display:block}
 
-  /* TABLE */
-  table{width:100%;border-collapse:collapse;min-width:1500px}
+  table{width:100%;border-collapse:collapse;min-width:1700px}
   thead tr{background:var(--bg3);border-bottom:1px solid var(--border2)}
   th{padding:8px 10px;text-align:left;font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap;border-right:1px solid var(--border);cursor:pointer}
   th:last-child{border-right:none}
@@ -127,32 +118,22 @@
   tbody tr:hover{background:var(--bg3)}
   td{padding:9px 10px;border-right:1px solid var(--border);white-space:nowrap}
   td:last-child{border-right:none}
-  /* sticky first col */
   td:first-child,th:first-child{position:sticky;left:0;background:var(--bg2);z-index:1;border-right:2px solid var(--border2)}
   thead th:first-child{background:var(--bg3)}
   tbody tr:hover td:first-child{background:var(--bg3)}
 
-  /* CELLS */
   .seg-name{font-weight:600;color:var(--text);font-size:12px}
   .seg-proxy{color:var(--muted);font-size:10px;margin-top:1px}
   .num{text-align:right;font-variant-numeric:tabular-nums}
   .pos{color:var(--green)}.neg{color:var(--red)}.neu{color:var(--muted)}
-
-  /* GAUGE */
   .gw{display:flex;align-items:center;gap:6px}
   .gb{height:4px;background:var(--bg4);border-radius:2px;overflow:hidden}
   .gf{height:100%;border-radius:2px}
-
-  /* RS BAR (centrered) */
   .rs-bar{width:48px;height:4px;background:var(--bg4);border-radius:2px;position:relative}
   .rs-fill{height:100%;border-radius:2px;position:absolute;top:0}
-
-  /* MANSFIELD BAR */
   .msf-bar{width:52px;height:4px;background:var(--bg4);border-radius:2px;position:relative}
   .msf-zero{position:absolute;left:50%;top:-2px;width:1px;height:8px;background:var(--border2)}
   .msf-fill{height:100%;border-radius:2px;position:absolute;top:0}
-
-  /* TAGS */
   .tag{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.4px}
   .tag-up{background:var(--green-bg);color:var(--green)}
   .tag-down{background:var(--red-bg);color:var(--red)}
@@ -161,36 +142,29 @@
   .tag-ll{background:rgba(239,68,68,.08);color:#f87171}
   .tag-lh{background:rgba(245,158,11,.10);color:var(--yellow)}
   .tag-hl{background:rgba(34,197,94,.08);color:#4ade80}
-
-  /* CROSSES */
   .x-bull{color:var(--green);font-size:13px;font-weight:700}
   .x-bear{color:var(--red);font-size:13px;font-weight:700}
   .x-flat{color:var(--muted);font-size:13px}
   .x-new{font-size:9px;margin-left:2px;letter-spacing:.4px}
 
-  /* SIGNAL */
+  /* SIGNAL CELLS */
   .sig-cell{display:flex;align-items:center;gap:6px;font-weight:700;font-size:11px}
   .sig-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-  .sig-buy .sig-dot{background:var(--green);box-shadow:0 0 6px var(--green)}
-  .sig-watch .sig-dot{background:var(--yellow);box-shadow:0 0 4px var(--yellow)}
+  .sig-buy  .sig-dot{background:var(--green);box-shadow:0 0 6px var(--green)}
+  .sig-watch.sig-dot{background:var(--yellow);box-shadow:0 0 4px var(--yellow)}
   .sig-none .sig-dot{background:var(--red)}
-  .sig-buy{color:var(--green)}.sig-watch{color:var(--yellow)}.sig-none{color:var(--muted)}
+  .sig-purple .sig-dot{background:var(--purple);box-shadow:0 0 6px var(--purple)}
+  .sig-watch .sig-dot{background:var(--yellow);box-shadow:0 0 4px var(--yellow)}
+  .sig-buy{color:var(--green)}.sig-watch{color:var(--yellow)}.sig-none{color:var(--muted)}.sig-purple{color:var(--purple)}
   .cond-dots{display:flex;gap:3px;margin-left:1px}
   .cd{width:6px;height:6px;border-radius:50%}
-  .cd-ok{background:var(--green)}.cd-no{background:var(--border2)}.cd-warn{background:var(--yellow)}
+  .cd-ok{background:var(--green)}.cd-no{background:var(--border2)}.cd-warn{background:var(--yellow)}.cd-purple{background:var(--purple)}
 
-  /* TOOLTIP */
   [data-tip]{position:relative;cursor:help}
   [data-tip]:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--bg4);border:1px solid var(--border2);color:var(--text);padding:4px 9px;border-radius:5px;font-size:10px;white-space:nowrap;z-index:999;pointer-events:none}
 
-  /* DEMO BANNER */
   .demo-banner{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.25);border-radius:8px;padding:8px 14px;margin-bottom:16px;font-size:11px;color:var(--yellow)}
-
-  @media(max-width:900px){
-    .stats-bar{grid-template-columns:repeat(3,1fr)}
-    .page-header{flex-direction:column}
-    .legend{flex-wrap:wrap}
-  }
+  @media(max-width:900px){.stats-bar{grid-template-columns:repeat(3,1fr)}.page-header{flex-direction:column}.legend{flex-wrap:wrap}}
 </style>
 </head>
 <body>
@@ -208,11 +182,10 @@
 
 <div class="page">
 
-  <!-- HEADER -->
   <div class="page-header">
     <div>
       <div class="page-title">Sector <span>Deep Dive</span></div>
-      <div class="page-sub">69 subsegmenten · 11 sectoren · Vroeg (max 6pt) + Bevestigd (max 4pt)</div>
+      <div class="page-sub">69 subsegmenten · 11 sectoren · ACCUM (max 8pt) · EMA+Mansfield (max 4pt) · Bevestigd (max 4pt)</div>
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:10px">
       <div class="last-upd">
@@ -220,14 +193,14 @@
         <span id="lastUpdLbl">Initialiseren...</span>
       </div>
       <div class="legend">
-        <div class="leg-item"><div class="leg-dot" style="background:var(--green);box-shadow:0 0 5px var(--green)"></div>KOOP (3/3)</div>
-        <div class="leg-item"><div class="leg-dot" style="background:var(--yellow)"></div>WATCH (2/3)</div>
-        <div class="leg-item"><div class="leg-dot" style="background:var(--red)"></div>GEEN (≤1)</div>
+        <div class="leg-item"><div class="leg-dot" style="background:var(--purple);box-shadow:0 0 5px var(--purple)"></div>ACCUM ≥5pt</div>
+        <div class="leg-item"><div class="leg-dot" style="background:var(--green);box-shadow:0 0 5px var(--green)"></div>EMA VROEG ≥3pt</div>
+        <div class="leg-item"><div class="leg-dot" style="background:var(--yellow)"></div>WATCH 2pt</div>
+        <div class="leg-item"><div class="leg-dot" style="background:var(--red)"></div>GEEN ≤1pt</div>
       </div>
     </div>
   </div>
 
-  <!-- APPS SCRIPT URL -->
   <div class="config-note" id="configNote">
     ⚙️ <strong>Eenmalige instelling:</strong> Deploy <code>deepdive.gs</code> als Web App in Google Apps Script
     (Uitvoeren als: <strong>Ik</strong> · Toegang: <strong>Iedereen</strong>), kopieer de URL en plak hem hieronder.
@@ -238,140 +211,79 @@
     </div>
   </div>
 
-  <!-- FORMULA BAR + UITKLAPBARE LEGENDA -->
   <div class="formula-bar" style="flex-direction:column;align-items:stretch;gap:10px">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
       <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-        <div class="formula-label">Signalen</div>
+        <div class="formula-label">Signaallagen</div>
         <div class="formula-parts">
-          <div class="fp fp-early" data-tip="EMA8 S-Bull + W-Trend UP = 2pt | RS Breuk Up + RS>0 = 2pt | Vol 5d/20d≥1.5× + 10d/30d≥1.3× = 1pt">⚡ VROEG (max 5pt)</div>
-          <div class="fp-op">|</div>
-          <div class="fp fp-cross" data-tip="EMA21/50 cross = 1pt | HH/HL structuur = 1pt | W-Trend UP = 1pt | Vol≥2.0× = 1pt">✓ BEVESTIGD (max 4pt)</div>
+          <div class="fp fp-accum" data-tip="ACCUM: CMF EARLY 2pt + OBV divergentie 2pt + UD ratio >1.2 = 1pt + ATR absorptie 3pt = max 8pt. Signaal bij ≥5pt. Detecteert kapitaalinstroom vóór prijsbeweging.">📊 ACCUM (max 8pt)</div>
           <div class="fp-op">→</div>
-          <div style="font-size:11px;color:var(--muted)">VROEG🟢+BEV🟢 = <span style="color:var(--green)">Sterk instap</span> &nbsp;|&nbsp; VROEG🟢+BEV🟡 = <span style="color:#4ade80">Opbouwen</span> &nbsp;|&nbsp; VROEG🟢+BEV🔴 = <span style="color:var(--yellow)">Watchlist</span></div>
+          <div class="fp fp-early" data-tip="EMA8/21 dagelijkse cross: vers=2pt, nadert (ratio 0.97-1.0)=1pt | Mansfield early recovery (M<0+RS↑)=2pt, bevestigd (M>0+RS↑)=2pt. Max 4pt, signaal ≥3pt.">⚡ EMA+Mansfield (max 4pt)</div>
+          <div class="fp-op">→</div>
+          <div class="fp fp-cross" data-tip="EMA21/50 cross=1pt | HH/HL structuur=1pt | W-Trend UP=1pt | Vol≥2.0×=1pt. Max 4pt, signaal ≥3pt.">✓ Bevestigd (max 4pt)</div>
+          <div class="fp-op" style="font-size:11px">→</div>
+          <div style="font-size:11px;color:var(--muted)">
+            ACCUM🟣 = <span style="color:var(--purple)">kapitaalinstroom vóór prijs</span> &nbsp;|&nbsp;
+            ACCUM🟣+EMA🟢 = <span style="color:var(--green)">ideale setup</span> &nbsp;|&nbsp;
+            EMA🟢+BEV🟢 = <span style="color:#4ade80">sterk instap</span>
+          </div>
         </div>
       </div>
       <button onclick="toggleLegend()" class="btn" id="legendBtn" style="white-space:nowrap">📖 Legenda</button>
     </div>
 
-    <!-- UITKLAPBARE LEGENDA -->
     <div id="legendPanel" style="display:none;border-top:1px solid var(--border);padding-top:14px">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;font-size:11px">
-
-        <!-- LINKER KOLOM: Hoe lees je een rij -->
         <div>
-          <div style="color:var(--accent2);font-weight:700;font-size:12px;margin-bottom:10px;text-transform:uppercase;letter-spacing:.6px">📊 Hoe lees je een rij (links → rechts)</div>
+          <div style="color:var(--accent2);font-weight:700;font-size:12px;margin-bottom:10px;text-transform:uppercase;letter-spacing:.6px">📊 Signaalvolgorde (vroeg → laat)</div>
           <div style="display:flex;flex-direction:column;gap:8px">
-            <div style="background:var(--bg4);border-radius:7px;padding:10px 12px">
-              <div style="color:var(--text);font-weight:600;margin-bottom:4px">Stap 1 — W-Trend (wekelijks)</div>
-              <div style="color:var(--muted);line-height:1.7">
-                <span style="color:var(--green)">↑ UP</span> = hogere timeframe intact → zoek instap<br>
-                <span style="color:var(--muted)">↔ RANGE</span> = zijwaarts → wacht af<br>
-                <span style="color:var(--red)">↓ DOWN</span> = vermijd nieuwe posities
-              </div>
+            <div style="background:var(--bg4);border-radius:7px;padding:10px 12px;border-left:3px solid var(--purple)">
+              <div style="color:var(--purple);font-weight:600;margin-bottom:4px">① ACCUM ≥5pt — weken vóór de move</div>
+              <div style="color:var(--muted);line-height:1.7">ATR comprimeert · CMF begint te stromen · OBV divergeert terwijl prijs vlak staat. PRE-badge = ACCUM≥5 én earlyScore≤2 (prijs nog niet bevestigd).</div>
             </div>
-            <div style="background:var(--bg4);border-radius:7px;padding:10px 12px">
-              <div style="color:var(--text);font-weight:600;margin-bottom:4px">Stap 2 — D-Trend (dagelijks)</div>
-              <div style="color:var(--muted);line-height:1.7">
-                W↑ + D↔ RANGE = <span style="color:var(--green)">dip in uptrend → koopkans</span><br>
-                W↑ + D↑ UP = <span style="color:var(--green)">trend versnelt → momentum</span><br>
-                W↓ + D↑ UP = <span style="color:var(--red)">pullback rally → niet instappen</span>
-              </div>
+            <div style="background:var(--bg4);border-radius:7px;padding:10px 12px;border-left:3px solid var(--cyan)">
+              <div style="color:var(--cyan);font-weight:600;margin-bottom:4px">② Mansfield early recovery — RS keert</div>
+              <div style="color:var(--muted);line-height:1.7">RS slope positief + Mansfield nog negatief maar verbeterend (▲E). Gecombineerd met ACCUM≥5: T+45 α+12.41% (n=17 backtestresultaat).</div>
             </div>
-            <div style="background:var(--bg4);border-radius:7px;padding:10px 12px">
-              <div style="color:var(--text);font-weight:600;margin-bottom:4px">Stap 3 — VROEG Signaal</div>
-              <div style="color:var(--muted);line-height:1.7">
-                RS Breuk Up + EMA8 S-Bull = sector begint te leiden<br>
-                <span style="color:var(--yellow)">2-5 dagen eerder dan de massa</span>
-              </div>
+            <div style="background:var(--bg4);border-radius:7px;padding:10px 12px;border-left:3px solid var(--green)">
+              <div style="color:var(--green);font-weight:600;margin-bottom:4px">③ EMA8/21 cross — prijs bevestigt</div>
+              <div style="color:var(--muted);line-height:1.7">EMA8 kruist EMA21 op dagbasis. Entry trigger na ACCUM+Mansfield setup. Gecombineerd: Cross+Early recovery T+45 α+9.90% (n=14).</div>
             </div>
-            <div style="background:var(--bg4);border-radius:7px;padding:10px 12px">
-              <div style="color:var(--text);font-weight:600;margin-bottom:4px">Stap 4 — BEVESTIGD Signaal</div>
-              <div style="color:var(--muted);line-height:1.7">
-                EMA21/50 cross + HH/HL + Vol ≥2× = lager risico<br>
-                <span style="color:var(--yellow)">Later instap maar hogere zekerheid</span>
-              </div>
-            </div>
-            <div style="background:var(--bg4);border-radius:7px;padding:10px 12px">
-              <div style="color:var(--text);font-weight:600;margin-bottom:4px">Stap 5 — Trend gevorderd?</div>
-              <div style="color:var(--muted);line-height:1.7">
-                RSI &gt;70 + Mansfield &gt;2.5 = <span style="color:var(--red)">te laat, risico/rendement verslechterd</span><br>
-                RSI &lt;50 + Mansfield &lt;0 = <span style="color:var(--muted)">nog geen momentum</span>
-              </div>
+            <div style="background:var(--bg4);border-radius:7px;padding:10px 12px;border-left:3px solid var(--accent)">
+              <div style="color:var(--accent2);font-weight:600;margin-bottom:4px">④ Bevestigd — trend gevestigd</div>
+              <div style="color:var(--muted);line-height:1.7">EMA21/50 cross + HH/HL + W-Trend UP + Vol≥2×. Lager risico maar later signaal. T+10 α+0.80%.</div>
             </div>
           </div>
         </div>
-
-        <!-- RECHTER KOLOM: Puntentelling -->
         <div>
-          <div style="color:var(--accent2);font-weight:700;font-size:12px;margin-bottom:10px;text-transform:uppercase;letter-spacing:.6px">🎯 Puntentelling Signalen</div>
-
-          <div style="background:var(--bg4);border-radius:7px;padding:10px 12px;margin-bottom:10px">
-            <div style="color:var(--purple);font-weight:700;margin-bottom:8px">⚡ VROEG SIGNAAL (max 5 punten)</div>
-            <div style="display:flex;flex-direction:column;gap:4px;color:var(--muted);line-height:1.7">
-              <div><span style="color:var(--text)">EMA8 S-Bull + W-Trend UP</span> = 2 pts &nbsp;<span style="color:var(--muted);font-size:10px">← vroegst signaal</span></div>
-              <div><span style="color:var(--text)">RS Breuk Up + RS score &gt;0</span> = 2 pts &nbsp;<span style="color:var(--muted);font-size:10px">← sector leidt al</span></div>
-              <div><span style="color:var(--text)">Vol 5d/20d ≥1.5×</span> = 1 pt &nbsp;<span style="color:var(--muted);font-size:10px">← snel momentum</span></div>
-              <div><span style="color:var(--text)">Vol 10d/30d ≥1.3×</span> = 1 pt &nbsp;<span style="color:var(--muted);font-size:10px">← structurele instroom</span></div>
-              <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">
-                <span style="color:var(--red)">🔴 GEEN</span> = 0-2 pts &nbsp;
-                <span style="color:var(--yellow)">🟡 WATCH</span> = 3 pts &nbsp;
-                <span style="color:var(--green)">🟢 VROEG</span> = 4-6 pts
-              </div>
-            </div>
+          <div style="color:var(--accent2);font-weight:700;font-size:12px;margin-bottom:10px;text-transform:uppercase;letter-spacing:.6px">🎯 Puntentelling</div>
+          <div style="background:var(--bg4);border-radius:7px;padding:10px 12px;margin-bottom:8px">
+            <div style="color:var(--purple);font-weight:700;margin-bottom:6px">📊 ACCUM (max 8pt — backend)</div>
+            <div style="color:var(--muted);line-height:1.8">CMF EARLY (stealth instroom) = 2pt<br>OBV divergentie (higher lows) = 2pt<br>UD ratio &gt;1.2 (koopdruk) = 1pt<br>ATR absorptie (compressie+vol) = 3pt<br><span style="color:var(--red)">GEEN</span> ≤2 · <span style="color:var(--yellow)">VROEG</span> 3-4 · <span style="color:var(--purple)">ACCUM</span> ≥5</div>
           </div>
-
-          <div style="background:var(--bg4);border-radius:7px;padding:10px 12px;margin-bottom:10px">
-            <div style="color:var(--cyan);font-weight:700;margin-bottom:8px">✓ BEVESTIGD SIGNAAL (max 4 punten)</div>
-            <div style="display:flex;flex-direction:column;gap:4px;color:var(--muted);line-height:1.7">
-              <div><span style="color:var(--text)">EMA21/50 bull of bull-cross</span> = 1 pt &nbsp;<span style="color:var(--muted);font-size:10px">← trend bevestigd</span></div>
-              <div><span style="color:var(--text)">HH/HL structuur</span> = 1 pt &nbsp;<span style="color:var(--muted);font-size:10px">← swing intact</span></div>
-              <div><span style="color:var(--text)">W-Trend UP</span> = 1 pt &nbsp;<span style="color:var(--muted);font-size:10px">← hogere timeframe ok</span></div>
-              <div><span style="color:var(--text)">Vol 5d/20d ≥2.0×</span> = 1 pt &nbsp;<span style="color:var(--muted);font-size:10px">← uitbraakvolume</span></div>
-              <div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">
-                <span style="color:var(--red)">🔴 GEEN</span> = 0-1 pt &nbsp;
-                <span style="color:var(--yellow)">🟡 WATCH</span> = 2 pts &nbsp;
-                <span style="color:var(--green)">🟢 KOOP</span> = 3-4 pts
-              </div>
-            </div>
+          <div style="background:var(--bg4);border-radius:7px;padding:10px 12px;margin-bottom:8px">
+            <div style="color:var(--cyan);font-weight:700;margin-bottom:6px">⚡ EMA+MANSFIELD (max 4pt)</div>
+            <div style="color:var(--muted);line-height:1.8">EMA8/21 vers cross = 2pt<br>EMA8/21 nadert (ratio &gt;0.97) = 1pt<br>Mansfield early (M&lt;0+RS↑) = 2pt<br>Mansfield bevestigd (M&gt;0+RS↑) = 2pt<br><span style="color:var(--red)">GEEN</span> ≤1 · <span style="color:var(--yellow)">WATCH</span> 2 · <span style="color:var(--green)">VROEG</span> ≥3</div>
           </div>
-
           <div style="background:var(--bg4);border-radius:7px;padding:10px 12px">
-            <div style="color:var(--text);font-weight:700;margin-bottom:8px">🔀 Combinatie lezen</div>
-            <div style="display:grid;grid-template-columns:auto auto 1fr;gap:4px 10px;align-items:center;color:var(--muted);font-size:11px">
-              <span>VROEG🟢</span><span>+ BEV🟢</span><span style="color:var(--green)">→ Sterk instap — alles aligned</span>
-              <span>VROEG🟢</span><span>+ BEV🟡</span><span style="color:#4ade80">→ Opbouwen — vroeg maar bewust</span>
-              <span>VROEG🟢</span><span>+ BEV🔴</span><span style="color:var(--yellow)">→ Watchlist — te vroeg nog</span>
-              <span>VROEG🟡</span><span>+ BEV🟢</span><span style="color:var(--muted)">→ Gemiste trein — wacht reset</span>
-              <span>VROEG🔴</span><span>+ BEV🔴</span><span style="color:var(--red)">→ Vermijd — geen alignment</span>
-            </div>
-          </div>
-
-          <div style="margin-top:10px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:7px;padding:10px 12px">
-            <div style="color:var(--yellow);font-weight:700;margin-bottom:6px">⚠️ Trend al ver gevorderd?</div>
-            <div style="color:var(--muted);line-height:1.7;font-size:11px">
-              RSI &gt;70 <span style="color:var(--muted)">+</span> Mansfield &gt;2.5 <span style="color:var(--muted)">+</span> EMA8 vlakt af<br>
-              → risico/rendement verslechterd, overweeg wachten op reset<br>
-              <span style="font-size:10px">Volume: 5d/20d ≥1.5× én 10d/30d ≥1.3× = echt institutioneel (niet event-gedreven)</span>
-            </div>
+            <div style="color:var(--green);font-weight:700;margin-bottom:6px">✓ BEVESTIGD (max 4pt)</div>
+            <div style="color:var(--muted);line-height:1.8">EMA21/50 bull/cross = 1pt<br>HH/HL structuur = 1pt<br>W-Trend UP = 1pt<br>Vol 5d/20d ≥2.0× = 1pt<br><span style="color:var(--red)">GEEN</span> ≤1 · <span style="color:var(--yellow)">WATCH</span> 2 · <span style="color:var(--green)">KOOP</span> ≥3</div>
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- STATS BAR -->
   <div class="stats-bar">
     <div class="stat-card"><div class="stat-label">Totaal</div><div class="stat-value accent" id="st-total">69</div></div>
-    <div class="stat-card"><div class="stat-label">🟢 Koop</div><div class="stat-value green" id="st-buy">—</div></div>
+    <div class="stat-card"><div class="stat-label">📊 ACCUM</div><div class="stat-value purple" id="st-accum">—</div></div>
+    <div class="stat-card"><div class="stat-label">⚡ EMA Vroeg</div><div class="stat-value green" id="st-buy">—</div></div>
     <div class="stat-card"><div class="stat-label">🟡 Watch</div><div class="stat-value yellow" id="st-watch">—</div></div>
     <div class="stat-card"><div class="stat-label">🔴 Geen</div><div class="stat-value red" id="st-none">—</div></div>
     <div class="stat-card"><div class="stat-label">Sterkste RS</div><div class="stat-value green" style="font-size:13px" id="st-toprs">—</div></div>
-    <div class="stat-card"><div class="stat-label">Hoogste RSI</div><div class="stat-value accent" style="font-size:13px" id="st-toprsi">—</div></div>
     <div class="stat-card"><div class="stat-label">Top Volume</div><div class="stat-value purple" style="font-size:13px" id="st-topvol">—</div></div>
   </div>
 
-  <!-- FILTERS -->
   <div class="filters">
     <div class="search-wrap">
       <span class="search-icon">🔍</span>
@@ -379,7 +291,8 @@
     </div>
     <span class="filter-label" style="margin-left:6px">Signaal:</span>
     <button class="btn btn-g active" data-sig="all">Alle</button>
-    <button class="btn btn-g" data-sig="VROEG">⚡ Vroeg</button>
+    <button class="btn btn-p" data-sig="ACCUM">📊 ACCUM</button>
+    <button class="btn btn-g" data-sig="VROEG">⚡ EMA Vroeg</button>
     <button class="btn btn-y" data-sig="WATCH">🟡 Watch</button>
     <button class="btn btn-r" data-sig="GEEN">🔴 Geen</button>
     <span class="filter-label" style="margin-left:6px">Trend:</span>
@@ -395,12 +308,10 @@
     <button class="btn" id="refreshBtn" onclick="loadData(true)">↻ Refresh</button>
   </div>
 
-  <!-- DEMO BANNER (hidden by default) -->
   <div id="demoBanner" class="demo-banner" style="display:none">
     ⚡ <strong>Demo modus</strong> — toont voorbeelddata. Vul jouw Apps Script URL in bovenaan om live data te laden.
   </div>
 
-  <!-- LOADING -->
   <div id="loadingState" class="state-panel">
     <div class="state-icon">📡</div>
     <div class="state-title">Data ophalen...</div>
@@ -408,7 +319,6 @@
     <div class="progress-bar"><div class="progress-fill"></div></div>
   </div>
 
-  <!-- ERROR -->
   <div id="errorState" class="state-panel" style="display:none">
     <div class="state-icon">⚠️</div>
     <div class="state-title">Verbinding mislukt</div>
@@ -416,21 +326,16 @@
     <button class="retry-btn" onclick="loadData(true)">↻ Opnieuw proberen</button>
   </div>
 
-  <!-- DATA -->
   <div id="clustersContainer" style="display:none"></div>
 
 </div>
 
 <script>
-// ══════════════════════════════════════════════════════════════
-// CONSTANTEN
-// ══════════════════════════════════════════════════════════════
-const LS_URL     = "deepdive_appsscript_url";
-const LS_CACHE   = "deepdive_cache_v3";
-const LS_CACHE_TS= "deepdive_cache_ts_v3";
-const CACHE_TTL  = 30 * 60 * 1000;    // 30 min lokale cache
-const AUTO_REFRESH = 30 * 60 * 1000;  // auto-refresh interval
-
+const LS_URL      = "deepdive_appsscript_url";
+const LS_CACHE    = "deepdive_cache_v4";       // v4 — cache key bijgewerkt
+const LS_CACHE_TS = "deepdive_cache_ts_v4";
+const CACHE_TTL   = 30 * 60 * 1000;
+const AUTO_REFRESH= 30 * 60 * 1000;
 const SECTOR_ICONS = {
   "Technology":"💻","Healthcare":"🏥","Financials":"🏦",
   "Consumer Discret.":"🛒","Consumer Staples":"🛍️","Industrials":"⚙️",
@@ -438,23 +343,10 @@ const SECTOR_ICONS = {
   "Materials":"🪨","Communication":"📡"
 };
 
-// ══════════════════════════════════════════════════════════════
-// STATE
-// ══════════════════════════════════════════════════════════════
-let DATA        = [];      // huidig dataset (na filter/sort)
-let RAW_DATA    = [];      // origineel van server
-let activeSignal= "all";
-let activeTrend = "all";
-let activeSector= "all";
-let searchTerm  = "";
-let allExpanded = true;
-let sortCol     = null;
-let sortDir     = -1;
-let refreshTimer= null;
+let DATA=[], RAW_DATA=[];
+let activeSignal="all", activeTrend="all", activeSector="all", searchTerm="";
+let allExpanded=true, sortCol=null, sortDir=-1, refreshTimer=null;
 
-// ══════════════════════════════════════════════════════════════
-// INIT
-// ══════════════════════════════════════════════════════════════
 document.addEventListener("DOMContentLoaded", () => {
   const savedUrl = localStorage.getItem(LS_URL) || "";
   if (savedUrl) {
@@ -465,9 +357,6 @@ document.addEventListener("DOMContentLoaded", () => {
   loadData(false);
 });
 
-// ══════════════════════════════════════════════════════════════
-// SAVE & LOAD
-// ══════════════════════════════════════════════════════════════
 function saveAndLoad() {
   const url = document.getElementById("appsScriptUrl").value.trim();
   if (!url.startsWith("https://script.google.com")) {
@@ -479,50 +368,30 @@ function saveAndLoad() {
   loadData(true);
 }
 
-// ══════════════════════════════════════════════════════════════
-// DATA LADEN
-// ══════════════════════════════════════════════════════════════
 async function loadData(forceRefresh = false) {
   const url = localStorage.getItem(LS_URL) || "";
-
-  // Geen URL → demo modus
   if (!url) { showDemoMode(); return; }
-
-  // Lokale cache controleren
   if (!forceRefresh) {
-    const ts   = parseInt(localStorage.getItem(LS_CACHE_TS) || "0");
+    const ts = parseInt(localStorage.getItem(LS_CACHE_TS) || "0");
     const blob = localStorage.getItem(LS_CACHE);
     if (blob && (Date.now() - ts) < CACHE_TTL) {
-      try {
-        const parsed = JSON.parse(blob);
-        renderAll(parsed.data, parsed.lastUpdated);
-        scheduleRefresh();
-        return;
-      } catch (_) { /* corrupt — doorladen */ }
+      try { const p=JSON.parse(blob); renderAll(p.data, p.lastUpdated); scheduleRefresh(); return; } catch(_){}
     }
   }
-
   setLoadingState();
   setRefreshBtn(true);
-
   try {
-    const endpoint = `${url}?tab=deepdive&_t=${Date.now()}`;
-    const res = await fetch(endpoint);
-    if (!res.ok) throw new Error(`Server antwoordde met HTTP ${res.status}`);
-
+    const res = await fetch(`${url}?tab=deepdive&_t=${Date.now()}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json = await res.json();
-    if (json.error) throw new Error("Apps Script fout: " + json.error);
-    if (!Array.isArray(json.data)) throw new Error("Onverwacht data-formaat ontvangen");
-
-    // Sla op in lokale cache
-    localStorage.setItem(LS_CACHE,    JSON.stringify(json));
+    if (json.error) throw new Error("Apps Script: " + json.error);
+    if (!Array.isArray(json.data)) throw new Error("Onverwacht formaat");
+    localStorage.setItem(LS_CACHE, JSON.stringify(json));
     localStorage.setItem(LS_CACHE_TS, String(Date.now()));
-
     renderAll(json.data, json.lastUpdated);
     scheduleRefresh();
-
-  } catch (err) {
-    console.error("loadData:", err);
+  } catch(err) {
+    console.error(err);
     setErrorState(err.message);
   } finally {
     setRefreshBtn(false);
@@ -533,72 +402,110 @@ function scheduleRefresh() {
   if (refreshTimer) clearTimeout(refreshTimer);
   refreshTimer = setTimeout(() => loadData(true), AUTO_REFRESH);
 }
-
-function setRefreshBtn(loading) {
-  const btn = document.getElementById("refreshBtn");
-  btn.textContent = loading ? "⏳ Laden..." : "↻ Refresh";
-  btn.disabled = loading;
-}
-
-// ══════════════════════════════════════════════════════════════
-// UI STATES
-// ══════════════════════════════════════════════════════════════
+function setRefreshBtn(l) { const b=document.getElementById("refreshBtn"); b.textContent=l?"⏳ Laden...":"↻ Refresh"; b.disabled=l; }
 function setLoadingState() {
-  document.getElementById("loadingState").style.display = "";
-  document.getElementById("errorState").style.display = "none";
-  document.getElementById("clustersContainer").style.display = "none";
-  document.getElementById("demoBanner").style.display = "none";
+  document.getElementById("loadingState").style.display="";
+  document.getElementById("errorState").style.display="none";
+  document.getElementById("clustersContainer").style.display="none";
+  document.getElementById("demoBanner").style.display="none";
 }
-
 function setErrorState(msg) {
-  document.getElementById("loadingState").style.display = "none";
-  document.getElementById("errorState").style.display = "";
-  document.getElementById("clustersContainer").style.display = "none";
-  document.getElementById("errorMsg").textContent = msg;
-  setPulse("var(--red)", "Verbinding mislukt");
+  document.getElementById("loadingState").style.display="none";
+  document.getElementById("errorState").style.display="";
+  document.getElementById("clustersContainer").style.display="none";
+  document.getElementById("errorMsg").textContent=msg;
+  setPulse("var(--red)","Verbinding mislukt");
 }
-
 function showDemoMode() {
-  document.getElementById("demoBanner").style.display = "";
-  document.getElementById("loadingState").style.display = "none";
+  document.getElementById("demoBanner").style.display="";
+  document.getElementById("loadingState").style.display="none";
   renderAll(getDemoData(), null, true);
 }
 
 // ══════════════════════════════════════════════════════════════
-// SIGNAL LOGICA (client-side)
+// LAAG 1 — ACCUM SIGNAAL (backend)
+// Gebruikt accumScore van backend als beschikbaar.
+// Als backend nog geen accumScore levert (deepdive.gs nog niet bijgewerkt):
+// toont "n/b" zonder de rij te verstoren.
 // ══════════════════════════════════════════════════════════════
-// ── VROEG SIGNAAL (max 6 punten) ──────────────────────────────────
-function computeEarlySignal(seg) {
-  // EMA8 S-Bull + W-Trend UP = 2 punten (gewicht 2 — vroegst signaal)
-  const ema8ok   = seg.ema8align === "strong-bull" ? 1 : 0;
-  const wTrendOk = seg.weeklyTrend === "UP"        ? 1 : 0;
-  const ema8pts  = (ema8ok && wTrendOk) ? 2 : (ema8ok || wTrendOk) ? 1 : 0;
-
-  // RS Breuk Up + RS score > 0 = 2 punten (gewicht 2 — sector leidt al)
-  const rsBreakOk = seg.rsBreak === "up" ? 1 : 0;
-  const rsPosOk   = (seg.rs || 0) > 0   ? 1 : 0;
-  const rsPts     = (rsBreakOk && rsPosOk) ? 2 : rsBreakOk ? 1 : 0;
-
-  // Vol 5d/20d ≥ 1.5× = 1 punt (snel momentum)
-  const vol5pts  = (seg.volFlow   || 0) >= 1.5 ? 1 : 0;
-
-  // Vol 10d/30d ≥ 1.3× = 1 punt (structurele instroom — apart punt)
-  const vol10pts = (seg.volFlow30 || 0) >= 1.3 ? 1 : 0;
-
-  const score = ema8pts + rsPts + vol5pts + vol10pts;
+function computeAccumSignal(seg) {
+  const score = seg.accumScore != null ? seg.accumScore : null;
+  if (score === null) return { score: 0, label: "n/b", cls: "sig-none", isPreSignal: false, hasData: false };
+  const isPreSignal = !!(seg.isPreSignal);
   return {
-    score, ema8pts, rsPts, vol5pts, vol10pts,
-    label: score >= 4 ? "VROEG" : score === 3 ? "WATCH" : "GEEN",
-    cls:   score >= 4 ? "sig-buy" : score === 3 ? "sig-watch" : "sig-none",
+    score, isPreSignal, hasData: true,
+    label: score >= 5 ? (isPreSignal ? "PRE" : "ACCUM") : score >= 3 ? "VROEG" : "GEEN",
+    cls:   score >= 5 ? "sig-purple" : score >= 3 ? "sig-watch" : "sig-none",
   };
 }
 
-// ── BEVESTIGD SIGNAAL (max 4 punten) ───────────────────────────────
+// ══════════════════════════════════════════════════════════════
+// LAAG 2 — EMA+MANSFIELD SIGNAAL (nieuw 4pt model)
+//
+// Vervangt het oude 6pt model (EMA8 S-Bull + RS Breuk + Vol).
+//
+// Ondersteunt twee modi:
+// A) Nieuwe backend-velden (na update deepdive.gs):
+//    freshCross, preCross, mansfieldEarlyRecov, mansfieldConfirmed
+// B) Proxy via bestaande velden (backwards compatible):
+//    ema8align → fresh cross proxy
+//    rsTrend + mansfield → Mansfield early recovery proxy
+// ══════════════════════════════════════════════════════════════
+function computeEarlySignal(seg) {
+  // ① EMA8/21 dagelijkse cross (0-2pt)
+  let emaPts = 0, ema8FreshCross = false, ema8PreCross = false;
+  if (seg.freshCross !== undefined) {
+    // Nieuwe backend-velden beschikbaar (deepdive.gs bijgewerkt)
+    ema8FreshCross = !!seg.freshCross;
+    ema8PreCross   = !!seg.preCross;
+    emaPts = ema8FreshCross ? 2 : ema8PreCross ? 1 : 0;
+  } else {
+    // Proxy: ema8align "bull" = EMA8>EMA21 maar EMA21 nog onder EMA50
+    //        → EMA8/21 cross waarschijnlijk recent (2pt)
+    //        "strong-bull" = EMA8>EMA21>EMA50 → al gevestigd (1pt)
+    ema8FreshCross = seg.ema8align === "bull";
+    const ema8Ok   = seg.ema8align === "strong-bull" || seg.ema8align === "bull";
+    emaPts = ema8FreshCross ? 2 : ema8Ok ? 1 : 0;
+  }
+
+  // ② Mansfield early recovery (0-2pt)
+  // Early:     RS slope omhoog + Mansfield < 0 (underperformance neemt af)
+  // Bevestigd: RS slope omhoog + Mansfield > 0 (al leider)
+  let mansfieldPts = 0, mansfieldEarly = false, mansfieldConfirm = false;
+  if (seg.mansfieldEarlyRecov !== undefined) {
+    // Nieuwe backend-velden beschikbaar
+    mansfieldEarly   = !!seg.mansfieldEarlyRecov;
+    mansfieldConfirm = !!seg.mansfieldConfirmed;
+    mansfieldPts = (mansfieldEarly || mansfieldConfirm) ? 2
+                 : ((seg.mansfield || 0) > 0 || seg.rsTrend === "up") ? 1 : 0;
+  } else {
+    // Proxy: rsTrend "up" = RS slope positief
+    const mNeg = (seg.mansfield || 0) < 0;
+    const mPos = (seg.mansfield || 0) > 0;
+    const rsUp = seg.rsTrend === "up";
+    mansfieldEarly   = mNeg && rsUp;   // M nog negatief maar RS verbetert → early recovery
+    mansfieldConfirm = mPos && rsUp;   // M positief + RS verbetert → bevestigd
+    mansfieldPts = (mansfieldEarly || mansfieldConfirm) ? 2 : (mPos || rsUp) ? 1 : 0;
+  }
+
+  const score = emaPts + mansfieldPts;
+  return {
+    score, emaPts, mansfieldPts,
+    ema8FreshCross, ema8PreCross,
+    mansfieldEarly, mansfieldConfirm,
+    label: score >= 3 ? "VROEG" : score === 2 ? "WATCH" : "GEEN",
+    cls:   score >= 3 ? "sig-buy" : score === 2 ? "sig-watch" : "sig-none",
+  };
+}
+
+// ══════════════════════════════════════════════════════════════
+// LAAG 3 — BEVESTIGD SIGNAAL (ongewijzigd)
+// ══════════════════════════════════════════════════════════════
 function computeConfSignal(seg) {
   const cross  = ["bull","bull-cross"].includes(seg.ema21x50) ? 1 : 0;
-  const struct = seg.structure === "HH/HL"  ? 1 : 0;
-  const wTrend = seg.weeklyTrend === "UP"   ? 1 : 0;
-  const vol2x  = (seg.volFlow || 0) >= 2.0  ? 1 : 0;
+  const struct = seg.structure === "HH/HL" ? 1 : 0;
+  const wTrend = seg.weeklyTrend === "UP"  ? 1 : 0;
+  const vol2x  = (seg.volFlow || 0) >= 2.0 ? 1 : 0;
   const score  = cross + struct + wTrend + vol2x;
   return {
     score, cross, struct, wTrend, vol2x,
@@ -607,31 +514,31 @@ function computeConfSignal(seg) {
   };
 }
 
-function computeSignal(seg) { return computeEarlySignal(seg); }
-
 // ══════════════════════════════════════════════════════════════
-// RENDER ALLES
+// RENDER
 // ══════════════════════════════════════════════════════════════
 function renderAll(data, lastUpdated, isDemo = false) {
-  RAW_DATA = data.map(s => ({
-    ...s,
-    _sig:   computeEarlySignal(s),
-    _early: computeEarlySignal(s),
-    _conf:  computeConfSignal(s),
-    _earlyScore: computeEarlySignal(s).score,
-    _confScore:  computeConfSignal(s).score,
-  }));
+  RAW_DATA = data.map(s => {
+    const accum = computeAccumSignal(s);
+    const early = computeEarlySignal(s);
+    const conf  = computeConfSignal(s);
+    return {
+      ...s,
+      _accum: accum, _early: early, _conf: conf,
+      _accumScore: accum.score,
+      _earlyScore: early.score,
+      _confScore:  conf.score,
+    };
+  });
   applyFiltersAndSort();
   updateStats();
   buildSectorFilter();
   renderClusters();
-
-  document.getElementById("loadingState").style.display = "none";
-  document.getElementById("errorState").style.display = "none";
-  document.getElementById("clustersContainer").style.display = "";
-
+  document.getElementById("loadingState").style.display="none";
+  document.getElementById("errorState").style.display="none";
+  document.getElementById("clustersContainer").style.display="";
   if (isDemo) {
-    setPulse("var(--yellow)", "Demo modus — vul Apps Script URL in");
+    setPulse("var(--yellow)","Demo modus — vul Apps Script URL in");
   } else {
     const ts = lastUpdated ? new Date(lastUpdated).toLocaleTimeString("nl-NL") : new Date().toLocaleTimeString("nl-NL");
     setPulse("var(--green)", `Live data — ${ts}`);
@@ -643,145 +550,138 @@ function setPulse(color, label) {
   document.getElementById("lastUpdLbl").textContent = label;
 }
 
-// ══════════════════════════════════════════════════════════════
-// FILTERS & SORT
-// ══════════════════════════════════════════════════════════════
 function applyFiltersAndSort() {
   DATA = RAW_DATA.filter(s => {
     if (activeSignal !== "all") {
-      const earlyMatch = s._early?.label === activeSignal;
-      const confMatch  = s._conf?.label  === activeSignal || (activeSignal === "VROEG" && s._early?.label === "VROEG");
-      if (!earlyMatch && !confMatch) return false;
+      if (activeSignal === "ACCUM" && s._accum.score < 5) return false;
+      if (activeSignal === "VROEG" && s._early.label !== "VROEG") return false;
+      if (activeSignal === "WATCH" && s._early.label !== "WATCH" && s._conf.label !== "WATCH") return false;
+      if (activeSignal === "GEEN"  && s._early.label !== "GEEN"  && s._conf.label !== "GEEN")  return false;
     }
-    if (activeTrend  !== "all" && s.trend !== activeTrend)        return false;
-    if (activeSector !== "all" && s.sector !== activeSector)       return false;
+    if (activeTrend  !== "all" && s.trend   !== activeTrend)  return false;
+    if (activeSector !== "all" && s.sector  !== activeSector) return false;
     if (searchTerm) {
       const hay = `${s.name} ${s.proxy} ${s.sector} ${s.id}`.toLowerCase();
       if (!hay.includes(searchTerm)) return false;
     }
     return true;
   });
-
   if (sortCol) {
-    const numOrder = { trend:{UP:2,RANGE:1,DOWN:0}, structure:{"HH/HL":3,"HL/LH":2,"LH/HL":1,"LH/LL":0}, ema21x50:{"bull-cross":3,bull:2,flat:1,bear:0,"bear-cross":-1}, sma21x50:{bull:2,flat:1,bear:0} };
-    DATA.sort((a, b) => {
-      let av = sortCol === "_sig.score" ? a._sig.score : a[sortCol];
-      let bv = sortCol === "_sig.score" ? b._sig.score : b[sortCol];
-      if (typeof av === "string") { av = numOrder[sortCol]?.[av] ?? 0; bv = numOrder[sortCol]?.[bv] ?? 0; }
-      av = av ?? -Infinity; bv = bv ?? -Infinity;
-      return sortDir * (bv - av);
+    const numOrder = {
+      trend:{UP:2,RANGE:1,DOWN:0},
+      structure:{"HH/HL":3,"HL/LH":2,"LH/HL":1,"LH/LL":0},
+      ema21x50:{"bull-cross":3,bull:2,flat:1,bear:0,"bear-cross":-1},
+      sma21x50:{bull:2,flat:1,bear:0}
+    };
+    DATA.sort((a,b) => {
+      let av=a[sortCol], bv=b[sortCol];
+      if (typeof av === "string") { av=numOrder[sortCol]?.[av]??0; bv=numOrder[sortCol]?.[bv]??0; }
+      av=av??-Infinity; bv=bv??-Infinity;
+      return sortDir*(bv-av);
     });
   }
 }
 
 function updateStats() {
-  const buy   = RAW_DATA.filter(s => s._early?.label === "VROEG").length;
-  const watch = RAW_DATA.filter(s => s._early?.label === "WATCH" || s._conf?.label === "KOOP").length;
-  const none  = RAW_DATA.filter(s => s._early?.label === "GEEN" && s._conf?.label === "GEEN").length;
+  const accum = RAW_DATA.filter(s => s._accum.score >= 5).length;
+  const buy   = RAW_DATA.filter(s => s._early.label === "VROEG").length;
+  const watch = RAW_DATA.filter(s => s._early.label === "WATCH" || s._conf.label === "WATCH").length;
+  const none  = RAW_DATA.filter(s => s._early.label === "GEEN" && s._conf.label === "GEEN").length;
   const topRS  = [...RAW_DATA].sort((a,b)=>(b.rs||0)-(a.rs||0))[0];
-  const topRSI = [...RAW_DATA].sort((a,b)=>(b.rsi||0)-(a.rsi||0))[0];
   const topVol = [...RAW_DATA].sort((a,b)=>(b.volFlow||0)-(a.volFlow||0))[0];
+  set("st-accum", accum);
   set("st-buy",   buy);
   set("st-watch", watch);
   set("st-none",  none);
   set("st-toprs",  topRS  ? topRS.name : "—");
-  set("st-toprsi", topRSI ? `${topRSI.name} (${topRSI.rsi})` : "—");
   set("st-topvol", topVol ? `${topVol.name} (${(topVol.volFlow||0).toFixed(1)}×)` : "—");
 }
-function set(id, v) { const el = document.getElementById(id); if (el) el.textContent = v; }
+function set(id,v){ const el=document.getElementById(id); if(el) el.textContent=v; }
 
 function buildSectorFilter() {
-  const sel = document.getElementById("sectorFilter");
-  const prev = sel.value;
-  const sectors = [...new Set(RAW_DATA.map(s => s.sector))].sort();
-  sel.innerHTML = '<option value="all">Alle sectoren</option>';
-  sectors.forEach(s => { const o=document.createElement("option"); o.value=s; o.textContent=s; sel.appendChild(o); });
-  sel.value = sectors.includes(prev) ? prev : "all";
+  const sel=document.getElementById("sectorFilter");
+  const prev=sel.value;
+  const sectors=[...new Set(RAW_DATA.map(s=>s.sector))].sort();
+  sel.innerHTML='<option value="all">Alle sectoren</option>';
+  sectors.forEach(s=>{ const o=document.createElement("option"); o.value=s; o.textContent=s; sel.appendChild(o); });
+  sel.value=sectors.includes(prev)?prev:"all";
 }
 
-// ══════════════════════════════════════════════════════════════
-// RENDER CLUSTERS
-// ══════════════════════════════════════════════════════════════
 function renderClusters() {
-  const grouped = {};
-  DATA.forEach(s => { if (!grouped[s.sector]) grouped[s.sector]=[]; grouped[s.sector].push(s); });
-  const container = document.getElementById("clustersContainer");
-  container.innerHTML = "";
-
-  if (DATA.length === 0) {
-    container.innerHTML = `<div class="state-panel"><div class="state-icon">🔍</div><div class="state-title">Geen resultaten</div><div class="state-sub">Pas de filters aan.</div></div>`;
+  const grouped={};
+  DATA.forEach(s=>{ if(!grouped[s.sector])grouped[s.sector]=[]; grouped[s.sector].push(s); });
+  const container=document.getElementById("clustersContainer");
+  container.innerHTML="";
+  if (DATA.length===0) {
+    container.innerHTML=`<div class="state-panel"><div class="state-icon">🔍</div><div class="state-title">Geen resultaten</div><div class="state-sub">Pas de filters aan.</div></div>`;
     return;
   }
-
-  Object.entries(grouped).forEach(([sector, segs]) => {
-    const el  = document.createElement("div");
-    el.className = allExpanded ? "cluster open" : "cluster";
-    const buy   = segs.filter(s=>s._sig.label==="KOOP").length;
-    const watch = segs.filter(s=>s._sig.label==="WATCH").length;
-    const none  = segs.filter(s=>s._sig.label==="GEEN").length;
-
-    el.innerHTML = `
+  Object.entries(grouped).forEach(([sector,segs]) => {
+    const el=document.createElement("div");
+    el.className=allExpanded?"cluster open":"cluster";
+    const accumN = segs.filter(s=>s._accum.score>=5).length;
+    const buy    = segs.filter(s=>s._early.label==="VROEG").length;
+    const watch  = segs.filter(s=>s._early.label==="WATCH").length;
+    const none   = segs.filter(s=>s._early.label==="GEEN"&&s._conf.label==="GEEN").length;
+    el.innerHTML=`
       <div class="cluster-header">
         <div class="cluster-info">
           <span class="cluster-icon">${SECTOR_ICONS[sector]||"📊"}</span>
-          <div>
-            <div class="cluster-name">${sector}</div>
-            <div class="cluster-parent">${segs.length} subsegmenten</div>
-          </div>
+          <div><div class="cluster-name">${sector}</div><div class="cluster-parent">${segs.length} subsegmenten</div></div>
         </div>
         <div class="cluster-badges">
-          ${buy   ? `<span class="badge badge-green">🟢 ${buy}</span>` : ""}
-          ${watch ? `<span class="badge badge-yellow">🟡 ${watch}</span>` : ""}
-          ${none  ? `<span class="badge badge-muted">🔴 ${none}</span>` : ""}
+          ${accumN?`<span class="badge badge-purple">📊 ${accumN}</span>`:""}
+          ${buy   ?`<span class="badge badge-green">⚡ ${buy}</span>`:""}
+          ${watch ?`<span class="badge badge-yellow">🟡 ${watch}</span>`:""}
+          ${none  ?`<span class="badge badge-muted">🔴 ${none}</span>`:""}
           <span class="chevron">▼</span>
         </div>
       </div>
       <div class="cluster-body">
         <table>${TABLE_HEADER}<tbody>${segs.map(rowHTML).join("")}</tbody></table>
       </div>`;
-
-    el.querySelector(".cluster-header").addEventListener("click", () => el.classList.toggle("open"));
+    el.querySelector(".cluster-header").addEventListener("click",()=>el.classList.toggle("open"));
     container.appendChild(el);
   });
 }
 
 // ══════════════════════════════════════════════════════════════
-// TABLE HEADER
+// TABLE HEADER — ACCUM kolom toegevoegd vóór EMA+Mans
 // ══════════════════════════════════════════════════════════════
-const TABLE_HEADER = `<thead><tr>
+const TABLE_HEADER=`<thead><tr>
   <th style="min-width:210px">Subsegment</th>
-  <th class="num" data-col="perf1w"      data-tip="Performance afgelopen week">1W% <span class="sort-icon">↕</span></th>
-  <th class="num" data-col="perf1m"      data-tip="Performance afgelopen maand">1M% <span class="sort-icon">↕</span></th>
-  <th data-col="rs"          data-tip="Relative Strength vs SPY — kwartaal, schaal -5/+5">RS vs SPY <span class="sort-icon">↕</span></th>
-  <th data-col="rsBreak"     data-tip="RS Breuk: doorbreekt de RS-lijn een 20-daags hoogte (🔼) of dieptepunt (🔽)? Vroeg momentum signaal">RS Breuk <span class="sort-icon">↕</span></th>
-  <th data-col="rsi"         data-tip="RSI(14) — Wilder's Relative Strength Index">RSI(14) <span class="sort-icon">↕</span></th>
-  <th data-col="mansfield"   data-tip="Mansfield RS vs SPX — 52-week genormaliseerd, schaal -5/+5">Mansfield <span class="sort-icon">↕</span></th>
-  <th data-col="volFlow"     data-tip="Volume Flow: 5d avg / 20d avg — >1.5× triggert signaal ③">Vol Flow <span class="sort-icon">↕</span></th>
-  <th data-col="breadth"     data-tip="Breadth: % van holdings boven SMA50">Breadth <span class="sort-icon">↕</span></th>
-  <th data-col="weeklyTrend" data-tip="Wekelijkse trend op basis van SMA10w en SMA20w (10/20 weken) — hogere timeframe context">W-Trend <span class="sort-icon">↕</span></th>
-  <th data-col="trend"       data-tip="Dagelijkse trend: close > SMA21 > SMA50 = UP; omgekeerd = DOWN">D-Trend <span class="sort-icon">↕</span></th>
-  <th data-col="structure"   data-tip="Swing structuur: HH/HL = bullish; LH/LL = bearish">Structuur <span class="sort-icon">↕</span></th>
-  <th data-col="ema8align"   data-tip="EMA8 alignment: strong-bull = EMA8>EMA21>EMA50 (vroeg momentum); bull = EMA8>EMA21 maar trend nog niet bevestigd">EMA8 Align <span class="sort-icon">↕</span></th>
-  <th data-col="sma21x50"    data-tip="SMA21 positie t.o.v. SMA50">SMA21/50 <span class="sort-icon">↕</span></th>
-  <th data-col="ema21x50"    data-tip="EMA21 cross EMA50 — triggert signaalcriterium ①; NEW = verse cross">EMA21/50 <span class="sort-icon">↕</span></th>
-  <th data-col="atr"         data-tip="ATR% — Average True Range als % van koers (volatiliteit proxy)">ATR% <span class="sort-icon">↕</span></th>
-  <th data-col="_earlyScore" data-tip="VROEG SIGNAAL (max 6pt): EMA8 S-Bull+W-Trend UP=2pt | RS Breuk Up+RS>0=2pt | Vol 5d/20d≥1.5×=1pt | Vol 10d/30d≥1.3×=1pt → 🔴GEEN=0-2 | 🟡WATCH=3 | 🟢VROEG=4-6">⚡ VROEG <span class="sort-icon">↕</span></th>
-  <th data-col="_confScore" data-tip="BEVESTIGD SIGNAAL (max 4pt): EMA21/50 cross=1pt | HH/HL structuur=1pt | W-Trend UP=1pt | Vol≥2.0×=1pt → 🔴GEEN=0-1 | 🟡WATCH=2 | 🟢KOOP=3-4">✓ BEVESTIGD <span class="sort-icon">↕</span></th>
+  <th class="num" data-col="perf1w">1W% <span class="sort-icon">↕</span></th>
+  <th class="num" data-col="perf1m">1M% <span class="sort-icon">↕</span></th>
+  <th data-col="rs" data-tip="Relative Strength vs SPY — kwartaal, schaal -5/+5">RS vs SPY <span class="sort-icon">↕</span></th>
+  <th data-col="rsBreak" data-tip="RS Breuk: 20-daags hoogtepunt (🔼) of dieptepunt (🔽)">RS Breuk <span class="sort-icon">↕</span></th>
+  <th data-col="rsi" data-tip="RSI(14) — Wilder's Relative Strength Index">RSI(14) <span class="sort-icon">↕</span></th>
+  <th data-col="mansfield" data-tip="Mansfield RS vs SPX — 52-week. Negatief maar stijgend = early recovery (▲E)">Mansfield <span class="sort-icon">↕</span></th>
+  <th data-col="volFlow" data-tip="Volume Flow: 5d avg / 20d avg">Vol Flow <span class="sort-icon">↕</span></th>
+  <th data-col="breadth" data-tip="Breadth: % holdings boven SMA50">Breadth <span class="sort-icon">↕</span></th>
+  <th data-col="weeklyTrend" data-tip="Wekelijkse trend SMA10w/SMA20w">W-Trend <span class="sort-icon">↕</span></th>
+  <th data-col="trend" data-tip="Dagelijkse trend: close > SMA21 > SMA50 = UP">D-Trend <span class="sort-icon">↕</span></th>
+  <th data-col="structure" data-tip="Swing structuur: HH/HL=bullish · LH/LL=bearish">Structuur <span class="sort-icon">↕</span></th>
+  <th data-col="ema8align" data-tip="EMA8 alignment — bull=EMA8>EMA21 (cross proxy) · strong-bull=EMA8>EMA21>EMA50">EMA8 Align <span class="sort-icon">↕</span></th>
+  <th data-col="sma21x50" data-tip="SMA21 positie t.o.v. SMA50">SMA21/50 <span class="sort-icon">↕</span></th>
+  <th data-col="ema21x50" data-tip="EMA21 cross EMA50 — bevestigingssignaal laag 3">EMA21/50 <span class="sort-icon">↕</span></th>
+  <th data-col="atr" data-tip="ATR% — gemiddelde dagelijkse range. Daalt bij absorptie (ACCUM component).">ATR% <span class="sort-icon">↕</span></th>
+  <th data-col="_accumScore" data-tip="ACCUM SIGNAAL (max 8pt — backend): CMF EARLY 2pt + OBV divergentie 2pt + UD ratio 1pt + ATR absorptie 3pt. ACCUM≥5=signaal · PRE=ACCUM+earlyScore≤2">📊 ACCUM <span class="sort-icon">↕</span></th>
+  <th data-col="_earlyScore" data-tip="EMA+MANSFIELD (max 4pt): EMA8/21 vers cross=2pt (nadert=1pt) + Mansfield early (M<0+RS↑)=2pt of bevestigd (M>0+RS↑)=2pt. Signaal ≥3pt.">⚡ EMA+Mans <span class="sort-icon">↕</span></th>
+  <th data-col="_confScore" data-tip="BEVESTIGD (max 4pt): EMA21/50 cross=1pt + HH/HL=1pt + W-Trend UP=1pt + Vol≥2×=1pt. Signaal ≥3pt.">✓ Bevestigd <span class="sort-icon">↕</span></th>
 </tr></thead>`;
 
 // ══════════════════════════════════════════════════════════════
 // ROW HTML
 // ══════════════════════════════════════════════════════════════
 function rowHTML(s) {
-  const sig = s._sig;
-  return `<tr data-signal="${sig.label}" data-trend="${s.trend||''}" data-sector="${s.sector}">
+  return `<tr data-signal="${s._early.label}" data-trend="${s.trend||''}" data-sector="${s.sector}">
     <td><div class="seg-name">${s.icon||""} ${s.name}</div><div class="seg-proxy">${s.proxy}</div></td>
     <td class="num">${pct(s.perf1w)}</td>
     <td class="num">${pct(s.perf1m)}</td>
     <td>${rsCell(s.rs, s.rsTrend)}</td>
     <td>${rsBreakCell(s.rsBreak)}</td>
     <td>${rsiCell(s.rsi)}</td>
-    <td>${msfCell(s.mansfield)}</td>
+    <td>${msfCell(s.mansfield, s._early.mansfieldEarly, s._early.mansfieldConfirm)}</td>
     <td>${volCell(s.volFlow)}</td>
     <td>${brdCell(s.breadth)}</td>
     <td>${trendCell(s.weeklyTrend)}</td>
@@ -790,7 +690,8 @@ function rowHTML(s) {
     <td>${ema8Cell(s.ema8align)}</td>
     <td>${smaCell(s.sma21x50)}</td>
     <td>${emaCell(s.ema21x50)}</td>
-    <td class="num neu">${s.atr != null ? s.atr.toFixed(1)+"%" : "—"}</td>
+    <td class="num neu">${s.atr!=null?s.atr.toFixed(1)+"%":"—"}</td>
+    <td>${accumSignalCell(s._accum)}</td>
     <td>${earlySignalCell(s._early)}</td>
     <td>${confSignalCell(s._conf)}</td>
   </tr>`;
@@ -799,124 +700,131 @@ function rowHTML(s) {
 // ══════════════════════════════════════════════════════════════
 // CELL RENDERERS
 // ══════════════════════════════════════════════════════════════
-const fmt2 = v => v != null && !isNaN(v) ? v.toFixed(1) : null;
-
 function pct(v) {
-  if (v == null || isNaN(v)) return '<span class="neu">—</span>';
-  const c = v>0?"pos":v<0?"neg":"neu", s=v>0?"+":"";
+  if(v==null||isNaN(v)) return '<span class="neu">—</span>';
+  const c=v>0?"pos":v<0?"neg":"neu", s=v>0?"+":"";
   return `<span class="${c}">${s}${v.toFixed(1)}%</span>`;
 }
-
 function rsCell(rs, trend) {
-  if (rs == null) return '<span class="neu">—</span>';
-  const color = rs>0?"var(--green)":rs<0?"var(--red)":"var(--muted)";
-  const w = Math.min(Math.abs(rs)/5,1)*50;
-  const arrow = trend==="up"?"↑":trend==="down"?"↓":"→";
-  const ac = trend==="up"?"pos":trend==="down"?"neg":"neu";
+  if(rs==null) return '<span class="neu">—</span>';
+  const color=rs>0?"var(--green)":rs<0?"var(--red)":"var(--muted)";
+  const w=Math.min(Math.abs(rs)/5,1)*50;
+  const arrow=trend==="up"?"↑":trend==="down"?"↓":"→";
+  const ac=trend==="up"?"pos":trend==="down"?"neg":"neu";
   return `<div class="gw" style="min-width:90px">
     <span class="${rs>0?"pos":rs<0?"neg":"neu"}" style="min-width:34px;text-align:right">${rs>0?"+":""}${rs.toFixed(1)}</span>
     <div class="rs-bar"><div class="rs-fill" style="left:${rs>=0?50:50-w}%;width:${w}%;background:${color}"></div></div>
-    <span class="${ac}">${arrow}</span>
-  </div>`;
+    <span class="${ac}">${arrow}</span></div>`;
 }
-
 function rsiCell(v) {
-  if (v == null) return '<span class="neu">—</span>';
-  const c = v>=70?"var(--red)":v>=50?"var(--green)":"var(--muted)";
+  if(v==null) return '<span class="neu">—</span>';
+  const c=v>=70?"var(--red)":v>=50?"var(--green)":"var(--muted)";
   return `<div class="gw"><span style="color:${c};min-width:24px;text-align:right">${v}</span>
     <div class="gb" style="width:44px"><div class="gf" style="width:${v}%;background:${c}"></div></div></div>`;
 }
-
-function msfCell(v) {
-  if (v == null) return '<span class="neu">—</span>';
-  const c = v>0?"var(--green)":"var(--red)";
-  const w = Math.min(Math.abs(v)/5,1)*50;
+// Mansfield: toont ▲E (early recovery) of ▲B (bevestigd) indicator
+function msfCell(v, isEarly, isConfirm) {
+  if(v==null) return '<span class="neu">—</span>';
+  const c=v>0?"var(--green)":v<0?"var(--red)":"var(--muted)";
+  const w=Math.min(Math.abs(v)/5,1)*50;
+  const tag = isEarly    ? `<span style="font-size:9px;color:var(--purple);margin-left:3px" data-tip="Mansfield early recovery: M<0 maar RS slope omhoog">▲E</span>`
+             : isConfirm  ? `<span style="font-size:9px;color:var(--green);margin-left:3px" data-tip="Mansfield bevestigd: M>0 en RS slope omhoog">▲B</span>`
+             : "";
   return `<div class="gw" style="min-width:90px">
     <span style="color:${c};min-width:34px;text-align:right">${v>0?"+":""}${v.toFixed(1)}</span>
     <div class="msf-bar"><div class="msf-zero"></div>
       <div class="msf-fill" style="left:${v>=0?50:50-w}%;width:${w}%;background:${c}"></div></div>
-  </div>`;
+    ${tag}</div>`;
 }
-
 function volCell(v) {
-  if (v == null) return '<span class="neu">—</span>';
-  const emoji = v>=2.0?"🔥":v>=1.5?"⚡":"";
-  const c = v>=2.0?"var(--red)":v>=1.5?"var(--green)":v>=1.0?"var(--muted)":"#6b7591";
+  if(v==null) return '<span class="neu">—</span>';
+  const emoji=v>=2.0?"🔥":v>=1.5?"⚡":"";
+  const c=v>=2.0?"var(--red)":v>=1.5?"var(--green)":v>=1.0?"var(--muted)":"#6b7591";
   return `<span style="color:${c}">${v.toFixed(1)}× ${emoji}</span>`;
 }
-
 function rsBreakCell(v) {
-  if (!v || v === "none") return `<span class="neu">—</span>`;
-  if (v === "up")   return `<span style="color:var(--green);font-weight:700;font-size:14px" data-tip="RS-lijn breekt 20-daags hoogtepunt — sector begint te leiden vs SPY">🔼 Break Up</span>`;
-  if (v === "down") return `<span style="color:var(--red);font-weight:700;font-size:14px" data-tip="RS-lijn breekt 20-daags dieptepunt — sector begint achter te blijven vs SPY">🔽 Break Down</span>`;
+  if(!v||v==="none") return `<span class="neu">—</span>`;
+  if(v==="up")   return `<span style="color:var(--green);font-weight:700;font-size:14px" data-tip="RS breekt 20-daags hoogtepunt">🔼 Break Up</span>`;
+  if(v==="down") return `<span style="color:var(--red);font-weight:700;font-size:14px" data-tip="RS breekt 20-daags dieptepunt">🔽 Break Down</span>`;
   return `<span class="neu">—</span>`;
 }
-
 function brdCell(v) {
-  if (v == null) return '<span class="neu">—</span>';
-  const c = v>=70?"var(--green)":v>=40?"var(--yellow)":"var(--red)";
+  if(v==null) return '<span class="neu">—</span>';
+  const c=v>=70?"var(--green)":v>=40?"var(--yellow)":"var(--red)";
   return `<div class="gw">
     <span style="color:${c};min-width:30px;text-align:right">${Math.round(v)}%</span>
     <div class="gb" style="width:44px"><div class="gf" style="width:${v}%;background:${c}"></div></div></div>`;
 }
-
 function trendCell(v) {
   const map={UP:"tag-up",DOWN:"tag-down",RANGE:"tag-range"};
   const sym={UP:"↑ UP",DOWN:"↓ DOWN",RANGE:"↔ RANGE"};
-  return v ? `<span class="tag ${map[v]||'tag-range'}">${sym[v]||v}</span>` : '<span class="neu">—</span>';
+  return v?`<span class="tag ${map[v]||'tag-range'}">${sym[v]||v}</span>`:'<span class="neu">—</span>';
 }
-
 function strCell(v) {
   const map={"HH/HL":"tag-hh","LH/LL":"tag-ll","LH/HL":"tag-lh","HL/LH":"tag-hl"};
-  return v ? `<span class="tag ${map[v]||'tag-range'}">${v}</span>` : '<span class="neu">—</span>';
+  return v?`<span class="tag ${map[v]||'tag-range'}">${v}</span>`:'<span class="neu">—</span>';
 }
-
 function smaCell(v) {
-  if (!v||v==="flat") return `<span class="x-flat">— Vlak</span>`;
-  if (v==="bull")     return `<span class="x-bull">▲ Bull</span>`;
-  if (v==="bear")     return `<span class="x-bear">▼ Bear</span>`;
+  if(!v||v==="flat") return `<span class="x-flat">— Vlak</span>`;
+  if(v==="bull") return `<span class="x-bull">▲ Bull</span>`;
+  if(v==="bear") return `<span class="x-bear">▼ Bear</span>`;
   return `<span class="neu">${v}</span>`;
 }
-
 function ema8Cell(v) {
-  if (!v || v === "flat") return `<span class="x-flat">—</span>`;
-  if (v === "strong-bull") return `<span style="color:var(--green);font-weight:700" data-tip="EMA8 > EMA21 > EMA50 — volledige alignment">⚡ S-Bull</span>`;
-  if (v === "bull")        return `<span style="color:#4ade80;font-weight:600" data-tip="EMA8 > EMA21 maar EMA21 nog onder EMA50 — momentum keert">↑ Bull</span>`;
-  if (v === "strong-bear") return `<span style="color:var(--red);font-weight:700" data-tip="EMA8 < EMA21 < EMA50 — volledige negatieve alignment">⚡ S-Bear</span>`;
-  if (v === "bear")        return `<span style="color:#f87171;font-weight:600" data-tip="EMA8 < EMA21 maar EMA21 nog boven EMA50 — momentum zwakt">↓ Bear</span>`;
+  if(!v||v==="flat") return `<span class="x-flat">—</span>`;
+  if(v==="strong-bull") return `<span style="color:var(--green);font-weight:700" data-tip="EMA8>EMA21>EMA50 — volledig gevestigd">⚡ S-Bull</span>`;
+  if(v==="bull")        return `<span style="color:#4ade80;font-weight:600" data-tip="EMA8>EMA21 — EMA8/21 cross proxy (fresh cross)">↑ Bull</span>`;
+  if(v==="strong-bear") return `<span style="color:var(--red);font-weight:700" data-tip="EMA8<EMA21<EMA50">⚡ S-Bear</span>`;
+  if(v==="bear")        return `<span style="color:#f87171;font-weight:600" data-tip="EMA8<EMA21">↓ Bear</span>`;
   return `<span class="neu">${v}</span>`;
 }
-
 function emaCell(v) {
-  if (!v||v==="flat")       return `<span class="x-flat">—</span>`;
-  if (v==="bull-cross") return `<span class="x-bull">▲<span class="x-new" style="color:var(--green)">NEW</span></span>`;
-  if (v==="bear-cross") return `<span class="x-bear">▼<span class="x-new" style="color:var(--red)">NEW</span></span>`;
-  if (v==="bull")       return `<span class="x-bull">▲</span>`;
-  if (v==="bear")       return `<span class="x-bear">▼</span>`;
+  if(!v||v==="flat")    return `<span class="x-flat">—</span>`;
+  if(v==="bull-cross")  return `<span class="x-bull">▲<span class="x-new" style="color:var(--green)">NEW</span></span>`;
+  if(v==="bear-cross")  return `<span class="x-bear">▼<span class="x-new" style="color:var(--red)">NEW</span></span>`;
+  if(v==="bull")        return `<span class="x-bull">▲</span>`;
+  if(v==="bear")        return `<span class="x-bear">▼</span>`;
   return `<span class="neu">${v}</span>`;
 }
 
-function earlySignalCell(sig) {
-  if (!sig) return '<span class="neu">—</span>';
+// ACCUM signaal cel — laag 1 (backend data)
+function accumSignalCell(sig) {
+  if(!sig.hasData) return `<span class="neu" style="font-size:10px" data-tip="Beschikbaar na update deepdive.gs">n/b</span>`;
+  const preTag = sig.isPreSignal
+    ? `<span style="font-size:9px;color:var(--purple);background:rgba(167,139,250,.15);padding:0 4px;border-radius:3px;margin-left:2px" data-tip="PRE: ACCUM≥5 maar prijs nog niet bevestigd (earlyScore≤2)">PRE</span>` : "";
   return `<div class="sig-cell ${sig.cls}">
     <div class="sig-dot"></div>
     <span>${sig.label}</span>
-    <div style="margin-left:3px;font-size:10px;color:var(--muted)">${sig.score}/6</div>
+    <div style="margin-left:2px;font-size:10px;color:var(--muted)">${sig.score}/8</div>
+    ${preTag}
+  </div>`;
+}
+
+// EMA+Mansfield cel — laag 2 (nieuw 4pt model, 2 dots)
+function earlySignalCell(sig) {
+  if(!sig) return '<span class="neu">—</span>';
+  const emaLabel  = sig.ema8FreshCross ? "vers cross" : sig.ema8PreCross ? "nadert" : "geen cross";
+  const mansLabel = sig.mansfieldEarly ? "early recovery" : sig.mansfieldConfirm ? "bevestigd" : "geen";
+  return `<div class="sig-cell ${sig.cls}">
+    <div class="sig-dot"></div>
+    <span>${sig.label}</span>
+    <div style="margin-left:2px;font-size:10px;color:var(--muted)">${sig.score}/4</div>
     <div class="cond-dots">
-      <div class="cd ${sig.ema8pts>=2?"cd-ok":sig.ema8pts===1?"cd-warn":"cd-no"}" data-tip="EMA8 S-Bull + W-Trend UP (${sig.ema8pts}/2 pt)"></div>
-      <div class="cd ${sig.rsPts>=2?"cd-ok":sig.rsPts===1?"cd-warn":"cd-no"}"    data-tip="RS Breuk Up + RS>0 (${sig.rsPts}/2 pt)"></div>
-      <div class="cd ${sig.vol5pts?"cd-ok":"cd-no"}"                              data-tip="Vol 5d/20d ≥1.5× — snel momentum (${sig.vol5pts}/1 pt)"></div>
-      <div class="cd ${sig.vol10pts?"cd-ok":"cd-no"}"                             data-tip="Vol 10d/30d ≥1.3× — structurele instroom (${sig.vol10pts}/1 pt)"></div>
+      <div class="cd ${sig.emaPts>=2?"cd-ok":sig.emaPts===1?"cd-warn":"cd-no"}"
+           data-tip="EMA8/21 cross (${emaLabel}): ${sig.emaPts}/2pt"></div>
+      <div class="cd ${sig.mansfieldPts>=2?"cd-purple":sig.mansfieldPts===1?"cd-warn":"cd-no"}"
+           data-tip="Mansfield (${mansLabel}): ${sig.mansfieldPts}/2pt"></div>
     </div>
   </div>`;
 }
 
+// Bevestigd cel — laag 3 (ongewijzigd, 4 dots)
 function confSignalCell(sig) {
-  if (!sig) return '<span class="neu">—</span>';
+  if(!sig) return '<span class="neu">—</span>';
   return `<div class="sig-cell ${sig.cls}">
     <div class="sig-dot"></div>
     <span>${sig.label}</span>
-    <div style="margin-left:3px;font-size:10px;color:var(--muted)">${sig.score}/4</div>
+    <div style="margin-left:2px;font-size:10px;color:var(--muted)">${sig.score}/4</div>
     <div class="cond-dots">
       <div class="cd ${sig.cross ?"cd-ok":"cd-no"}" data-tip="EMA21/50 Cross (${sig.cross?"✓":"✗"})"></div>
       <div class="cd ${sig.struct?"cd-ok":"cd-no"}" data-tip="HH/HL Structuur (${sig.struct?"✓":"✗"})"></div>
@@ -926,29 +834,25 @@ function confSignalCell(sig) {
   </div>`;
 }
 
-function sigCell(sig) { return earlySignalCell(sig); }
-
 // ══════════════════════════════════════════════════════════════
 // SORTERING
 // ══════════════════════════════════════════════════════════════
 document.addEventListener("click", e => {
-  const th = e.target.closest("th[data-col]");
-  if (!th) return;
-  const col = th.dataset.col;
-  sortDir = (sortCol === col) ? sortDir * -1 : -1;
-  sortCol = col;
-  applyFiltersAndSort();
-  renderClusters();
-  // Update UI
-  document.querySelectorAll("th[data-col]").forEach(h => {
+  const th=e.target.closest("th[data-col]");
+  if(!th) return;
+  const col=th.dataset.col;
+  sortDir=(sortCol===col)?sortDir*-1:-1;
+  sortCol=col;
+  applyFiltersAndSort(); renderClusters();
+  document.querySelectorAll("th[data-col]").forEach(h=>{
     h.classList.remove("sorted");
-    const icon = h.querySelector(".sort-icon");
-    if (icon) icon.textContent = "↕";
+    const icon=h.querySelector(".sort-icon");
+    if(icon) icon.textContent="↕";
   });
-  document.querySelectorAll(`th[data-col="${col}"]`).forEach(h => {
+  document.querySelectorAll(`th[data-col="${col}"]`).forEach(h=>{
     h.classList.add("sorted");
-    const icon = h.querySelector(".sort-icon");
-    if (icon) icon.textContent = sortDir === -1 ? "↓" : "↑";
+    const icon=h.querySelector(".sort-icon");
+    if(icon) icon.textContent=sortDir===-1?"↓":"↑";
   });
 });
 
@@ -956,80 +860,71 @@ document.addEventListener("click", e => {
 // FILTER WIRING
 // ══════════════════════════════════════════════════════════════
 function toggleLegend() {
-  const panel = document.getElementById("legendPanel");
-  const btn   = document.getElementById("legendBtn");
-  const open  = panel.style.display === "none";
-  panel.style.display = open ? "" : "none";
-  btn.textContent = open ? "📖 Legenda verbergen" : "📖 Legenda";
-  btn.classList.toggle("active", open);
+  const panel=document.getElementById("legendPanel");
+  const btn=document.getElementById("legendBtn");
+  const open=panel.style.display==="none";
+  panel.style.display=open?"":"none";
+  btn.textContent=open?"📖 Legenda verbergen":"📖 Legenda";
+  btn.classList.toggle("active",open);
 }
-
 function wireFilters() {
-  document.querySelectorAll("[data-sig]").forEach(btn => btn.addEventListener("click", () => {
+  document.querySelectorAll("[data-sig]").forEach(btn=>btn.addEventListener("click",()=>{
     document.querySelectorAll("[data-sig]").forEach(b=>b.classList.remove("active"));
     btn.classList.add("active");
-    activeSignal = btn.dataset.sig;
+    activeSignal=btn.dataset.sig;
     applyFiltersAndSort(); renderClusters();
   }));
-
-  document.querySelectorAll("[data-trend]").forEach(btn => btn.addEventListener("click", () => {
+  document.querySelectorAll("[data-trend]").forEach(btn=>btn.addEventListener("click",()=>{
     document.querySelectorAll("[data-trend]").forEach(b=>b.classList.remove("active"));
     btn.classList.add("active");
-    activeTrend = btn.dataset.trend;
+    activeTrend=btn.dataset.trend;
     applyFiltersAndSort(); renderClusters();
   }));
-
-  document.getElementById("sectorFilter").addEventListener("change", e => {
-    activeSector = e.target.value;
+  document.getElementById("sectorFilter").addEventListener("change",e=>{
+    activeSector=e.target.value;
     applyFiltersAndSort(); renderClusters();
   });
-
-  document.getElementById("searchInput").addEventListener("input", e => {
-    searchTerm = e.target.value.toLowerCase();
+  document.getElementById("searchInput").addEventListener("input",e=>{
+    searchTerm=e.target.value.toLowerCase();
     applyFiltersAndSort(); renderClusters();
   });
-
-  document.getElementById("expandAllBtn").addEventListener("click", () => {
-    allExpanded = !allExpanded;
-    document.querySelectorAll(".cluster").forEach(cl => cl.classList.toggle("open", allExpanded));
-    document.getElementById("expandAllBtn").textContent = allExpanded ? "▼ Uitvouwen" : "▶ Invouwen";
+  document.getElementById("expandAllBtn").addEventListener("click",()=>{
+    allExpanded=!allExpanded;
+    document.querySelectorAll(".cluster").forEach(cl=>cl.classList.toggle("open",allExpanded));
+    document.getElementById("expandAllBtn").textContent=allExpanded?"▼ Uitvouwen":"▶ Invouwen";
   });
 }
 
 // ══════════════════════════════════════════════════════════════
-// DEMO DATA
+// DEMO DATA — bijgewerkt met nieuwe velden
 // ══════════════════════════════════════════════════════════════
 function getDemoData() {
   return [
-    {id:"ai-infra",    name:"AI Infrastructuur",  icon:"🖥️", sector:"Technology",        proxy:"NVDA, AMD, SMCI, MRVL", perf1w:3.8,  perf1m:11.2, rs:2.4,  rsTrend:"up",   rsBreak:"up",   rsi:68,mansfield:1.8, volFlow:2.1,breadth:80,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"strong-bull", weeklyTrend:"UP",   atr:3.2},
-    {id:"ai-hyper",   name:"AI Hyperscalers",    icon:"☁️", sector:"Technology",        proxy:"MSFT, GOOGL, META",    perf1w:1.9,  perf1m:6.4,  rs:1.2,  rsTrend:"up",   rsBreak:"up",   rsBreak:"up",   rsi:61,mansfield:0.9, volFlow:1.6,breadth:75,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull-cross", ema8align:"bull",        weeklyTrend:"UP",   atr:2.1},
-    {id:"ai-apps",    name:"AI Applicaties",     icon:"🤖", sector:"Technology",        proxy:"PLTR, AI, SNOW",       perf1w:2.3,  perf1m:8.7,  rs:1.5,  rsTrend:"up",   rsBreak:"up",   rsi:65,mansfield:1.2, volFlow:1.8,breadth:70,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"strong-bull", weeklyTrend:"UP",   atr:4.1},
-    {id:"semis",      name:"Halfgeleiders",      icon:"⚡", sector:"Technology",        proxy:"AMAT, LRCX, KLAC",    perf1w:0.4,  perf1m:-2.1, rs:-0.3, rsTrend:"flat", rsBreak:"none", rsi:48,mansfield:-0.2,volFlow:0.9,breadth:45,trend:"RANGE",structure:"LH/HL",sma21x50:"flat",ema21x50:"flat",       ema8align:"bear",        weeklyTrend:"RANGE",atr:2.8},
-    {id:"cybersec",   name:"Cybersecurity",      icon:"🛡️", sector:"Technology",        proxy:"PANW, CRWD, FTNT",    perf1w:1.6,  perf1m:5.2,  rs:0.9,  rsTrend:"up",   rsBreak:"up",   rsBreak:"up",   rsi:60,mansfield:0.7, volFlow:1.4,breadth:65,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"bull",        weeklyTrend:"UP",   atr:2.4},
-    {id:"software",   name:"Software / SaaS",    icon:"💾", sector:"Technology",        proxy:"NOW, ORCL, ADBE",     perf1w:1.1,  perf1m:3.8,  rs:0.6,  rsTrend:"up",   rsBreak:"none",   rsBreak:"none",   rsi:57,mansfield:0.5, volFlow:1.2,breadth:60,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"flat",       atr:2.0},
-    {id:"nuclear",    name:"Kernenergie",        icon:"☢️", sector:"Energy",            proxy:"CEG, VST, NNE, SMR",  perf1w:4.8,  perf1m:14.2, rs:3.5,  rsTrend:"up",   rsBreak:"up",   rsi:74,mansfield:2.8, volFlow:3.1,breadth:90,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull-cross", ema8align:"strong-bull", weeklyTrend:"UP",   atr:5.3},
-    {id:"oil-majors", name:"Olie Majors",        icon:"🛢️", sector:"Energy",            proxy:"XOM, CVX, COP",       perf1w:4.2,  perf1m:8.9,  rs:2.8,  rsTrend:"up",   rsBreak:"up",   rsi:69,mansfield:2.1, volFlow:2.4,breadth:85,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"strong-bull", weeklyTrend:"UP",   atr:2.2},
-    {id:"nat-gas",    name:"Aardgas",            icon:"🔥", sector:"Energy",            proxy:"LNG, AR, EQT",        perf1w:5.1,  perf1m:12.3, rs:3.2,  rsTrend:"up",   rsBreak:"up",   rsi:72,mansfield:2.5, volFlow:2.8,breadth:88,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"strong-bull", weeklyTrend:"UP",   atr:4.8},
-    {id:"midstream",  name:"Pipelines",          icon:"🔧", sector:"Energy",            proxy:"ET, ENB, KMI",        perf1w:2.8,  perf1m:5.6,  rs:1.4,  rsTrend:"up",   rsBreak:"none",   rsi:60,mansfield:1.1, volFlow:1.6,breadth:72,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"bull",        weeklyTrend:"UP",   atr:1.9},
-    {id:"solar",      name:"Solar",              icon:"☀️", sector:"Energy",            proxy:"ENPH, SEDG, FSLR",    perf1w:-2.1, perf1m:-5.8, rs:-1.6, rsTrend:"down", rsBreak:"down", rsi:36,mansfield:-1.4,volFlow:0.8,breadth:20,trend:"DOWN", structure:"LH/LL",sma21x50:"bear",ema21x50:"bear-cross", ema8align:"strong-bear", weeklyTrend:"DOWN", atr:4.4},
-    {id:"gold",       name:"Goudmijnen",         icon:"⛏️", sector:"Materials",         proxy:"GDX, NEM, GOLD",      perf1w:3.4,  perf1m:10.6, rs:2.3,  rsTrend:"up",   rsBreak:"up",   rsi:70,mansfield:2.2, volFlow:2.6,breadth:85,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"strong-bull", weeklyTrend:"UP",   atr:3.9},
-    {id:"silver",     name:"Zilver & Edelmetalen",icon:"🥈",sector:"Materials",         proxy:"SIL, AG, PAAS",       perf1w:2.9,  perf1m:8.4,  rs:1.8,  rsTrend:"up",   rsBreak:"up",   rsi:67,mansfield:1.9, volFlow:2.2,breadth:80,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"strong-bull", weeklyTrend:"UP",   atr:4.5},
-    {id:"lithium",    name:"Lithium",            icon:"🔋", sector:"Materials",         proxy:"ALB, SQM, LTHM",      perf1w:-3.1, perf1m:-9.2, rs:-2.4, rsTrend:"down", rsBreak:"down", rsi:31,mansfield:-2.1,volFlow:0.9,breadth:15,trend:"DOWN", structure:"LH/LL",sma21x50:"bear",ema21x50:"bear",       ema8align:"strong-bear", weeklyTrend:"DOWN", atr:5.2},
-    {id:"copper",     name:"Koper",              icon:"🔩", sector:"Materials",         proxy:"FCX, SCCO, BHP",      perf1w:-1.8, perf1m:-5.4, rs:-1.4, rsTrend:"down", rsBreak:"down", rsi:38,mansfield:-1.2,volFlow:1.1,breadth:24,trend:"DOWN", structure:"LH/LL",sma21x50:"bear",ema21x50:"bear",       ema8align:"strong-bear", weeklyTrend:"DOWN", atr:3.3},
-    {id:"def-tech",   name:"Defensie Tech",      icon:"🛸", sector:"Industrials",       proxy:"KTOS, RKLB, JOBY",    perf1w:3.2,  perf1m:9.8,  rs:2.1,  rsTrend:"up",   rsBreak:"up",   rsi:66,mansfield:1.6, volFlow:2.3,breadth:78,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull-cross", ema8align:"strong-bull", weeklyTrend:"UP",   atr:6.1},
-    {id:"space",      name:"Space Economy",      icon:"🛰️", sector:"Industrials",       proxy:"RKLB, LHX, BA",       perf1w:2.8,  perf1m:8.2,  rs:1.7,  rsTrend:"up",   rsBreak:"up",   rsi:63,mansfield:1.4, volFlow:2.0,breadth:72,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"strong-bull", weeklyTrend:"UP",   atr:5.8},
-    {id:"ecommerce",  name:"E-Commerce",         icon:"🛒", sector:"Consumer Discret.", proxy:"AMZN, SHOP, ETSY",    perf1w:1.5,  perf1m:4.2,  rs:0.7,  rsTrend:"up",   rsBreak:"none",   rsi:58,mansfield:0.6, volFlow:1.3,breadth:62,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"bull",        weeklyTrend:"UP",   atr:2.6},
-    {id:"ev-auto",    name:"EV & Auto",          icon:"🚗", sector:"Consumer Discret.", proxy:"TSLA, GM, F",         perf1w:-1.8, perf1m:-6.3, rs:-1.5, rsTrend:"down", rsBreak:"down", rsi:37,mansfield:-1.3,volFlow:1.2,breadth:22,trend:"DOWN", structure:"LH/LL",sma21x50:"bear",ema21x50:"bear",       ema8align:"strong-bear", weeklyTrend:"DOWN", atr:5.6},
-    {id:"travel",     name:"Reizen & Vrije Tijd",icon:"✈️", sector:"Consumer Discret.", proxy:"BKNG, MAR, HLT",      perf1w:2.2,  perf1m:7.1,  rs:1.3,  rsTrend:"up",   rsBreak:"up",   rsi:64,mansfield:1.1, volFlow:1.9,breadth:74,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"strong-bull", weeklyTrend:"UP",   atr:2.9},
-    {id:"alt-asset",  name:"Alt. Vermogensbeheer",icon:"📈",sector:"Financials",        proxy:"BX, KKR, APO",        perf1w:1.8,  perf1m:5.6,  rs:1.1,  rsTrend:"up",   rsBreak:"up",   rsi:63,mansfield:0.9, volFlow:1.6,breadth:72,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"bull",        weeklyTrend:"UP",   atr:2.7},
-    {id:"megabanks",  name:"Mega Banken",        icon:"🏦", sector:"Financials",        proxy:"JPM, BAC, WFC",       perf1w:-0.3, perf1m:-1.8, rs:-0.5, rsTrend:"down", rsBreak:"none", rsi:45,mansfield:-0.4,volFlow:1.1,breadth:40,trend:"RANGE",structure:"LH/HL",sma21x50:"flat",ema21x50:"flat",       ema8align:"bear",        weeklyTrend:"RANGE",atr:1.8},
-    {id:"fintech",    name:"Fintech & Payments", icon:"💳", sector:"Financials",        proxy:"V, MA, SQ, PYPL",     perf1w:1.2,  perf1m:3.7,  rs:0.6,  rsTrend:"up",   rsi:58,mansfield:0.5, volFlow:1.3,breadth:62,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"strong-bull", weeklyTrend:"UP",   atr:2.2},
-    {id:"dc-reits",   name:"Data Center REITs",  icon:"🏢", sector:"Real Estate",       proxy:"EQIX, DLR, AMT",      perf1w:2.1,  perf1m:5.8,  rs:1.2,  rsTrend:"up",   rsi:62,mansfield:1.0, volFlow:1.6,breadth:72,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"strong-bull", weeklyTrend:"UP",   atr:2.3},
-    {id:"social",     name:"Social Media",       icon:"📲", sector:"Communication",     proxy:"META, SNAP, PINS",    perf1w:1.7,  perf1m:5.1,  rs:0.9,  rsTrend:"up",   rsi:61,mansfield:0.8, volFlow:1.5,breadth:70,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"bull",        weeklyTrend:"UP",   atr:2.8},
-    {id:"food-bev",   name:"Voeding & Drank",    icon:"🥤", sector:"Consumer Staples",  proxy:"KO, PEP, GIS",        perf1w:1.8,  perf1m:3.4,  rs:0.5,  rsTrend:"up",   rsBreak:"none",   rsi:56,mansfield:0.4, volFlow:1.2,breadth:63,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       atr:1.2},
-    {id:"elec-util",  name:"Elektrische Nutsbedr.",icon:"💡",sector:"Utilities",        proxy:"NEE, DUK, SO",        perf1w:0.6,  perf1m:2.1,  rs:0.2,  rsTrend:"flat", rsBreak:"none", rsi:52,mansfield:0.2, volFlow:1.0,breadth:55,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"flat",       ema8align:"flat",        weeklyTrend:"RANGE",atr:1.1},
-    {id:"quantum",    name:"Quantum Computing",    icon:"⚛️",sector:"Technology",        proxy:"IONQ, RGTI, QUBT, IBM",perf1w:4.2, perf1m:13.6, rs:2.9,  rsTrend:"up",   rsBreak:"up",   rsi:71,mansfield:2.3, volFlow:2.5,breadth:76,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull-cross", ema8align:"strong-bull", weeklyTrend:"UP",   atr:8.2},
-    {id:"hydrogen",   name:"Waterstof / Hydrogen", icon:"🫧",sector:"Energy",            proxy:"PLUG, BE, FCEL, BLDP", perf1w:-1.4,perf1m:-4.8, rs:-1.2, rsTrend:"down", rsBreak:"down", rsi:39,mansfield:-1.1,volFlow:1.1,breadth:28,trend:"DOWN", structure:"LH/LL",sma21x50:"bear",ema21x50:"bear",       ema8align:"strong-bear", weeklyTrend:"DOWN", atr:6.4},
+    {id:"ai-infra",   name:"AI Infrastructuur",  icon:"🖥️",sector:"Technology",       proxy:"NVDA, AMD, SMCI, MRVL",  perf1w:3.8, perf1m:11.2,rs:2.4, rsTrend:"up",  rsBreak:"up",   rsi:68,mansfield:1.8, volFlow:2.1,breadth:80, trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"strong-bull",weeklyTrend:"UP",  atr:3.2, accumScore:6, isPreSignal:false,freshCross:false,preCross:false,mansfieldEarlyRecov:false,mansfieldConfirmed:true},
+    {id:"ai-hyper",   name:"AI Hyperscalers",    icon:"☁️",sector:"Technology",       proxy:"MSFT, GOOGL, META",      perf1w:1.9, perf1m:6.4, rs:1.2, rsTrend:"up",  rsBreak:"up",   rsi:61,mansfield:-0.4,volFlow:1.6,breadth:75, trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull-cross", ema8align:"bull",       weeklyTrend:"UP",  atr:2.1, accumScore:5, isPreSignal:true, freshCross:true, preCross:false,mansfieldEarlyRecov:true, mansfieldConfirmed:false},
+    {id:"ai-apps",    name:"AI Applicaties",     icon:"🤖",sector:"Technology",       proxy:"PLTR, AI, SNOW, CRM",    perf1w:-1.1,perf1m:-3.5,rs:-0.8,rsTrend:"down",rsBreak:"down", rsi:48,mansfield:-2.3,volFlow:0.7,breadth:60, trend:"DOWN", structure:"LH/HL",sma21x50:"flat",ema21x50:"bear",       ema8align:"strong-bear",weeklyTrend:"DOWN",atr:3.9},
+    {id:"semis",      name:"Halfgeleiders",      icon:"⚡",sector:"Technology",       proxy:"AMAT, LRCX, KLAC, ASML", perf1w:2.1, perf1m:4.7, rs:1.1, rsTrend:"up",  rsBreak:"up",   rsi:67,mansfield:0.6, volFlow:1.1,breadth:100,trend:"UP",   structure:"HL/LH",sma21x50:"bull",ema21x50:"bull",       ema8align:"strong-bull",weeklyTrend:"UP",  atr:4.2, accumScore:2},
+    {id:"software",   name:"Software / SaaS",    icon:"💾",sector:"Technology",       proxy:"NOW, ORCL, ADBE, INTU",  perf1w:1.1, perf1m:3.8, rs:0.6, rsTrend:"up",  rsBreak:"none", rsi:55,mansfield:-3.7,volFlow:1.4,breadth:40, trend:"RANGE",structure:"LH/HL",sma21x50:"flat",ema21x50:"flat",       ema8align:"bull",       weeklyTrend:"RANGE",atr:5.6, freshCross:true,mansfieldEarlyRecov:false},
+    {id:"cybersec",   name:"Cybersecurity",      icon:"🛡️",sector:"Technology",       proxy:"PANW, CRWD, FTNT, ZS",   perf1w:1.6, perf1m:5.2, rs:0.9, rsTrend:"up",  rsBreak:"up",   rsi:76,mansfield:0.3, volFlow:1.3,breadth:100,trend:"UP",   structure:"HL/LH",sma21x50:"bull",ema21x50:"bull",       ema8align:"strong-bull",weeklyTrend:"UP",  atr:2.2, accumScore:2},
+    {id:"quantum",    name:"Quantum Computing",   icon:"⚛️",sector:"Technology",       proxy:"IONQ, RGTI, QUBT, IBM",  perf1w:4.2, perf1m:13.6,rs:2.9, rsTrend:"up",  rsBreak:"up",   rsi:65,mansfield:1.4, volFlow:2.5,breadth:100,trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull-cross", ema8align:"strong-bull",weeklyTrend:"UP",  atr:9.2, accumScore:4, freshCross:true,mansfieldConfirmed:true},
+    {id:"nuclear",    name:"Kernenergie",         icon:"☢️",sector:"Energy",           proxy:"CEG, VST, NNE, SMR",     perf1w:4.8, perf1m:14.2,rs:3.5, rsTrend:"up",  rsBreak:"up",   rsi:74,mansfield:2.8, volFlow:3.1,breadth:90, trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull-cross", ema8align:"strong-bull",weeklyTrend:"UP",  atr:5.3, accumScore:7, isPreSignal:false,mansfieldConfirmed:true},
+    {id:"oil-majors", name:"Olie Majors",         icon:"🛢️",sector:"Energy",           proxy:"XOM, CVX, COP",          perf1w:4.2, perf1m:8.9, rs:2.8, rsTrend:"up",  rsBreak:"up",   rsi:69,mansfield:2.1, volFlow:2.4,breadth:85, trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"strong-bull",weeklyTrend:"UP",  atr:2.2, accumScore:3},
+    {id:"nat-gas",    name:"Aardgas",             icon:"🔥",sector:"Energy",           proxy:"LNG, AR, EQT",           perf1w:5.1, perf1m:12.3,rs:3.2, rsTrend:"up",  rsBreak:"up",   rsi:72,mansfield:2.5, volFlow:2.8,breadth:88, trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"strong-bull",weeklyTrend:"UP",  atr:4.8, accumScore:5, mansfieldConfirmed:true},
+    {id:"solar",      name:"Solar",               icon:"☀️",sector:"Energy",           proxy:"ENPH, SEDG, FSLR",       perf1w:-2.1,perf1m:-5.8,rs:-1.6,rsTrend:"down",rsBreak:"down", rsi:36,mansfield:-1.4,volFlow:0.8,breadth:20, trend:"DOWN", structure:"LH/LL",sma21x50:"bear",ema21x50:"bear-cross", ema8align:"strong-bear",weeklyTrend:"DOWN",atr:4.4},
+    {id:"gold",       name:"Goudmijnen",          icon:"⛏️",sector:"Materials",        proxy:"GDX, NEM, GOLD",         perf1w:3.4, perf1m:10.6,rs:2.3, rsTrend:"up",  rsBreak:"up",   rsi:70,mansfield:2.2, volFlow:2.6,breadth:85, trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"strong-bull",weeklyTrend:"UP",  atr:3.9, accumScore:5, mansfieldConfirmed:true},
+    {id:"copper",     name:"Koper",               icon:"🔩",sector:"Materials",        proxy:"FCX, SCCO, BHP",         perf1w:-1.8,perf1m:-5.4,rs:-1.4,rsTrend:"down",rsBreak:"down", rsi:38,mansfield:-1.2,volFlow:1.1,breadth:24, trend:"DOWN", structure:"LH/LL",sma21x50:"bear",ema21x50:"bear",       ema8align:"strong-bear",weeklyTrend:"DOWN",atr:3.3},
+    {id:"lithium",    name:"Lithium",             icon:"🔋",sector:"Materials",        proxy:"ALB, SQM, LTHM",         perf1w:-3.1,perf1m:-9.2,rs:-2.4,rsTrend:"down",rsBreak:"down", rsi:31,mansfield:-2.1,volFlow:0.9,breadth:15, trend:"DOWN", structure:"LH/LL",sma21x50:"bear",ema21x50:"bear",       ema8align:"strong-bear",weeklyTrend:"DOWN",atr:5.2},
+    {id:"def-tech",   name:"Defensie Tech",       icon:"🛸",sector:"Industrials",      proxy:"KTOS, RKLB, JOBY",       perf1w:3.2, perf1m:9.8, rs:2.1, rsTrend:"up",  rsBreak:"up",   rsi:66,mansfield:1.6, volFlow:2.3,breadth:78, trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull-cross", ema8align:"strong-bull",weeklyTrend:"UP",  atr:6.1, accumScore:6, freshCross:true,mansfieldConfirmed:true},
+    {id:"ecommerce",  name:"E-Commerce",          icon:"🛒",sector:"Consumer Discret.",proxy:"AMZN, SHOP, ETSY",       perf1w:1.5, perf1m:4.2, rs:0.7, rsTrend:"up",  rsBreak:"none", rsi:58,mansfield:-0.6,volFlow:1.3,breadth:62, trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"bull",       weeklyTrend:"UP",  atr:2.6, accumScore:3, freshCross:true,mansfieldEarlyRecov:true},
+    {id:"travel",     name:"Reizen",              icon:"✈️",sector:"Consumer Discret.",proxy:"BKNG, MAR, HLT",         perf1w:2.2, perf1m:7.1, rs:1.3, rsTrend:"up",  rsBreak:"up",   rsi:64,mansfield:1.1, volFlow:1.9,breadth:74, trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"strong-bull",weeklyTrend:"UP",  atr:2.9},
+    {id:"alt-asset",  name:"Alt. Vermogensbeheer",icon:"📈",sector:"Financials",       proxy:"BX, KKR, APO",           perf1w:1.8, perf1m:5.6, rs:1.1, rsTrend:"up",  rsBreak:"up",   rsi:63,mansfield:0.9, volFlow:1.6,breadth:72, trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"bull",       weeklyTrend:"UP",  atr:2.7},
+    {id:"megabanks",  name:"Mega Banken",         icon:"🏦",sector:"Financials",       proxy:"JPM, BAC, WFC",          perf1w:-0.3,perf1m:-1.8,rs:-0.5,rsTrend:"down",rsBreak:"none", rsi:45,mansfield:-0.4,volFlow:1.1,breadth:40, trend:"RANGE",structure:"LH/HL",sma21x50:"flat",ema21x50:"flat",       ema8align:"bear",       weeklyTrend:"RANGE",atr:1.8},
+    {id:"fintech",    name:"Fintech & Payments",  icon:"💳",sector:"Financials",       proxy:"V, MA, SQ, PYPL",        perf1w:1.2, perf1m:3.7, rs:0.6, rsTrend:"up",  rsBreak:"none", rsi:58,mansfield:0.5, volFlow:1.3,breadth:62, trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"strong-bull",weeklyTrend:"UP",  atr:2.2},
+    {id:"dc-reits",   name:"Data Center REITs",   icon:"🏢",sector:"Real Estate",      proxy:"EQIX, DLR, AMT",         perf1w:2.1, perf1m:5.8, rs:1.2, rsTrend:"up",  rsBreak:"none", rsi:62,mansfield:1.0, volFlow:1.6,breadth:72, trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"strong-bull",weeklyTrend:"UP",  atr:2.3},
+    {id:"elec-util",  name:"Elektrische Nutsbedr.",icon:"💡",sector:"Utilities",       proxy:"NEE, DUK, SO",           perf1w:0.6, perf1m:2.1, rs:0.2, rsTrend:"flat",rsBreak:"none", rsi:52,mansfield:0.2, volFlow:1.0,breadth:55, trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"flat",       ema8align:"flat",       weeklyTrend:"RANGE",atr:1.1},
+    {id:"social",     name:"Social Media",        icon:"📲",sector:"Communication",    proxy:"META, SNAP, PINS",       perf1w:1.7, perf1m:5.1, rs:0.9, rsTrend:"up",  rsBreak:"none", rsi:61,mansfield:0.8, volFlow:1.5,breadth:70, trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"bull",       weeklyTrend:"UP",  atr:2.8, freshCross:true,mansfieldConfirmed:true},
+    {id:"food-bev",   name:"Voeding & Drank",     icon:"🥤",sector:"Consumer Staples", proxy:"KO, PEP, GIS",           perf1w:1.8, perf1m:3.4, rs:0.5, rsTrend:"up",  rsBreak:"none", rsi:56,mansfield:0.4, volFlow:1.2,breadth:63, trend:"UP",   structure:"HH/HL",sma21x50:"bull",ema21x50:"bull",       ema8align:"flat",       weeklyTrend:"UP",  atr:1.2},
+    {id:"hydrogen",   name:"Waterstof",           icon:"🫧",sector:"Energy",           proxy:"PLUG, BE, FCEL",         perf1w:-1.4,perf1m:-4.8,rs:-1.2,rsTrend:"down",rsBreak:"down", rsi:39,mansfield:-1.1,volFlow:1.1,breadth:28, trend:"DOWN", structure:"LH/LL",sma21x50:"bear",ema21x50:"bear",       ema8align:"strong-bear",weeklyTrend:"DOWN",atr:6.4},
   ];
 }
 </script>
