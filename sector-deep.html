@@ -349,11 +349,9 @@ let activeSignal="all", activeTrend="all", activeSector="all", searchTerm="";
 let allExpanded=true, sortCol=null, sortDir=-1, refreshTimer=null;
 
 document.addEventListener("DOMContentLoaded", () => {
-  const savedUrl = localStorage.getItem(LS_URL) || "";
-  if (savedUrl) {
-    document.getElementById("appsScriptUrl").value = savedUrl;
-    document.getElementById("configNote").style.display = "none";
-  }
+  // Altijd DEFAULT_URL gebruiken — overschrijft eventuele oude URL in localStorage
+  localStorage.setItem(LS_URL, DEFAULT_URL);
+  document.getElementById("configNote").style.display = "none";
   wireFilters();
   loadData(false);
 });
