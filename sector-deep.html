@@ -695,8 +695,9 @@ function rowHTML(s) {
     <td>${smaCell(s.sma21x50)}</td>
     <td>${emaCell(s.ema21x50)}</td>
     <td class="num neu">${s.atr!=null?s.atr.toFixed(1)+"%":"—"}</td>
-    <td>${accumSignalCell(s._accum)}</td>
-    <td>${earlySignalCell(s._early)}</td>
+    '<td>' + accumSignalCell(s._accum) + '</td>' +
+    '<td>' + rs40AfterAccumCell(s) + '</td>' +
+    '<td>' + earlySignalCell(s._early) + '</td>' +
     <td>${confSignalCell(s._conf)}</td>
   </tr>`;
 }
