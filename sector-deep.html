@@ -670,7 +670,7 @@ const TABLE_HEADER=`<thead><tr>
   <th data-col="ema21x50" data-tip="EMA21 cross EMA50 — bevestigingssignaal laag 3">EMA21/50 <span class="sort-icon">↕</span></th>
   <th data-col="atr" data-tip="ATR% — gemiddelde dagelijkse range. Daalt bij absorptie (ACCUM component).">ATR% <span class="sort-icon">↕</span></th>
   <th data-col="_accumScore" data-tip="ACCUM SIGNAAL (max 8pt — backend): CMF EARLY 2pt + OBV divergentie 2pt + UD ratio 1pt + ATR absorptie 3pt. ACCUM≥5=signaal · PRE=ACCUM+earlyScore≤2">📊 ACCUM <span class="sort-icon">↕</span></th>
-  <th data-col="_earlyScore" data-tip="EMA+MANSFIELD (max 4pt): EMA8/21 vers cross=2pt (nadert=1pt) + Mansfield early (M<0+RS↑)=2pt of bevestigd (M>0+RS↑)=2pt. Signaal ≥3pt.">⚡ EMA+Mans <span class="sort-icon">↕</span></th>
+  <th data-col="isRS40AfterAccum5" data-tip="RS40 na ACCUM: ★★=ACCUM≥5 vorige 4w (volle positie) · ★=ACCUM≥3 (kleinere positie)">★ RS40 <span class="sort-icon">↕</span></th><th data-col="_earlyScore" data-tip="EMA+MANSFIELD (max 4pt): EMA8/21 vers cross=2pt (nadert=1pt) + Mansfield early (M<0+RS↑)=2pt of bevestigd (M>0+RS↑)=2pt. Signaal ≥3pt.">⚡ EMA+Mans <span class="sort-icon">↕</span></th>
   <th data-col="_confScore" data-tip="BEVESTIGD (max 4pt): EMA21/50 cross=1pt + HH/HL=1pt + W-Trend UP=1pt + Vol≥2×=1pt. Signaal ≥3pt.">✓ Bevestigd <span class="sort-icon">↕</span></th>
 </tr></thead>`;
 
