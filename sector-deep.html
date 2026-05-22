@@ -334,7 +334,7 @@
 const LS_URL      = "deepdive_appsscript_url";
   const DEFAULT_URL = "https://script.google.com/macros/s/AKfycbxE-6MTtiudEflPYD4U9y5LMGje_B0EYciiNYdCM6JuCTc3QhfFeF38nT9HTlCeHHZ7/exec";
 const LS_CACHE    = "deepdive_cache_v4";       // v4 — cache key bijgewerkt
-const LS_CACHE_TS = "deepdive_cache_ts_v4";
+const LS_CACHE_TS = "deepdive_cache_ts_v5";
 const CACHE_TTL   = 30 * 60 * 1000;
 const AUTO_REFRESH= 30 * 60 * 1000;
 const SECTOR_ICONS = {
@@ -661,7 +661,7 @@ const TABLE_HEADER=`<thead><tr>
   <th data-col="rsi" data-tip="RSI(14) — Wilder's Relative Strength Index">RSI(14) <span class="sort-icon">↕</span></th>
   <th data-col="mansfield" data-tip="Mansfield RS vs SPX — 52-week. Negatief maar stijgend = early recovery (▲E)">Mansfield <span class="sort-icon">↕</span></th>
   <th data-col="volFlow" data-tip="Volume Flow: 5d avg / 20d avg">Vol Flow <span class="sort-icon">↕</span></th>
-  <th data-col="breadth" data-tip="Breadth: % holdings boven SMA50">Breadth <span class="sort-icon">↕</span></th>
+  <th data-col="breadth" data-tip="Accum breadth: % bedrijven in basket met ATR-compressie + OBV↑ + Vol≥1.1×. ≥2/3 condities = in accum.">Breadth <span class="sort-icon">↕</span></th>
   <th data-col="weeklyTrend" data-tip="Wekelijkse trend SMA10w/SMA20w">W-Trend <span class="sort-icon">↕</span></th>
   <th data-col="trend" data-tip="Dagelijkse trend: close > SMA21 > SMA50 = UP">D-Trend <span class="sort-icon">↕</span></th>
   <th data-col="structure" data-tip="Swing structuur: HH/HL=bullish · LH/LL=bearish">Structuur <span class="sort-icon">↕</span></th>
@@ -687,7 +687,7 @@ function rowHTML(s) {
     <td>${rsiCell(s.rsi)}</td>
     <td>${msfCell(s.mansfield, s._early.mansfieldEarly, s._early.mansfieldConfirm)}</td>
     <td>${volCell(s.volFlow)}</td>
-    <td>${brdCell(s.breadth)}</td>
+    <td>${brdCell(s)}</td>
     <td>${trendCell(s.weeklyTrend)}</td>
     <td>${trendCell(s.trend)}</td>
     <td>${strCell(s.structure)}</td>
@@ -753,12 +753,35 @@ function rsBreakCell(v) {
   if(v==="down") return `<span style="color:var(--red);font-weight:700;font-size:14px" data-tip="RS breekt 20-daags dieptepunt">🔽 Break Down</span>`;
   return `<span class="neu">—</span>`;
 }
-function brdCell(v) {
-  if(v==null) return '<span class="neu">—</span>';
-  const c=v>=70?"var(--green)":v>=40?"var(--yellow)":"var(--red)";
-  return `<div class="gw">
-    <span style="color:${c};min-width:30px;text-align:right">${Math.round(v)}%</span>
-    <div class="gb" style="width:44px"><div class="gf" style="width:${v}%;background:${c}"></div></div></div>`;
+function brdCell(s) {
+  const pct     = s.breadth;
+  const count   = s.breadthCount   ?? 0;
+  const total   = s.breadthTotal   ?? 0;
+  const tickers = s.breadthTickers ?? [];
+
+  if (pct == null) return '<span class="neu">—</span>';
+
+  const color = pct >= 80 ? 'var(--purple)'
+              : pct >= 60 ? 'var(--green)'
+              : pct >= 40 ? 'var(--yellow)'
+              : 'var(--red)';
+
+  const dots = tickers
+    .filter(t => t.valid)
+    .map(t => {
+      const cls = t.inAccum ? 'cd-ok' : 'cd-no';
+      const atr = t.atrCompressing ? '✓' : '✗';
+      const obv = t.obvRising      ? '✓' : '✗';
+      const vol = t.volElevated    ? '✓' : '✗';
+      const tip = `${t.ticker}: ATR${atr} OBV${obv} Vol${vol} (${t.score}/3)`;
+      return `<div class="cd ${cls}" data-tip="${tip}"></div>`;
+    }).join('');
+
+  return `<div class="sig-cell" style="gap:5px">
+    <span style="color:${color};font-weight:700;font-size:11px">${count}/${total}</span>
+    <span style="font-size:10px;color:var(--muted)">${pct}%</span>
+    <div class="cond-dots" style="margin-left:2px">${dots}</div>
+  </div>`;
 }
 function trendCell(v) {
   const map={UP:"tag-up",DOWN:"tag-down",RANGE:"tag-range"};
