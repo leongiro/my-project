@@ -40,7 +40,7 @@ export default async function handler(req, res) {
       hyg, lqd, sphb, vtv,
       treasury10y, treasury2y, tips10y,
       cpi, jobless, m2, fedFunds,
-      willMcap, gdp,                      // ← Buffett Indicator
+      w5000, gdp,                      // ← Buffett Indicator
     ] = await Promise.all([
       yahooSeries("^VIX",      p1_4y),
       yahooSeries("DX-Y.NYB",  p1_4y),
@@ -59,8 +59,8 @@ export default async function handler(req, res) {
       fredSeries("ICSA",        60),
       fredSeries("M2SL",        60),
       fredSeries("FEDFUNDS",    60),
-      fredSeries("WILL5000INDFC", 150),   // Wilshire 5000 Full Cap (mrd $, kwartaal)
-      fredSeries("GDP",           150),   // US GDP (mrd $, kwartaal)
+      yahooSeries("^W5000", p1_4y),   // Wilshire 5000 index ≈ marktkapitalisatie in mrd $
+      fredSeries("GDP",     150),      // US GDP in mrd $
     ]);
 
     const yieldCurve = treasury10y.map(t => {
@@ -111,7 +111,7 @@ export default async function handler(req, res) {
 
     // ── Buffett Indicator = Wilshire 5000 Full Cap / GDP × 100 ─────────
     // GDP is kwartaaldata — forward-fill naar meest recente kwartaalcijfer
-    const buffettSeries = willMcap.map(d => {
+    const buffettSeries = w5000.map(d => {
       const latestGdp = gdp.filter(g => g.date <= d.date).slice(-1)[0];
       if (!latestGdp) return null;
       return {
