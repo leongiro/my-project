@@ -133,7 +133,12 @@
             opts.zones.forEach(z => {
               const y = scales.y.getPixelForValue(z.val);
               c.save(); c.strokeStyle = z.color; c.lineWidth = 1; c.setLineDash([4, 4]);
-              c.beginPath(); c.moveTo(chartArea.left, y); c.lineTo(chartArea.right, y); c.stroke(); c.restore();
+              c.beginPath(); c.moveTo(chartArea.left, y); c.lineTo(chartArea.right, y); c.stroke();
+              if (z.label) {
+                c.fillStyle = z.color; c.font = "10px DM Mono, monospace";
+                c.fillText(z.label, chartArea.left + 4, y - 4);
+              }
+              c.restore();
             });
           }
         });
@@ -163,7 +168,12 @@
       if (v === null || v === undefined) return "—";
       return `${pre}${parseFloat(v).toFixed(d)}${suf}`;
     }
-    function vixClass(v) { return v < 14 ? "vix-low" : v > 20 ? "vix-high" : "vix-mid"; }
+    function vixClass(v)      { return v < 14 ? "vix-low" : v > 20 ? "vix-high" : "vix-mid"; }
+    function buffettClass(v)  { return v > 175 ? "neg" : v > 125 ? "vix-mid" : "pos"; }
+    function buffettLevel(v)  {
+      if (v == null) return "—";
+      return v > 200 ? "Extreem hoog" : v > 175 ? "Zeer hoog" : v > 150 ? "Verhoogd" : v > 100 ? "Fair value" : "Laag";
+    }
     function deltaClass(arr) {
       if (!arr || arr.length < 20) return "neu";
       const last = arr[arr.length - 1]?.value;
@@ -204,6 +214,7 @@
           <div class="stat"><div class="stat-label">Copper/Gold</div><div class="stat-value ${deltaClass(series.copperGold)}">${fmt(latest.copperGold, 3)}</div><div class="stat-sub">Conjunctuur</div></div>
           <div class="stat"><div class="stat-label">Jobless Claims</div><div class="stat-value ${deltaClass(series.jobless) === "pos" ? "neg" : "pos"}">${latest.jobless ? Math.round(latest.jobless).toLocaleString() : "—"}</div><div class="stat-sub">Wekelijks</div></div>
           <div class="stat"><div class="stat-label">M2 Groei YoY</div><div class="stat-value ${latest.m2YoY > 0 ? "pos" : "neg"}">${fmt(latest.m2YoY, 1, "", "%")}</div><div class="stat-sub">Geldgroei</div></div>
+          <div class="stat"><div class="stat-label">Buffett Indicator</div><div class="stat-value ${buffettClass(latest.buffett)}">${fmt(latest.buffett, 1, "", "%")}</div><div class="stat-sub">${buffettLevel(latest.buffett)}</div></div>
         </div>
 
         <div class="section-title">Volatiliteit & Sentiment</div>
@@ -300,23 +311,68 @@
             </div>
           </div>
         </div>
+
+        <div class="section-title">📊 Buffett Indicator — Marktwaardering</div>
+        <div class="grid-2">
+          <div class="chart-wrap">
+            <div class="chart-top">
+              <div>
+                <div class="chart-title">Wilshire 5000 Full Cap / US GDP</div>
+                <div class="vix-zones" style="margin-top:5px">
+                  <span class="vix-zone vz-low">&lt;100% fair value</span>
+                  <span class="vix-zone vz-mid">100–150% verhoogd</span>
+                  <span class="vix-zone vz-high">&gt;150% extreem</span>
+                </div>
+              </div>
+              <div>
+                <div class="chart-latest ${buffettClass(latest.buffett)}">${fmt(latest.buffett, 1, "", "%")}</div>
+                <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);text-align:right;margin-top:2px">${buffettLevel(latest.buffett)}</div>
+              </div>
+            </div>
+            <canvas id="buffett-chart" height="160"></canvas>
+          </div>
+          <div class="chart-wrap" style="display:flex;flex-direction:column;gap:0.75rem;justify-content:space-between">
+            <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.07em">Referentieniveaus</div>
+            <div style="display:flex;flex-direction:column;gap:10px;font-family:'DM Mono',monospace;font-size:11px;flex:1;justify-content:center">
+              <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Dot-com piek (2000)</span><span style="color:var(--neg)">~183%</span></div>
+              <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Post-COVID piek (2021)</span><span style="color:var(--neg)">~211%</span></div>
+              <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Pre-crisis piek (2007)</span><span style="color:var(--risk-neutral)">~107%</span></div>
+              <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Historisch gemiddelde</span><span style="color:var(--pos)">~85–100%</span></div>
+              <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">Buffett waarschuwingsgrens</span><span style="color:var(--risk-neutral)">&gt;140%</span></div>
+              <div style="border-top:1px solid var(--border);padding-top:10px;color:var(--muted);font-size:10px;line-height:1.7">
+                Bron: FRED WILL5000INDFC / GDP<br>
+                Kwartaaldata — forward-filled naar meest recente kwartaalcijfer
+              </div>
+            </div>
+          </div>
+        </div>
       `;
 
-      makeChart("vix-chart",        "vix",          "#f472b6", { decimals: 1, zones: [{ val: 14, color: "rgba(74,222,128,0.5)" }, { val: 20, color: "rgba(248,113,113,0.5)" }] });
-      makeChart("betavalue-chart",  "betaValue",    "#fb923c", { decimals: 3 });
-      makeChart("yieldcurve-chart", "yieldCurve",   "#60a5fa", { decimals: 2, suffix: "%", zones: [{ val: 0, color: "rgba(96,165,250,0.4)" }] });
-      makeChart("erp-chart",        "erp",          "#4ade80", { decimals: 2, suffix: "%", zones: [{ val: 0, color: "rgba(248,113,113,0.4)" }, { val: 2, color: "rgba(74,222,128,0.4)" }] });
-      makeChart("spread-chart",     "spreadSeries", "#f87171", { decimals: 3 });
-      makeChart("fedfunds-chart",   "fedFunds",     "#a78bfa", { decimals: 2, suffix: "%" });
-      makeChart("cpi-chart",        "cpiYoY",       "#fbbf24", { decimals: 2, suffix: "%", fill: true });
-      makeChart("m2-chart",         "m2YoY",        "#22d3ee", { decimals: 1, suffix: "%" });
-      makeChart("jobless-chart",    "jobless",      "#e879f9", { decimals: 0 });
-      makeChart("wti-chart",        "wti",          "#34d399", { decimals: 2, prefix: "$" });
-      makeChart("spxgold-chart",    "spxGold",      "#a78bfa", { decimals: 3 });
-      makeChart("coppergold-chart", "copperGold",   "#fbbf24", { decimals: 3 });
-      makeChart("dxy-chart",        "dxy",          "#60a5fa", { decimals: 2 });
+      makeChart("vix-chart",        "vix",           "#f472b6", { decimals: 1, zones: [{ val: 14, color: "rgba(74,222,128,0.5)" }, { val: 20, color: "rgba(248,113,113,0.5)" }] });
+      makeChart("betavalue-chart",  "betaValue",     "#fb923c", { decimals: 3 });
+      makeChart("yieldcurve-chart", "yieldCurve",    "#60a5fa", { decimals: 2, suffix: "%", zones: [{ val: 0, color: "rgba(96,165,250,0.4)" }] });
+      makeChart("erp-chart",        "erp",           "#4ade80", { decimals: 2, suffix: "%", zones: [{ val: 0, color: "rgba(248,113,113,0.4)" }, { val: 2, color: "rgba(74,222,128,0.4)" }] });
+      makeChart("spread-chart",     "spreadSeries",  "#f87171", { decimals: 3 });
+      makeChart("fedfunds-chart",   "fedFunds",      "#a78bfa", { decimals: 2, suffix: "%" });
+      makeChart("cpi-chart",        "cpiYoY",        "#fbbf24", { decimals: 2, suffix: "%", fill: true });
+      makeChart("m2-chart",         "m2YoY",         "#22d3ee", { decimals: 1, suffix: "%" });
+      makeChart("jobless-chart",    "jobless",       "#e879f9", { decimals: 0 });
+      makeChart("wti-chart",        "wti",           "#34d399", { decimals: 2, prefix: "$" });
+      makeChart("spxgold-chart",    "spxGold",       "#a78bfa", { decimals: 3 });
+      makeChart("coppergold-chart", "copperGold",    "#fbbf24", { decimals: 3 });
+      makeChart("dxy-chart",        "dxy",           "#60a5fa", { decimals: 2 });
 
-      // Treasury dual line
+      // Buffett Indicator — referentielijnen met label
+      makeChart("buffett-chart", "buffettSeries", "#a78bfa", {
+        decimals: 1, suffix: "%", fill: true,
+        zones: [
+          { val: 100, color: "rgba(74,222,128,0.5)",  label: "100%" },
+          { val: 150, color: "rgba(251,191,36,0.5)",  label: "150%" },
+          { val: 200, color: "rgba(248,113,113,0.5)", label: "200%" },
+        ]
+      });
+
+      // Treasury dual line (10Y + 2Y)
       const ctx10y = document.getElementById("treasury-chart");
       if (ctx10y && series.treasury10y.length) {
         const sliced10 = cutSeries(series.treasury10y, activeDays);
@@ -343,7 +399,7 @@
             }
           }
         });
-        CHARTS["treasury-chart"] = { chart, seriesKey: "treasury10y", color: "#60a5fa", opts: {} };
+        CHARTS["treasury-chart"] = { chart, seriesKey: "treasury10y" };
       }
     }
 
