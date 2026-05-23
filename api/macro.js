@@ -4,8 +4,8 @@ export default async function handler(req, res) {
   const twoYearsAgo  = new Date(now); twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
 
   const p1_4y = Math.floor(fourYearsAgo.getTime() / 1000);
-  const p1_2y = Math.floor(twoYearsAgo.getTime() / 1000);
-  const p2    = Math.floor(now.getTime() / 1000);
+  const p1_2y = Math.floor(twoYearsAgo.getTime()  / 1000);
+  const p2    = Math.floor(now.getTime()            / 1000);
 
   async function yahooSeries(symbol, period1) {
     try {
@@ -40,6 +40,7 @@ export default async function handler(req, res) {
       hyg, lqd, sphb, vtv,
       treasury10y, treasury2y, tips10y,
       cpi, jobless, m2, fedFunds,
+      willMcap, gdp,                      // ← Buffett Indicator
     ] = await Promise.all([
       yahooSeries("^VIX",      p1_4y),
       yahooSeries("DX-Y.NYB",  p1_4y),
@@ -58,6 +59,8 @@ export default async function handler(req, res) {
       fredSeries("ICSA",        60),
       fredSeries("M2SL",        60),
       fredSeries("FEDFUNDS",    60),
+      fredSeries("WILL5000INDFC", 150),   // Wilshire 5000 Full Cap (mrd $, kwartaal)
+      fredSeries("GDP",           150),   // US GDP (mrd $, kwartaal)
     ]);
 
     const yieldCurve = treasury10y.map(t => {
@@ -66,7 +69,6 @@ export default async function handler(req, res) {
       return { date: t.date, value: parseFloat((t.value - t2.value).toFixed(3)) };
     }).filter(Boolean);
 
-    // ERP = 10Y Treasury nominaal - 10Y TIPS yield (break-even inflatie proxy)
     const erp = tips10y.map(t => {
       const nom = treasury10y.find(x => x.date === t.date);
       if (!nom) return null;
@@ -107,6 +109,17 @@ export default async function handler(req, res) {
       date: m.date, value: parseFloat(((m.value - m2[i].value) / m2[i].value * 100).toFixed(2))
     }));
 
+    // ── Buffett Indicator = Wilshire 5000 Full Cap / GDP × 100 ─────────
+    // GDP is kwartaaldata — forward-fill naar meest recente kwartaalcijfer
+    const buffettSeries = willMcap.map(d => {
+      const latestGdp = gdp.filter(g => g.date <= d.date).slice(-1)[0];
+      if (!latestGdp) return null;
+      return {
+        date:  d.date,
+        value: parseFloat((d.value / latestGdp.value * 100).toFixed(1)),
+      };
+    }).filter(Boolean);
+
     const latestVix    = vix[vix.length - 1]?.value ?? 20;
     const latestBV     = betaValue[betaValue.length - 1]?.value ?? 1;
     const prevBV       = betaValue[betaValue.length - 20]?.value ?? latestBV;
@@ -116,6 +129,7 @@ export default async function handler(req, res) {
     const latestERP    = erp[erp.length - 1]?.value ?? 0;
     const latestCY     = copperGold[copperGold.length - 1]?.value ?? 0;
     const prevCY       = copperGold[copperGold.length - 20]?.value ?? latestCY;
+    const latestBI     = buffettSeries[buffettSeries.length - 1]?.value ?? null;
 
     let riskScore = 0;
     if (latestVix < 14) riskScore += 2;
@@ -130,23 +144,24 @@ export default async function handler(req, res) {
     const riskSignal = riskScore >= 2 ? "risk-on" : riskScore <= -2 ? "risk-off" : "neutral";
 
     const latest = {
-      vix: latestVix,
-      dxy: dxy[dxy.length-1]?.value,
-      wti: wti[wti.length-1]?.value,
-      cpiYoY: cpiYoY[cpiYoY.length-1]?.value,
-      cpiMoM: cpiMoM[cpiMoM.length-1]?.value,
-      spxGold: spxGold[spxGold.length-1]?.value,
-      betaValue: latestBV,
-      spread: latestSpread,
-      yieldCurve: latestYC,
-      erp: latestERP,
-      tipsYield: tips10y[tips10y.length-1]?.value,
-      copperGold: latestCY,
-      fedFunds: fedFunds[fedFunds.length-1]?.value,
+      vix:         latestVix,
+      dxy:         dxy[dxy.length-1]?.value,
+      wti:         wti[wti.length-1]?.value,
+      cpiYoY:      cpiYoY[cpiYoY.length-1]?.value,
+      cpiMoM:      cpiMoM[cpiMoM.length-1]?.value,
+      spxGold:     spxGold[spxGold.length-1]?.value,
+      betaValue:   latestBV,
+      spread:      latestSpread,
+      yieldCurve:  latestYC,
+      erp:         latestERP,
+      tipsYield:   tips10y[tips10y.length-1]?.value,
+      copperGold:  latestCY,
+      fedFunds:    fedFunds[fedFunds.length-1]?.value,
       treasury10y: treasury10y[treasury10y.length-1]?.value,
-      treasury2y: treasury2y[treasury2y.length-1]?.value,
-      jobless: jobless[jobless.length-1]?.value,
-      m2YoY: m2YoY[m2YoY.length-1]?.value,
+      treasury2y:  treasury2y[treasury2y.length-1]?.value,
+      jobless:     jobless[jobless.length-1]?.value,
+      m2YoY:       m2YoY[m2YoY.length-1]?.value,
+      buffett:     latestBI,                          // ← Buffett Indicator
       riskScore,
     };
 
@@ -157,6 +172,7 @@ export default async function handler(req, res) {
         vix, dxy, wti, spxGold, betaValue, spreadSeries,
         cpiYoY, cpiMoM, yieldCurve, erp, copperGold,
         jobless, m2YoY, fedFunds, treasury10y, treasury2y, tips10y,
+        buffettSeries,                                // ← Buffett Indicator
       },
       latest,
     });
