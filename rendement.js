@@ -1,12 +1,15 @@
 /**
- * rendement.js — Portfolio Rendement Module v2.4
- * TWR + CAGR + Benchmarks + Allocatie Donut + Verbeterde grafiek
+ * rendement.js — Portfolio Rendement Module v2.5
+ * TWR + CAGR + Benchmarks + Allocatie Donut
  *
- * v2.4 fixes:
- * - renderCashflowGrid: kosten uit de optelbox gehaald (waren al verrekend in kostenbasis)
- * - drawChart: null-check fix (!h.twr == null → h.twr == null)
- * - drawChart: portfolio lijn gecapped op vandaag (geen toekomstige datums)
- * - drawChart: zichtbare datapunten + segment borderDash bij maanddata
+ * v2.5 fixes:
+ * - fetchSheets: 8s timeout + CORS-detectie + leesbare foutmelding
+ * - load(): fallback naar demo bij fout, diagnose-banner zichtbaar
+ * - drawChart: scope-fix — benchmarks renderen ook zonder TWR-historie
+ * - drawChart: portfolio lijn gecapped op vandaag
+ * - drawChart: null-check fix (h.twr == null)
+ * - sheetsUrl: refresh=true param niet dubbel meegeven
+ * - renderCashflowGrid: kosten buiten optelsom (al in kostenbasis)
  */
 
 const Rendement = (() => {
@@ -16,8 +19,7 @@ const Rendement = (() => {
   const BENCHMARK_LABELS  = { SPX: "S&P 500 TR (USD)", MSCI_WORLD: "MSCI World TR (EUR)", AEX: "AEX TR (EUR)" };
   const BENCHMARK_COLORS  = { SPX: "#60a5fa", MSCI_WORLD: "#4ade80", AEX: "#f87171" };
   const PERIODE_MAANDEN   = { "1M":1,"3M":3,"6M":6,"YTD":0,"1J":12,"3J":36,"MAX":999 };
-
-  const CHART_START = "2025-04-01";
+  const CHART_START       = "2025-04-01";
 
   const ALLOC_COLORS = [
     "#fbbf24","#60a5fa","#4ade80","#f87171",
@@ -26,9 +28,9 @@ const Rendement = (() => {
   ];
 
   const CF_TYPE_MAP = {
-    deposit: "STORTING", storting: "STORTING", inleg: "STORTING", buy: "STORTING",
-    withdrawal: "OPNAME", opname: "OPNAME", onttrekking: "OPNAME", sell: "OPNAME",
-    dividend: "DIVIDEND",
+    deposit:"STORTING", storting:"STORTING", inleg:"STORTING", buy:"STORTING",
+    withdrawal:"OPNAME", opname:"OPNAME", onttrekking:"OPNAME", sell:"OPNAME",
+    dividend:"DIVIDEND",
   };
 
   const PROXIES = [
@@ -51,7 +53,9 @@ const Rendement = (() => {
   // INITIALISATIE
   // ══════════════════════════════════════════════════════════════════
   function init(config) {
-    cfg = { sheetsUrl: "", benchmarks: ["SPX","MSCI_WORLD","AEX"], defaultPeriod: "1J", ...config };
+    cfg = { sheetsUrl:"", benchmarks:["SPX","MSCI_WORLD","AEX"], defaultPeriod:"1J", ...config };
+    // strip trailing &refresh=true uit de sheetsUrl zodat we hem niet dubbel meesturen
+    cfg.sheetsUrl = cfg.sheetsUrl.replace(/[?&]refresh=true/gi, "");
     activePeriod = cfg.defaultPeriod;
     load();
   }
@@ -62,10 +66,7 @@ const Rendement = (() => {
     allocatieData = null;
     const badge = document.getElementById("twr-badge");
     if (badge) badge.textContent = "Vernieuwen…";
-    const origUrl = cfg.sheetsUrl;
-    cfg.sheetsUrl = origUrl + (origUrl.includes("?") ? "&" : "?") + "refresh=true";
     await load();
-    cfg.sheetsUrl = origUrl;
   }
 
   // ══════════════════════════════════════════════════════════════════
@@ -87,11 +88,28 @@ const Rendement = (() => {
   // ══════════════════════════════════════════════════════════════════
   async function load() {
     setLoading();
+    let diagnoseBanner = "";
+
     try {
       const isDemo = !cfg.sheetsUrl || cfg.sheetsUrl.includes("JOUW_");
-      let raw = isDemo ? getDemoData() : await fetchSheets();
+      let raw;
+
+      if (isDemo) {
+        raw = getDemoData();
+      } else {
+        try {
+          raw = await fetchSheets();
+        } catch (fetchErr) {
+          // ── Fallback naar demo met diagnose-banner ──────────────────
+          console.warn("[Rendement] Apps Script fetch mislukt:", fetchErr.message);
+          raw = getDemoData();
+          diagnoseBanner = buildDiagnoseBanner(fetchErr);
+        }
+      }
+
       portfolioData = normalizeData(raw);
 
+      // Benchmarks: server-side of client-side fallback
       const serverBm = portfolioData.benchmarkData ?? {};
       const needClientFetch = [];
       for (const b of cfg.benchmarks) {
@@ -104,25 +122,93 @@ const Rendement = (() => {
       if (needClientFetch.length > 0) {
         await Promise.allSettled(needClientFetch.map(async b => {
           try { benchData[b] = await loadBenchmark(b); }
-          catch(e) { console.warn("Benchmark", b, "client-side mislukt:", e.message); }
+          catch(e) { console.warn("Benchmark", b, "mislukt:", e.message); }
         }));
       }
 
-      render(isDemo);
+      render(isDemo, diagnoseBanner);
+
     } catch (err) {
       document.getElementById("content").innerHTML =
-        `<div class="error">⚠ Kon data niet laden: ${escHtml(err.message)}<br><br>
-         <small>Open de Apps Script URL in je browser en controleer de JSON-output.</small></div>`;
+        `<div class="error">⚠ Interne fout: ${escHtml(err.message)}<br><br>
+         <small>Open de browser-console (F12) voor details.</small></div>`;
+      console.error("[Rendement] Fatale fout:", err);
     }
   }
 
+  // ── fetchSheets met timeout + CORS-diagnose ───────────────────────
   async function fetchSheets() {
+    if (!cfg.sheetsUrl) throw new Error("Geen sheetsUrl geconfigureerd");
+
     const sep = cfg.sheetsUrl.includes("?") ? "&" : "?";
-    const res = await fetch(cfg.sheetsUrl + sep + "action=getData");
-    if (!res.ok) throw new Error("Sheets antwoord: " + res.status);
-    const data = await res.json();
-    if (data?.error) throw new Error(data.error);
-    return data;
+    const url = cfg.sheetsUrl + sep + "action=getData";
+
+    const controller = new AbortController();
+    const timer      = setTimeout(() => controller.abort(), 8000);
+
+    let res;
+    try {
+      res = await fetch(url, { signal: controller.signal });
+    } catch (e) {
+      clearTimeout(timer);
+      if (e.name === "AbortError") {
+        throw new Error(
+          "TIMEOUT: Apps Script reageerde niet binnen 8 seconden. " +
+          "Controleer of de web app als 'Iedereen' is gepubliceerd (niet 'Iedereen met een Google-account')."
+        );
+      }
+      throw new Error(
+        "NETWERK/CORS fout: " + e.message +
+        ". Open de Apps Script URL direct in je browser om te controleren of hij JSON teruggeeft."
+      );
+    } finally {
+      clearTimeout(timer);
+    }
+
+    if (!res.ok) {
+      throw new Error(`Apps Script HTTP ${res.status}. URL: ${url}`);
+    }
+
+    // Detecteer HTML-redirect (login-pagina) in plaats van JSON
+    const contentType = res.headers.get("content-type") ?? "";
+    const text        = await res.text();
+
+    if (contentType.includes("text/html") || text.trim().startsWith("<!")) {
+      throw new Error(
+        "Apps Script geeft HTML terug in plaats van JSON — " +
+        "de web app is waarschijnlijk niet als 'Anoniem / Iedereen' gepubliceerd, " +
+        "of de doGet()-functie ontbreekt/gooit een fout. " +
+        "Test: open " + url + " in Incognito-venster."
+      );
+    }
+
+    try {
+      const data = JSON.parse(text);
+      if (data?.error) throw new Error("Apps Script error: " + data.error);
+      return data;
+    } catch (e) {
+      if (e.message.startsWith("Apps Script")) throw e;
+      throw new Error(
+        "Ongeldige JSON van Apps Script: " + e.message +
+        ". Eerste 200 tekens: " + text.substring(0, 200)
+      );
+    }
+  }
+
+  function buildDiagnoseBanner(err) {
+    return `
+<div style="background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.35);border-radius:8px;
+            padding:1rem 1.25rem;margin-bottom:1.25rem;font-family:'DM Mono',monospace;font-size:11px;color:#f87171">
+  <div style="font-weight:600;margin-bottom:6px">⚠ Apps Script niet bereikbaar — demo-data getoond</div>
+  <div style="color:#a1a1c0;line-height:1.8">${escHtml(err.message)}</div>
+  <div style="margin-top:10px;color:#a1a1c0">
+    <strong style="color:#f87171">Checklist:</strong><br>
+    1. Open Apps Script → Implementeren → Beheer implementaties<br>
+    2. Toegang: <strong style="color:#fbbf24">Iedereen</strong> (niet "Iedereen met Google-account")<br>
+    3. doGet(e) moet <code>ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON)</code> retourneren<br>
+    4. Test-URL in Incognito: <a href="${escHtml(cfg.sheetsUrl + "?action=getData")}" target="_blank" style="color:#60a5fa">${escHtml(cfg.sheetsUrl.substring(0,60))}…</a>
+  </div>
+</div>`;
   }
 
   // ══════════════════════════════════════════════════════════════════
@@ -143,18 +229,15 @@ const Rendement = (() => {
     const totaalKostenbasis = actief.reduce((s, p) => s + p.aantal * p.gemAankoopprijs, 0);
     const totaalPnL         = actief.reduce((s, p) => s + p.pnl, 0);
     const totaalDividend    = actief.reduce((s, p) => s + p.dividend, 0);
-
     const totaalKosten      = safeNum(raw.samenvatting?.totaalKosten,
                                 actief.reduce((s, p) => s + p.kosten, 0));
     const totaalAutoFX      = safeNum(raw.samenvatting?.totaalAutoFX, null);
     const totaalBrokerKosten = safeNum(raw.samenvatting?.totaalBrokerKosten, null);
 
-    if (totaalWaarde > 0) {
-      posities.forEach(p => { p.gewicht = p.waarde / totaalWaarde; });
-    }
+    if (totaalWaarde > 0) posities.forEach(p => { p.gewicht = p.waarde / totaalWaarde; });
 
-    const rawTwr     = safeNum(raw.samenvatting?.twr ?? raw.twr, null);
-    const twr        = (rawTwr != null && rawTwr !== 0)
+    const rawTwr    = safeNum(raw.samenvatting?.twr ?? raw.twr, null);
+    const twr       = (rawTwr != null && rawTwr !== 0)
       ? rawTwr
       : (totaalKostenbasis > 0 ? totaalPnL / totaalKostenbasis : 0);
     const twrIsProxy = rawTwr == null || rawTwr === 0;
@@ -201,25 +284,20 @@ const Rendement = (() => {
     const aantal          = safeNum(p.aantal ?? p.shares ?? p.qty, 0);
     const gemAankoopprijs = safeNum(p.gemAankoopprijs ?? p.avgPrice ?? p.costBasis, 0);
     const huidig          = safeNum(p.huidig ?? p.currentPrice ?? p.price, 0);
-
-    const rawWaarde = safeNum(p.waarde ?? p.currentValue ?? p.marketValue, null);
-    const waarde    = (rawWaarde != null && rawWaarde > 0) ? rawWaarde : (aantal * huidig);
-
-    const rawPnl = safeNum(p.pnl ?? p.unrealizedPnl, null);
-    const pnl    = rawPnl != null ? rawPnl : (waarde - aantal * gemAankoopprijs);
-
+    const rawWaarde       = safeNum(p.waarde ?? p.currentValue ?? p.marketValue, null);
+    const waarde          = (rawWaarde != null && rawWaarde > 0) ? rawWaarde : (aantal * huidig);
+    const rawPnl          = safeNum(p.pnl ?? p.unrealizedPnl, null);
+    const pnl             = rawPnl != null ? rawPnl : (waarde - aantal * gemAankoopprijs);
     return {
-      product:         p.product ?? p.name ?? p.ticker ?? "Onbekend",
-      isin:            p.isin ?? p.symbol ?? "",
-      ticker:          p.ticker ?? "",
-      aantal,
-      gemAankoopprijs,
-      huidig:          huidig > 0 ? huidig : (aantal > 0 ? waarde / aantal : 0),
-      waarde,
-      pnl,
-      dividend:        safeNum(p.dividend ?? p.dividendReceived, 0),
-      kosten:          safeNum(p.kosten ?? p.fees ?? p.transactionCosts, 0),
-      gewicht:         safeNum(p.gewicht ?? p.weight, 0),
+      product: p.product ?? p.name ?? p.ticker ?? "Onbekend",
+      isin:    p.isin ?? p.symbol ?? "",
+      ticker:  p.ticker ?? "",
+      aantal, gemAankoopprijs,
+      huidig:   huidig > 0 ? huidig : (aantal > 0 ? waarde / aantal : 0),
+      waarde, pnl,
+      dividend: safeNum(p.dividend ?? p.dividendReceived, 0),
+      kosten:   safeNum(p.kosten ?? p.fees ?? p.transactionCosts, 0),
+      gewicht:  safeNum(p.gewicht ?? p.weight, 0),
     };
   }
 
@@ -237,7 +315,6 @@ const Rendement = (() => {
   async function loadBenchmark(key) {
     const ticker   = BENCHMARK_TICKERS[key];
     const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1mo&range=5y`;
-
     for (const makeProxy of PROXIES) {
       try {
         const res = await fetch(makeProxy(yahooUrl), { signal: AbortSignal.timeout(9000) });
@@ -260,8 +337,7 @@ const Rendement = (() => {
   // BEREKENINGEN
   // ══════════════════════════════════════════════════════════════════
   function berekenCAGR(twr, aantalJaren) {
-    if (!isFinite(aantalJaren) || aantalJaren <= 0) return null;
-    if (!isFinite(twr)) return null;
+    if (!isFinite(aantalJaren) || aantalJaren <= 0 || !isFinite(twr)) return null;
     return Math.pow(1 + twr, 1 / aantalJaren) - 1;
   }
 
@@ -289,7 +365,7 @@ const Rendement = (() => {
       `<div class="loading">Data laden<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>`;
   }
 
-  function render(isDemo = false) {
+  function render(isDemo = false, diagnoseBanner = "") {
     const { samenvatting, cashflowSamenvatting = {}, meta, cashflows = [], twrHistorie = [], posities = [] } = portfolioData;
     const startDatum  = getStartDatum(activePeriod);
     const nu          = new Date();
@@ -299,7 +375,7 @@ const Rendement = (() => {
 
     const badge = document.getElementById("twr-badge");
     if (badge) {
-      badge.textContent  = `${samenvatting.twrIsProxy ? "P&L" : "TWR"} ${twr >= 0 ? "+" : ""}${(twr*100).toFixed(2)}%`;
+      badge.textContent       = `${samenvatting.twrIsProxy ? "P&L" : "TWR"} ${twr >= 0 ? "+" : ""}${(twr*100).toFixed(2)}%`;
       badge.style.color       = twr >= 0 ? "var(--pos)" : "var(--neg)";
       badge.style.borderColor = twr >= 0 ? "rgba(74,222,128,0.35)" : "rgba(248,113,113,0.35)";
       badge.style.background  = twr >= 0 ? "rgba(74,222,128,0.1)"  : "rgba(248,113,113,0.1)";
@@ -311,14 +387,14 @@ const Rendement = (() => {
         { day:"2-digit", month:"short", hour:"2-digit", minute:"2-digit" });
     }
 
-    let html = "";
-    if (isDemo) html += `<div class="warn-box">⚠ Demo-modus — vul <strong>sheetsUrl</strong> in rendement.html in.</div>`;
-    if (samenvatting.twrIsProxy && !isDemo) {
-      html += `<div class="warn-box">ℹ Rendement = <strong>P&L / kostenbasis</strong> (geen gecorrigeerde TWR). Voeg <code>twrHistorie</code> toe aan je Apps Script voor echte Time-Weighted Return.</div>`;
-    }
-
     const actief   = posities.filter(p => p.aantal > 0.0001);
     const gesloten = portfolioData.geslotenPosities ?? [];
+
+    let html = diagnoseBanner;
+    if (isDemo && !diagnoseBanner) html += `<div class="warn-box">⚠ Demo-modus — vul <strong>sheetsUrl</strong> in rendement.html in met je Apps Script URL.</div>`;
+    if (samenvatting.twrIsProxy && !isDemo && !diagnoseBanner) {
+      html += `<div class="warn-box">ℹ Rendement = <strong>P&L / kostenbasis</strong> (geen gecorrigeerde TWR). Voeg <code>twrHistorie</code> toe voor echte Time-Weighted Return.</div>`;
+    }
 
     html += renderSectionTitle("Portefeuille Samenvatting");
     html += renderKpiGrid(samenvatting, cagr, gesloten);
@@ -368,112 +444,6 @@ const Rendement = (() => {
 </div>`;
   }
 
-  // ── Allocatie grafiek ─────────────────────────────────────────────
-  function renderAllocatieGrafiek(posities) {
-    const gesorteerd = [...posities].sort((a, b) => b.waarde - a.waarde);
-    return `
-<div class="chart-wrap" style="display:grid;grid-template-columns:260px 1fr;gap:2rem;align-items:center">
-  <div style="position:relative">
-    <canvas id="alloc-chart"></canvas>
-  </div>
-  <div id="alloc-legend" style="max-height:320px;overflow-y:auto">
-    ${gesorteerd.map((p, i) => `
-    <div class="alloc-leg-row" style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)">
-      <div style="display:flex;align-items:center;gap:10px;min-width:0">
-        <div style="width:10px;height:10px;border-radius:2px;background:${ALLOC_COLORS[i % ALLOC_COLORS.length]};flex-shrink:0"></div>
-        <div style="min-width:0">
-          <div style="font-size:12px;color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px">${escHtml(p.product)}</div>
-          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)">${escHtml(p.isin)}</div>
-        </div>
-      </div>
-      <div style="text-align:right;flex-shrink:0;margin-left:16px">
-        <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text)">${fmtEUR(p.waarde, 0)}</div>
-        <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)">${((p.gewicht ?? 0) * 100).toFixed(1)}%</div>
-      </div>
-    </div>`).join("")}
-  </div>
-</div>
-<style>
-  @media (max-width: 700px) {
-    #alloc-chart-wrap { grid-template-columns: 1fr !important; }
-  }
-</style>`;
-  }
-
-  function drawAllocatieChart(posities) {
-    const canvas = document.getElementById("alloc-chart");
-    if (!canvas) return;
-    if (allocatieChartInstance) { allocatieChartInstance.destroy(); allocatieChartInstance = null; }
-
-    const gesorteerd = [...posities].sort((a, b) => b.waarde - a.waarde);
-    const totaal     = gesorteerd.reduce((s, p) => s + p.waarde, 0);
-    const labels     = gesorteerd.map(p => p.product.length > 28 ? p.product.substring(0, 26) + "…" : p.product);
-    const data       = gesorteerd.map(p => p.waarde);
-    const colors     = gesorteerd.map((_, i) => ALLOC_COLORS[i % ALLOC_COLORS.length]);
-
-    const centerPlugin = {
-      id: "donutCenter",
-      afterDraw(chart) {
-        const { width, height, ctx } = chart;
-        const cx = chart.chartArea
-          ? (chart.chartArea.left + chart.chartArea.right) / 2
-          : width / 2;
-        const cy = chart.chartArea
-          ? (chart.chartArea.top + chart.chartArea.bottom) / 2
-          : height / 2;
-        ctx.save();
-        ctx.textAlign    = "center";
-        ctx.textBaseline = "middle";
-        ctx.font         = "500 15px 'DM Mono', monospace";
-        ctx.fillStyle    = "#e8e8f0";
-        ctx.fillText(fmtEUR(totaal, 0), cx, cy - 9);
-        ctx.font         = "400 10px 'DM Sans', sans-serif";
-        ctx.fillStyle    = "#5a5a7a";
-        ctx.fillText("totaalwaarde", cx, cy + 11);
-        ctx.restore();
-      },
-    };
-
-    allocatieChartInstance = new Chart(canvas, {
-      type: "doughnut",
-      data: {
-        labels,
-        datasets: [{
-          data,
-          backgroundColor:      colors,
-          hoverBackgroundColor: colors.map(c => c + "cc"),
-          borderColor:          "#0a0a0f",
-          borderWidth:          2,
-          hoverBorderWidth:     3,
-        }],
-      },
-      options: {
-        responsive:    true,
-        cutout:        "72%",
-        animation:     { animateRotate: true, duration: 600 },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: "#12121a",
-            borderColor:     "#1e1e2e",
-            borderWidth:     1,
-            titleColor:      "#5a5a7a",
-            bodyColor:       "#e8e8f0",
-            padding:         10,
-            callbacks: {
-              title: ctx  => ctx[0].label,
-              label: ctx  => {
-                const pct = totaal > 0 ? ((ctx.parsed / totaal) * 100).toFixed(1) : "0.0";
-                return `  ${fmtEUR(ctx.parsed, 0)}  ·  ${pct}%`;
-              },
-            },
-          },
-        },
-      },
-      plugins: [centerPlugin],
-    });
-  }
-
   // ── KPI grid ──────────────────────────────────────────────────────
   function renderKpiGrid(samenvatting, cagr, gesloten) {
     const twr = samenvatting.twr ?? 0;
@@ -515,23 +485,347 @@ const Rendement = (() => {
         : "broker + AutoFX · alle trans."}
     </div>
   </div>
-  <div class="kpi-card ${totaalGerealiseerd >= 0 ? "pos-accent":"neg-accent"}" style="display:${totaalGerealiseerd !== 0 ? 'block' : 'none'}">
+  ${totaalGerealiseerd !== 0 ? `
+  <div class="kpi-card ${totaalGerealiseerd >= 0 ? "pos-accent":"neg-accent"}">
     <div class="kpi-label">Gerealiseerd P&amp;L</div>
     <div class="kpi-value ${totaalGerealiseerd >= 0 ? "pos":"neg"}">${fmtEUR(totaalGerealiseerd, 0)}</div>
     <div class="kpi-sub">gesloten posities</div>
+  </div>` : ""}
+</div>`;
+  }
+
+  // ── Grafiek sectie ────────────────────────────────────────────────
+  function renderGrafiekSectie() {
+    const periodes = ["1M","3M","6M","YTD","1J","3J","MAX"];
+    const knoppen  = periodes.map(p =>
+      `<button class="pf${activePeriod===p?" active":""}" onclick="Rendement._setPeriod('${p}')">${p}</button>`
+    ).join("");
+
+    const legItems = [
+      { kleur: "#fbbf24", label: "Portfolio" },
+      ...cfg.benchmarks.map(b => ({ kleur: BENCHMARK_COLORS[b], label: BENCHMARK_LABELS[b] })),
+    ].map(l => `
+      <div class="leg-item">
+        <div class="leg-dot" style="background:${l.kleur}"></div>
+        ${l.label}
+      </div>`).join("");
+
+    return `
+<div class="chart-wrap">
+  <div class="chart-top">
+    <div>
+      <div class="chart-title">Rendement vs Benchmarks</div>
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-top:3px">
+        genormaliseerd op 0% · 1 apr 2025 t/m vandaag · portfolio = maanddata · indices = dagdata
+      </div>
+    </div>
+    <div class="period-filters">${knoppen}</div>
   </div>
+  <div class="chart-legend">${legItems}</div>
+  <canvas id="rend-chart" height="200"></canvas>
+  <div id="rend-chart-msg"></div>
 </div>`;
   }
 
   // ══════════════════════════════════════════════════════════════════
-  // ALLOCATIE ANALYSE
+  // RENDEMENT-CHART — v2.5 SCOPE-FIX
+  //
+  // Structuur:
+  //   1. Portfolio-dataset opbouwen (optioneel — geen crash als leeg)
+  //   2. Benchmark-datasets opbouwen (altijd, onafhankelijk van portfolio)
+  //   3. Chart renderen als ≥1 dataset beschikbaar is
+  // ══════════════════════════════════════════════════════════════════
+  function drawChart(startDatum, twrHistorie) {
+    const canvas  = document.getElementById("rend-chart");
+    const msgEl   = document.getElementById("rend-chart-msg");
+    if (!canvas) return;
+    if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+
+    const toMs    = d => new Date(d).getTime();
+    const startMs = toMs(CHART_START);
+    const TODAY   = new Date().toISOString().substring(0, 10);
+
+    const datasets = [];
+
+    // ── 1. Portfolio lijn (optioneel) ─────────────────────────────
+    const allPort = [...(twrHistorie ?? [])].sort((a, b) => a.datum.localeCompare(b.datum));
+
+    if (allPort.length >= 2) {
+      const voor       = allPort.filter(h => h.datum <= CHART_START);
+      const na         = allPort.filter(h => h.datum >= CHART_START && h.datum <= TODAY);
+      const basisEntry = voor.length > 0 ? voor[voor.length - 1] : na[0];
+      const twrBasis   = basisEntry?.twr ?? 0;
+
+      if (Math.abs(twrBasis) <= 1.5) {
+        const portData = [{ x: startMs, y: 0 }];
+
+        na.forEach(h => {
+          if (h.twr == null || h.datum === basisEntry?.datum) return;
+          const norm = (1 + (h.twr ?? 0)) / (1 + twrBasis) - 1;
+          if (Math.abs(norm) <= 1.0) {
+            portData.push({ x: toMs(h.datum), y: +(norm * 100).toFixed(3) });
+          }
+        });
+
+        if (portData.length >= 2) {
+          datasets.push({
+            label:              "Portfolio",
+            data:               portData,
+            borderColor:        "#fbbf24",
+            backgroundColor:    "rgba(251,191,36,0.07)",
+            borderWidth:        2.5,
+            pointRadius:        portData.length < 20 ? 3 : 0,
+            pointBackgroundColor: "#fbbf24",
+            pointHoverRadius:   6,
+            tension:            0.4,
+            fill:               true,
+            order:              0,
+          });
+        }
+      }
+    }
+
+    // ── 2. Benchmark lijnen (altijd, buiten portfolio-if) ─────────
+    for (const key of cfg.benchmarks) {
+      const serie = [...(benchData[key] ?? [])].sort((a, b) => a.datum.localeCompare(b.datum));
+      if (serie.length < 2) continue;
+
+      const voor  = serie.filter(d => d.datum <= CHART_START);
+      const na    = serie.filter(d => d.datum >= CHART_START);
+      const basis = voor.length > 0 ? voor[voor.length - 1] : na[0];
+      if (!basis?.koers) continue;
+
+      const bmData = [{ x: startMs, y: 0 }];
+      na.forEach(d => {
+        if (d.datum === basis.datum) return;
+        bmData.push({
+          x: toMs(d.datum),
+          y: +((d.koers / basis.koers - 1) * 100).toFixed(3),
+        });
+      });
+
+      if (bmData.length < 2) continue;
+
+      datasets.push({
+        label:           BENCHMARK_LABELS[key],
+        data:            bmData,
+        borderColor:     BENCHMARK_COLORS[key],
+        backgroundColor: "transparent",
+        borderWidth:     1.5,
+        pointRadius:     0,
+        pointHoverRadius: 4,
+        tension:         0.3,
+        fill:            false,
+        order:           1,
+      });
+    }
+
+    // ── 3. Niets te tonen? ────────────────────────────────────────
+    if (datasets.length === 0) {
+      if (msgEl) msgEl.innerHTML =
+        `<div style="text-align:center;color:var(--muted);font-family:'DM Mono',monospace;font-size:12px;padding:2rem 0">
+          Geen grafiekdata — benchmarks laden nog of proxy is niet beschikbaar. Probeer ↻ Vernieuwen.
+        </div>`;
+      return;
+    }
+    if (msgEl) msgEl.innerHTML = "";
+
+    // ── 4. Chart renderen ─────────────────────────────────────────
+    const nullLijnPlugin = {
+      id: "nullLijn",
+      afterDraw(chart) {
+        const { ctx, chartArea: ca, scales } = chart;
+        if (!ca) return;
+        const y0 = scales.y.getPixelForValue(0);
+        if (y0 < ca.top || y0 > ca.bottom) return;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(ca.left, y0);
+        ctx.lineTo(ca.right, y0);
+        ctx.strokeStyle = "rgba(255,255,255,0.12)";
+        ctx.lineWidth   = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.stroke();
+        ctx.restore();
+      },
+    };
+
+    chartInstance = new Chart(canvas, {
+      type: "line",
+      data: { datasets },
+      options: {
+        responsive: true,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: "#12121a",
+            borderColor:     "#1e1e2e",
+            borderWidth:     1,
+            titleColor:      "#5a5a7a",
+            bodyColor:       "#e8e8f0",
+            padding:         12,
+            callbacks: {
+              title: ctx => {
+                const d = new Date(ctx[0].parsed.x);
+                return d.toLocaleDateString("nl-NL", { day:"numeric", month:"long", year:"numeric" });
+              },
+              label: ctx => {
+                const v = ctx.parsed.y;
+                return ` ${ctx.dataset.label}: ${v >= 0 ? "+" : ""}${v.toFixed(2)}%`;
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            type: "linear",
+            min:  startMs,
+            grid:   { color: "#1e1e2e" },
+            border: { color: "#1e1e2e" },
+            ticks: {
+              color: "#5a5a7a",
+              font:  { family: "DM Mono", size: 10 },
+              maxTicksLimit: 10,
+              callback: val => {
+                const d = new Date(val);
+                return d.toLocaleDateString("nl-NL", { month:"short", year:"2-digit" });
+              },
+            },
+          },
+          y: {
+            grid:   { color: "#1e1e2e" },
+            border: { color: "#1e1e2e" },
+            ticks: {
+              color: "#5a5a7a",
+              font:  { family: "DM Mono", size: 10 },
+              callback: v => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`,
+            },
+          },
+        },
+      },
+      plugins: [nullLijnPlugin],
+    });
+  }
+
+  // ── Benchmark vergelijking kaarten ────────────────────────────────
+  function renderBenchmarkGrid(startDatum, portTWR) {
+    return `<div class="bm-grid">${cfg.benchmarks.map(b => renderBmKaart(b, startDatum, portTWR)).join("")}</div>`;
+  }
+
+  function renderBmKaart(key, startDatum, portTWR) {
+    const kleur  = BENCHMARK_COLORS[key];
+    const genorm = normaliseerBenchmark(benchData[key] ?? [], startDatum);
+    if (genorm.length === 0) {
+      return `<div class="bm-card" style="border-left:3px solid ${kleur}">
+        <div class="bm-name">${BENCHMARK_LABELS[key]}</div>
+        <div class="bm-return neu">Laden…</div></div>`;
+    }
+    const rend  = genorm[genorm.length - 1].rendement;
+    const outpf = portTWR - rend;
+    return `<div class="bm-card" style="border-left:3px solid ${kleur}">
+      <div class="bm-name">${BENCHMARK_LABELS[key]}</div>
+      <div class="bm-return ${rend >= 0 ? "pos":"neg"}">${fmtPct(rend)}</div>
+      <div class="bm-vs ${outpf >= 0 ? "pos":"neg"}">
+        <span>vs portfolio:</span>${outpf >= 0 ? "+" : ""}${(outpf*100).toFixed(2)}%
+      </div></div>`;
+  }
+
+  // ── Allocatie grafiek ─────────────────────────────────────────────
+  function renderAllocatieGrafiek(posities) {
+    const gesorteerd = [...posities].sort((a, b) => b.waarde - a.waarde);
+    return `
+<div class="chart-wrap" style="display:grid;grid-template-columns:260px 1fr;gap:2rem;align-items:center">
+  <div style="position:relative"><canvas id="alloc-chart"></canvas></div>
+  <div id="alloc-legend" style="max-height:320px;overflow-y:auto">
+    ${gesorteerd.map((p, i) => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:10px;min-width:0">
+        <div style="width:10px;height:10px;border-radius:2px;background:${ALLOC_COLORS[i % ALLOC_COLORS.length]};flex-shrink:0"></div>
+        <div style="min-width:0">
+          <div style="font-size:12px;color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px">${escHtml(p.product)}</div>
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)">${escHtml(p.isin)}</div>
+        </div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;margin-left:16px">
+        <div style="font-family:'DM Mono',monospace;font-size:12px;color:var(--text)">${fmtEUR(p.waarde, 0)}</div>
+        <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted)">${((p.gewicht ?? 0) * 100).toFixed(1)}%</div>
+      </div>
+    </div>`).join("")}
+  </div>
+</div>`;
+  }
+
+  function drawAllocatieChart(posities) {
+    const canvas = document.getElementById("alloc-chart");
+    if (!canvas) return;
+    if (allocatieChartInstance) { allocatieChartInstance.destroy(); allocatieChartInstance = null; }
+
+    const gesorteerd = [...posities].sort((a, b) => b.waarde - a.waarde);
+    const totaal     = gesorteerd.reduce((s, p) => s + p.waarde, 0);
+    const labels     = gesorteerd.map(p => p.product.length > 28 ? p.product.substring(0, 26) + "…" : p.product);
+    const data       = gesorteerd.map(p => p.waarde);
+    const colors     = gesorteerd.map((_, i) => ALLOC_COLORS[i % ALLOC_COLORS.length]);
+
+    const centerPlugin = {
+      id: "donutCenter",
+      afterDraw(chart) {
+        const { width, height, ctx } = chart;
+        const cx = chart.chartArea ? (chart.chartArea.left + chart.chartArea.right) / 2 : width / 2;
+        const cy = chart.chartArea ? (chart.chartArea.top + chart.chartArea.bottom) / 2 : height / 2;
+        ctx.save();
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.font = "500 15px 'DM Mono', monospace";
+        ctx.fillStyle = "#e8e8f0";
+        ctx.fillText(fmtEUR(totaal, 0), cx, cy - 9);
+        ctx.font = "400 10px 'DM Sans', sans-serif";
+        ctx.fillStyle = "#5a5a7a";
+        ctx.fillText("totaalwaarde", cx, cy + 11);
+        ctx.restore();
+      },
+    };
+
+    allocatieChartInstance = new Chart(canvas, {
+      type: "doughnut",
+      data: {
+        labels,
+        datasets: [{
+          data, backgroundColor: colors,
+          hoverBackgroundColor: colors.map(c => c + "cc"),
+          borderColor: "#0a0a0f", borderWidth: 2, hoverBorderWidth: 3,
+        }],
+      },
+      options: {
+        responsive: true, cutout: "72%",
+        animation: { animateRotate: true, duration: 600 },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: "#12121a", borderColor: "#1e1e2e", borderWidth: 1,
+            titleColor: "#5a5a7a", bodyColor: "#e8e8f0", padding: 10,
+            callbacks: {
+              title: ctx  => ctx[0].label,
+              label: ctx  => {
+                const pct = totaal > 0 ? ((ctx.parsed / totaal) * 100).toFixed(1) : "0.0";
+                return `  ${fmtEUR(ctx.parsed, 0)}  ·  ${pct}%`;
+              },
+            },
+          },
+        },
+      },
+      plugins: [centerPlugin],
+    });
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // ALLOCATIE ANALYSE (AI classificatie)
   // ══════════════════════════════════════════════════════════════════
   const ALLOC_PALETTES = {
-    sector:     ["#60a5fa","#4ade80","#fbbf24","#f87171","#a78bfa","#fb923c","#34d399","#38bdf8","#e879f9","#5a5a7a"],
-    regio:      ["#60a5fa","#4ade80","#fbbf24","#f87171","#a78bfa","#34d399","#5a5a7a"],
-    valuta:     ["#60a5fa","#4ade80","#fbbf24","#f87171","#a78bfa","#5a5a7a"],
-    marktcap:   ["#60a5fa","#4ade80","#fbbf24"],
-    assetklasse:["#60a5fa","#4ade80","#fbbf24","#f87171","#5a5a7a"],
+    sector:      ["#60a5fa","#4ade80","#fbbf24","#f87171","#a78bfa","#fb923c","#34d399","#38bdf8","#e879f9","#5a5a7a"],
+    regio:       ["#60a5fa","#4ade80","#fbbf24","#f87171","#a78bfa","#34d399","#5a5a7a"],
+    valuta:      ["#60a5fa","#4ade80","#fbbf24","#f87171","#a78bfa","#5a5a7a"],
+    marktcap:    ["#60a5fa","#4ade80","#fbbf24"],
+    assetklasse: ["#60a5fa","#4ade80","#fbbf24","#f87171","#5a5a7a"],
   };
 
   function renderAllocatieAnalyseSectie() {
@@ -553,16 +847,14 @@ const Rendement = (() => {
     const el = document.getElementById('alloc-analyse-content');
     if (!el) return;
     if (posities.length === 0) { el.innerHTML = ''; return; }
-
     if (allocatieData) { drawAllocatieAnalyseCharts(allocatieData, posities); return; }
 
     el.innerHTML = `<div style="text-align:center;padding:2rem;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px">
       Posities classificeren via AI<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></div>`;
 
     try {
-      const classificaties = await classifyPositions(posities);
-      allocatieData = classificaties;
-      drawAllocatieAnalyseCharts(classificaties, posities);
+      allocatieData = await classifyPositions(posities);
+      drawAllocatieAnalyseCharts(allocatieData, posities);
     } catch(e) {
       el.innerHTML = `<div style="text-align:center;padding:1.5rem;color:var(--neg);font-family:'DM Mono',monospace;font-size:11px">
         Classificatie mislukt: ${escHtml(e.message)}</div>`;
@@ -601,8 +893,8 @@ Return ONLY the JSON array of classified positions.`
       })
     });
     if (!res.ok) throw new Error('API ' + res.status);
-    const data = await res.json();
-    const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+    const data  = await res.json();
+    const text  = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
     const clean = text.replace(/```[a-z]*/g, '').replace(/```/g, '').trim();
     const s = clean.indexOf('['), e = clean.lastIndexOf(']');
     if (s === -1) throw new Error('Geen JSON in antwoord');
@@ -612,20 +904,17 @@ Return ONLY the JSON array of classified positions.`
   function aggregeerAllocatie(classificaties, posities) {
     const gewichten = {};
     posities.forEach(p => { gewichten[p.isin] = p.gewicht ?? 0; });
-
-    const cats = { sector: {}, regio: {}, valuta: {}, marktcap: {}, assetklasse: {} };
+    const cats = { sector:{}, regio:{}, valuta:{}, marktcap:{}, assetklasse:{} };
 
     classificaties.forEach(c => {
       const w = gewichten[c.isin] ?? 0;
       if (w <= 0) return;
-
       ['sector','regio','valuta','marktcap'].forEach(cat => {
         const dist = c[cat] || {};
         Object.entries(dist).forEach(([k, pct]) => {
           cats[cat][k] = (cats[cat][k] || 0) + w * (pct / 100);
         });
       });
-
       const ak = c.assetklasse || 'Overig';
       cats.assetklasse[ak] = (cats.assetklasse[ak] || 0) + w;
     });
@@ -652,7 +941,6 @@ Return ONLY the JSON array of classified positions.`
         result.valuta = groot;
       }
     }
-
     return result;
   }
 
@@ -676,8 +964,8 @@ Return ONLY the JSON array of classified positions.`
         </div>`).join('');
     }
 
-    function chartCard(id, title, legendId, colspan) {
-      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1rem;${colspan?'grid-column:span '+colspan:''}">
+    function chartCard(id, title, legendId) {
+      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1rem">
         <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.75rem">${title}</div>
         <div style="display:grid;grid-template-columns:160px 1fr;gap:1rem;align-items:center">
           <canvas id="${id}" height="160"></canvas>
@@ -688,13 +976,13 @@ Return ONLY the JSON array of classified positions.`
 
     el.innerHTML = `
       <div style="display:grid;grid-template-columns:2fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
-        ${chartCard('ch-sector','Sector','leg-sector','')}
-        ${chartCard('ch-asset','Assetklasse','leg-asset','')}
+        ${chartCard('ch-sector','Sector','leg-sector')}
+        ${chartCard('ch-asset','Assetklasse','leg-asset')}
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.75rem;margin-bottom:0.75rem">
-        ${chartCard('ch-regio','Regio','leg-regio','')}
-        ${chartCard('ch-valuta','Valuta (>5%)','leg-valuta','')}
-        ${chartCard('ch-cap','Marktkapitalisatie','leg-cap','')}
+        ${chartCard('ch-regio','Regio','leg-regio')}
+        ${chartCard('ch-valuta','Valuta (>5%)','leg-valuta')}
+        ${chartCard('ch-cap','Marktkapitalisatie','leg-cap')}
       </div>
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1rem">
         <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.75rem">Samenvatting</div>
@@ -755,60 +1043,6 @@ Return ONLY the JSON array of classified positions.`
     drawDonut('ch-regio',  'leg-regio',  agg.regio,       ALLOC_PALETTES.regio);
     drawDonut('ch-valuta', 'leg-valuta', agg.valuta,      ALLOC_PALETTES.valuta);
     drawDonut('ch-cap',    'leg-cap',    agg.marktcap,    ALLOC_PALETTES.marktcap);
-  }
-
-  // ── Rendement vs benchmark grafiek ───────────────────────────────
-  function renderGrafiekSectie() {
-    const periodes = ["1M","3M","6M","YTD","1J","3J","MAX"];
-    const knoppen  = periodes.map(p =>
-      `<button class="pf${activePeriod===p?" active":""}" onclick="Rendement._setPeriod('${p}')">${p}</button>`
-    ).join("");
-
-    const legItems = [
-      { kleur: "#fbbf24", label: "Portfolio" },
-      ...cfg.benchmarks.map(b => ({ kleur: BENCHMARK_COLORS[b], label: BENCHMARK_LABELS[b] })),
-    ].map(l => `
-      <div class="leg-item">
-        <div class="leg-dot" style="background:${l.kleur}"></div>
-        ${l.label}
-      </div>`).join("");
-
-    return `
-<div class="chart-wrap">
-  <div class="chart-top">
-    <div>
-      <div class="chart-title">Rendement vs Benchmarks</div>
-      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-top:3px">
-        genormaliseerd op 0% · 1 apr 2025 t/m vandaag · portfolio = maanddata (---) · indices = dagdata
-      </div>
-    </div>
-    <div class="period-filters" title="Stuurt de benchmark-vergelijkingskaarten aan">${knoppen}</div>
-  </div>
-  <div class="chart-legend">${legItems}</div>
-  <canvas id="rend-chart" height="200"></canvas>
-</div>`;
-  }
-
-  function renderBenchmarkGrid(startDatum, portTWR) {
-    return `<div class="bm-grid">${cfg.benchmarks.map(b => renderBmKaart(b, startDatum, portTWR)).join("")}</div>`;
-  }
-
-  function renderBmKaart(key, startDatum, portTWR) {
-    const kleur  = BENCHMARK_COLORS[key];
-    const genorm = normaliseerBenchmark(benchData[key] ?? [], startDatum);
-    if (genorm.length === 0) {
-      return `<div class="bm-card" style="border-left:3px solid ${kleur}">
-        <div class="bm-name">${BENCHMARK_LABELS[key]}</div>
-        <div class="bm-return neu">Laden…</div></div>`;
-    }
-    const rend  = genorm[genorm.length - 1].rendement;
-    const outpf = portTWR - rend;
-    return `<div class="bm-card" style="border-left:3px solid ${kleur}">
-      <div class="bm-name">${BENCHMARK_LABELS[key]}</div>
-      <div class="bm-return ${rend >= 0 ? "pos":"neg"}">${fmtPct(rend)}</div>
-      <div class="bm-vs ${outpf >= 0 ? "pos":"neg"}">
-        <span>vs portfolio:</span>${outpf >= 0 ? "+" : ""}${(outpf*100).toFixed(2)}%
-      </div></div>`;
   }
 
   // ── Posities tabel ────────────────────────────────────────────────
@@ -895,20 +1129,15 @@ Return ONLY the JSON array of classified positions.`
 </div>`;
   }
 
-  // ── Cashflow / rendement-sectie ───────────────────────────────────
-  // FIX v2.4: kosten uit de optelbox gehaald — al verrekend in kostenbasis
-  // via abs(TotaalEUR). Tonen als informatieregel onder het totaal.
+  // ── Cashflow sectie ───────────────────────────────────────────────
   function renderCashflowGrid(cashflows, cfSam, sam) {
     const kostenbasis = cfSam.totaalKostenbasis ?? (sam.totaalWaarde - (sam.totaalPnL ?? 0));
-    const waarde      = sam.totaalWaarde      ?? 0;
-    const onger       = sam.totaalPnL         ?? 0;
-    const ger         = sam.totaalGerealiseerd ?? 0;
-    const div         = sam.totaalDividend     ?? 0;
-    const kosten      = sam.totaalKosten       ?? 0;
-
-    // absReturn = onger + ger + div  (kosten al verrekend in kostenbasis)
+    const waarde  = sam.totaalWaarde      ?? 0;
+    const onger   = sam.totaalPnL         ?? 0;
+    const ger     = sam.totaalGerealiseerd ?? 0;
+    const div     = sam.totaalDividend     ?? 0;
+    const kosten  = sam.totaalKosten       ?? 0;
     const absReturn = cfSam.totalReturnEUR ?? (onger + ger + div);
-
     const twr       = sam.twr ?? 0;
     const twrKleur  = twr >= 0 ? "var(--pos)" : "var(--neg)";
     const twrPrefix = twr >= 0 ? "+" : "";
@@ -925,7 +1154,6 @@ Return ONLY the JSON array of classified positions.`
     return [
       `<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1.5rem">`,
 
-      // ── Linker kaart: belegd kapitaal ──
       `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem">`,
         `<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.75rem">Belegd kapitaal</div>`,
         rij("Kostenbasis open posities", fmtEUR(kostenbasis, 2), "var(--text)", true),
@@ -942,37 +1170,27 @@ Return ONLY the JSON array of classified positions.`
         ].join("") : "",
       `</div>`,
 
-      // ── Rechter kaart: totaal rendement ──
       `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem">`,
         `<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.75rem">Totaal rendement</div>`,
-
-        // Optelbox — alleen de 3 componenten die daadwerkelijk optellen tot het totaal
         `<div style="padding:8px;border-radius:6px;background:rgba(255,255,255,0.03);border:1px solid var(--border);margin-bottom:10px">`,
           rij("Ongerealiseerd P&L",  `${onger >= 0 ? "+" : ""}${fmtEUR(onger, 2)}`, onger >= 0 ? "var(--pos)" : "var(--neg)", true),
           rij("Gerealiseerd P&L",    `${ger >= 0 ? "+" : ""}${fmtEUR(ger, 2)}`,     ger >= 0 ? "var(--pos)" : "var(--neg)",   true),
           rij("Dividend (netto)",    `+${fmtEUR(div, 2)}`,                           "var(--pos)",                             false),
         `</div>`,
-
-        // Totaalregel
         `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">`,
           `<span style="font-size:12px;font-weight:600;color:var(--text)">Totaal rendement</span>`,
           `<span style="font-family:'DM Mono',monospace;font-size:14px;font-weight:500;color:${absReturn >= 0 ? "var(--pos)" : "var(--neg)"}">${absReturn >= 0 ? "+" : ""}${fmtEUR(absReturn, 2)}</span>`,
         `</div>`,
-
-        // Kosten — informatief, BUITEN de optelling (al verrekend in kostenbasis via abs TotaalEUR)
         `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0 8px">`,
           `<span style="font-size:11px;color:var(--muted)">Transactiekosten <span style="font-size:9px;opacity:0.7">(verrekend in kostenbasis)</span></span>`,
           `<span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--neg)">-${fmtEUR(kosten, 2)}</span>`,
         `</div>`,
-
-        // TWR blok
         `<div style="margin-top:4px;padding:10px;border-radius:6px;background:rgba(96,165,250,0.07);border:1px solid rgba(96,165,250,0.2)">`,
           `<div style="font-size:10px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.06em">TWR</div>`,
           `<div style="font-family:'DM Mono',monospace;font-size:20px;font-weight:500;color:${twrKleur}">${twrPrefix}${(twr * 100).toFixed(2)}%</div>`,
           `<div style="font-size:10px;color:var(--muted);margin-top:5px;line-height:1.6">`,
-            `Kosten al verrekend via kostenbasis (abs TotaalEUR)<br>`,
             `&#10003; Koersrendement + dividend + gerealiseerd<br>`,
-            `&#10007; Stortingen / onttrekkingen hebben geen invloed`,
+            `&#10007; Stortingen / onttrekkingen geen invloed`,
           `</div>`,
         `</div>`,
       `</div>`,
@@ -981,184 +1199,7 @@ Return ONLY the JSON array of classified positions.`
   }
 
   // ══════════════════════════════════════════════════════════════════
-  // RENDEMENT-CHART (lijndiagram)
-  //
-  // FIX v2.4:
-  // - Portfolio lijn gecapped op TODAY (geen toekomstige datums)
-  // - Null-check fix: h.twr == null (was: !h.twr == null → altijd false)
-  // - Zichtbare punten bij maanddata (portData.length < 20)
-  // - Gestippelde lijn (segment borderDash) tussen maandpunten >45 dagen
-  // - Subtitel verduidelijkt: portfolio = maanddata, indices = dagdata
-  // ══════════════════════════════════════════════════════════════════
-  function drawChart(startDatum, twrHistorie) {
-    const canvas = document.getElementById("rend-chart");
-    if (!canvas) return;
-    if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
-
-    const toMs    = d => new Date(d).getTime();
-    const startMs = toMs(CHART_START);
-    const TODAY   = new Date().toISOString().substring(0, 10);
-
-    const datasets = [];
-
-    // ── Portfolio lijn ──────────────────────────────────────────────
-    const allPort = [...(twrHistorie ?? [])].sort((a, b) => a.datum.localeCompare(b.datum));
-
-    if (allPort.length >= 2) {
-      const voor  = allPort.filter(h => h.datum <= CHART_START);
-      const na    = allPort.filter(h => h.datum >= CHART_START && h.datum <= TODAY); // cap op vandaag
-      const basisEntry = voor.length > 0 ? voor[voor.length - 1] : na[0];
-      const twrBasis   = basisEntry?.twr ?? 0;
-
-      if (Math.abs(twrBasis) <= 1.5) {
-        const portData = [{ x: startMs, y: 0 }];
-
-        na.forEach(h => {
-          // FIX: was "!h.twr == null" (altijd false) → nu correct "h.twr == null"
-          if (h.twr == null || h.datum === basisEntry?.datum) return;
-          const norm = (1 + (h.twr ?? 0)) / (1 + twrBasis) - 1;
-          if (Math.abs(norm) <= 1.0) {
-            portData.push({ x: toMs(h.datum), y: +(norm * 100).toFixed(3) });
-          }
-        });
-
-        if (portData.length >= 2) {
-         datasets.push({
-  label: "Portfolio",
-  data: portData,
-  borderColor: "#fbbf24",
-  backgroundColor: "rgba(251,191,36,0.07)",
-  borderWidth: 2.5,
-  pointRadius: portData.length < 20 ? 3 : 0,
-  pointBackgroundColor: "#fbbf24",
-  pointHoverRadius: 6,
-  tension: 0.4,
-  fill: true,
-  order: 0,
-  // geen segment/borderDash meer
-});
-
-    // ── Benchmark lijnen ────────────────────────────────────────────
-    for (const key of cfg.benchmarks) {
-      const serie = [...(benchData[key] ?? [])].sort((a, b) => a.datum.localeCompare(b.datum));
-      if (serie.length < 2) continue;
-
-      const voor  = serie.filter(d => d.datum <= CHART_START);
-      const na    = serie.filter(d => d.datum >= CHART_START);
-      const basis = voor.length > 0 ? voor[voor.length - 1] : na[0];
-      if (!basis?.koers) continue;
-
-      const bmData = [{ x: startMs, y: 0 }];
-      na.forEach(d => {
-        if (d.datum === basis.datum) return;
-        bmData.push({
-          x: toMs(d.datum),
-          y: +((d.koers / basis.koers - 1) * 100).toFixed(3),
-        });
-      });
-
-      if (bmData.length < 2) continue;
-
-      datasets.push({
-        label: BENCHMARK_LABELS[key],
-        data: bmData,
-        borderColor: BENCHMARK_COLORS[key],
-        backgroundColor: "transparent",
-        borderWidth: 1.5,
-        pointRadius: 0,
-        pointHoverRadius: 4,
-        tension: 0.3,
-        fill: false,
-        order: 1,
-      });
-    }
-
-    if (datasets.length === 0) {
-      canvas.insertAdjacentHTML("afterend",
-        `<div style="text-align:center;color:var(--muted);font-family:'DM Mono',monospace;font-size:12px;padding:2rem 0">
-          Geen grafiekdata beschikbaar — vernieuw de pagina of controleer de Apps Script</div>`);
-      return;
-    }
-
-    const nullLijnPlugin = {
-      id: "nullLijn",
-      afterDraw(chart) {
-        const { ctx, chartArea: ca, scales } = chart;
-        if (!ca) return;
-        const y0 = scales.y.getPixelForValue(0);
-        if (y0 < ca.top || y0 > ca.bottom) return;
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(ca.left, y0);
-        ctx.lineTo(ca.right, y0);
-        ctx.strokeStyle = "rgba(255,255,255,0.12)";
-        ctx.lineWidth   = 1;
-        ctx.setLineDash([4, 4]);
-        ctx.stroke();
-        ctx.restore();
-      },
-    };
-
-    chartInstance = new Chart(canvas, {
-      type: "line",
-      data: { datasets },
-      options: {
-        responsive: true,
-        interaction: { mode: "index", intersect: false },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: "#12121a",
-            borderColor:     "#1e1e2e",
-            borderWidth:     1,
-            titleColor:      "#5a5a7a",
-            bodyColor:       "#e8e8f0",
-            padding:         12,
-            callbacks: {
-              title: ctx => {
-                const d = new Date(ctx[0].parsed.x);
-                return d.toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" });
-              },
-              label: ctx => {
-                const v = ctx.parsed.y;
-                return ` ${ctx.dataset.label}: ${v >= 0 ? "+" : ""}${v.toFixed(2)}%`;
-              },
-            },
-          },
-        },
-        scales: {
-          x: {
-            type: "linear",
-            min:  startMs,
-            grid:   { color: "#1e1e2e" },
-            border: { color: "#1e1e2e" },
-            ticks: {
-              color: "#5a5a7a",
-              font:  { family: "DM Mono", size: 10 },
-              maxTicksLimit: 10,
-              callback: val => {
-                const d = new Date(val);
-                return d.toLocaleDateString("nl-NL", { month: "short", year: "2-digit" });
-              },
-            },
-          },
-          y: {
-            grid:   { color: "#1e1e2e" },
-            border: { color: "#1e1e2e" },
-            ticks: {
-              color: "#5a5a7a",
-              font:  { family: "DM Mono", size: 10 },
-              callback: v => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`,
-            },
-          },
-        },
-      },
-      plugins: [nullLijnPlugin],
-    });
-  }
-
-  // ══════════════════════════════════════════════════════════════════
-  // PERIODE / TOGGLE WISSELEN
+  // PERIODE / TOGGLE
   // ══════════════════════════════════════════════════════════════════
   function setPeriod(p) {
     activePeriod = p;
@@ -1204,11 +1245,11 @@ Return ONLY the JSON array of classified positions.`
       meta: { gegenereerd: new Date().toISOString(), basisvaluta:"EUR", startdatum: startdatum.toISOString().substring(0,10), startkapitaal:10000 },
       samenvatting: { totaalWaarde:24350, totaalDividend:820, totaalKosten:145, totaalPnL:4350, twr, twrIsProxy:false, totaalGerealiseerd:620 },
       posities: [
-        { isin:"IE00B4L5Y983", product:"iShares Core MSCI World", aantal:45, gemAankoopprijs:88.20, huidig:98.50, waarde:4432.50, kosten:18.40, dividend:0,     pnl:463.50,  gewicht:0.182 },
-        { isin:"IE00B3RBWM25", product:"Vanguard FTSE All-World",  aantal:62, gemAankoopprijs:97.10, huidig:110.80,waarde:6869.60, kosten:24.10, dividend:142.30,pnl:849.40,  gewicht:0.282 },
-        { isin:"NL0011821202", product:"ASML Holding NV",           aantal:8,  gemAankoopprijs:620,   huidig:710.50,waarde:5684.00, kosten:32.00, dividend:64.40, pnl:724.00,  gewicht:0.233 },
-        { isin:"US5949181045", product:"Microsoft Corporation",     aantal:15, gemAankoopprijs:280,   huidig:415.20,waarde:5738.40, kosten:38.50, dividend:38.70, pnl:2028.00, gewicht:0.236 },
-        { isin:"IE00BKX55T58", product:"Vanguard S&P 500 ETF",      aantal:18, gemAankoopprijs:80.50, huidig:90.20, waarde:1623.60, kosten:8.20,  dividend:22.80, pnl:174.60,  gewicht:0.067 },
+        { isin:"IE00B4L5Y983", product:"iShares Core MSCI World",  aantal:45, gemAankoopprijs:88.20, huidig:98.50,  waarde:4432.50, kosten:18.40, dividend:0,     pnl:463.50,  gewicht:0.182 },
+        { isin:"IE00B3RBWM25", product:"Vanguard FTSE All-World",  aantal:62, gemAankoopprijs:97.10, huidig:110.80, waarde:6869.60, kosten:24.10, dividend:142.30,pnl:849.40,  gewicht:0.282 },
+        { isin:"NL0011821202", product:"ASML Holding NV",           aantal:8,  gemAankoopprijs:620,   huidig:710.50, waarde:5684.00, kosten:32.00, dividend:64.40, pnl:724.00,  gewicht:0.233 },
+        { isin:"US5949181045", product:"Microsoft Corporation",     aantal:15, gemAankoopprijs:280,   huidig:415.20, waarde:5738.40, kosten:38.50, dividend:38.70, pnl:2028.00, gewicht:0.236 },
+        { isin:"IE00BKX55T58", product:"Vanguard S&P 500 ETF",      aantal:18, gemAankoopprijs:80.50, huidig:90.20,  waarde:1623.60, kosten:8.20,  dividend:22.80, pnl:174.60,  gewicht:0.067 },
       ],
       twrHistorie: historie,
       cashflows: [
