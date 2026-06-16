@@ -7,31 +7,84 @@ export default async function handler(req, res) {
   const p1_2y = Math.floor(twoYearsAgo.getTime()  / 1000);
   const p2    = Math.floor(now.getTime()            / 1000);
 
-  async function yahooSeries(symbol, period1) {
+  // ── Gedeelde fetch-helper met timeout ────────────────────────────
+  // Voorkomt dat een trage/hangende upstream (FRED of Yahoo) de hele
+  // serverless-functie laat timeouten (wat anders als 504 naar de
+  // browser gaat en als "data" in de charts terechtkomt).
+  async function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      return await fetch(url, { ...options, signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  async function yahooSeries(symbol, period1, attempt = 0) {
     try {
       const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?period1=${period1}&period2=${p2}&interval=1d`;
-      const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-      const d = await r.json();
+      const r = await fetchWithTimeout(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+      if (!r.ok) {
+        if (attempt === 0) return yahooSeries(symbol, period1, 1);
+        return [];
+      }
+      const d = await r.json().catch(() => null);
       const result     = d?.chart?.result?.[0];
       const timestamps = result?.timestamp ?? [];
       const closes     = result?.indicators?.quote?.[0]?.close ?? [];
       return timestamps
         .map((t, i) => ({ date: new Date(t * 1000).toISOString().slice(0, 10), value: closes[i] }))
         .filter(p => p.value !== null);
-    } catch { return []; }
+    } catch {
+      if (attempt === 0) return yahooSeries(symbol, period1, 1);
+      return [];
+    }
   }
 
-  async function fredSeries(seriesId, limit = 250) {
+  // ── Robuuste FRED-fetch ──────────────────────────────────────────
+  // Voorkomt dat een Vercel/upstream 504-pagina (of andere HTML-foutpagina)
+  // per ongeluk als CSV-data wordt geparsed. Valideert status + content,
+  // met timeout en één retry bij falen.
+  function looksLikeCsv(text) {
+    if (!text || !text.length) return false;
+    const firstLine = text.trim().split("\n")[0] ?? "";
+    // Een geldige FRED CSV begint met "DATE,<SERIES_ID>" — een HTML/foutpagina
+    // begint met "<", "{", of bevat geen komma.
+    if (firstLine.trim().startsWith("<")) return false;
+    if (!firstLine.includes(",")) return false;
+    return true;
+  }
+
+  async function fredSeries(seriesId, limit = 250, attempt = 0) {
     try {
       const url = `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${seriesId}`;
-      const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+      const r = await fetchWithTimeout(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+
+      if (!r.ok) {
+        if (attempt === 0) return fredSeries(seriesId, limit, 1); // één retry
+        return [];
+      }
+
+      const contentType = r.headers.get("content-type") ?? "";
       const text = await r.text();
+
+      // Bescherming tegen gateway/error-pagina's die als 200 met HTML-body
+      // terugkomen, of een content-type die niet op tekst/csv wijst.
+      if (contentType.includes("text/html") || !looksLikeCsv(text)) {
+        if (attempt === 0) return fredSeries(seriesId, limit, 1);
+        return [];
+      }
+
       const lines = text.trim().split("\n").slice(1);
       return lines.slice(-limit).map(line => {
         const [date, val] = line.split(",");
-        return { date: date.trim(), value: val === "." ? null : parseFloat(val) };
-      }).filter(p => p.value !== null);
-    } catch { return []; }
+        return { date: date?.trim(), value: val === "." ? null : parseFloat(val) };
+      }).filter(p => p.date && p.value !== null && !Number.isNaN(p.value));
+    } catch {
+      if (attempt === 0) return fredSeries(seriesId, limit, 1);
+      return [];
+    }
   }
 
   // ── Momentum / rate-of-change helper ──────────────────────────────
@@ -66,6 +119,27 @@ export default async function handler(req, res) {
     return "flat";
   }
 
+  // ── Yahoo quoteSummary: huidige (niet-historische) kerncijfers ──
+  // Gebruikt voor de S&P 500 trailing P/E, nodig voor een ECHTE Equity
+  // Risk Premium (earnings yield − 10Y yield). Dit endpoint geeft alleen
+  // het huidige snapshot terug, geen tijdreeks.
+  async function yahooQuoteSummary(symbol, modules, attempt = 0) {
+    try {
+      const url = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=${modules.join(",")}`;
+      const r = await fetchWithTimeout(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+      if (!r.ok) {
+        if (attempt === 0) return yahooQuoteSummary(symbol, modules, 1);
+        return null;
+      }
+      const d = await r.json().catch(() => null);
+      return d?.quoteSummary?.result?.[0] ?? null;
+    } catch {
+      if (attempt === 0) return yahooQuoteSummary(symbol, modules, 1);
+      return null;
+    }
+  }
+
+
   try {
     const [
       vix, dxy, wti, spx, gold, copper,
@@ -77,6 +151,7 @@ export default async function handler(req, res) {
       move,                            // ← MOVE Index (bond volatility)
       xlp, xly, xlu, xli, xlv, smh,    // ← Sector rotatie ratio's
       iwf, iwd,                        // ← Growth/Value (EPS-revisie proxy)
+      gspcStats,                       // ← S&P 500 trailing P/E (echte ERP)
     ] = await Promise.all([
       yahooSeries("^VIX",      p1_4y),
       yahooSeries("DX-Y.NYB",  p1_4y),
@@ -108,6 +183,7 @@ export default async function handler(req, res) {
       yahooSeries("SMH",       p1_2y), // Semiconductors
       yahooSeries("IWF",       p1_2y), // Russell 1000 Growth (EPS-revisie proxy)
       yahooSeries("IWD",       p1_2y), // Russell 1000 Value
+      yahooQuoteSummary("^GSPC", ["defaultKeyStatistics", "summaryDetail"]), // trailing PE — point-in-time
     ]);
 
     const yieldCurve = treasury10y.map(t => {
@@ -116,11 +192,31 @@ export default async function handler(req, res) {
       return { date: t.date, value: parseFloat((t.value - t2.value).toFixed(3)) };
     }).filter(Boolean);
 
-    const erp = tips10y.map(t => {
+    // ── Breakeven Inflation = 10Y nominaal − 10Y TIPS (real yield) ───
+    // Dit is GEEN Equity Risk Premium — het is de markt-impliciete
+    // inflatieverwachting over 10 jaar. Voorheen abusievelijk "erp" genoemd.
+    const breakeven = tips10y.map(t => {
       const nom = treasury10y.find(x => x.date === t.date);
       if (!nom) return null;
       return { date: t.date, value: parseFloat((nom.value - t.value).toFixed(3)) };
     }).filter(Boolean);
+
+    // ── Echte Equity Risk Premium = S&P 500 earnings yield − 10Y nominaal ──
+    // Earnings yield = 1 / trailing P/E. Point-in-time snapshot (Yahoo
+    // quoteSummary levert geen historische P/E-reeks gratis) — dus dit is
+    // GEEN tijdreeks zoals de andere indicatoren, maar een actuele waarde
+    // die bij elke load opnieuw wordt berekend.
+    // trailingPE.raw is het correcte veld; forwardPE als secundaire fallback
+    // (defaultKeyStatistics.trailingEps is EPS in $, NIET hetzelfde als P/E —
+    // gebruik dat dus nooit als directe fallback hiervoor).
+    const trailingPE = gspcStats?.summaryDetail?.trailingPE?.raw
+      ?? gspcStats?.defaultKeyStatistics?.forwardPE?.raw
+      ?? null;
+    const earningsYield = trailingPE ? parseFloat((100 / trailingPE).toFixed(3)) : null;
+    const latestTreasury10yForErp = treasury10y[treasury10y.length - 1]?.value ?? null;
+    const erpNow = (earningsYield !== null && latestTreasury10yForErp !== null)
+      ? parseFloat((earningsYield - latestTreasury10yForErp).toFixed(3))
+      : null;
 
     // ── Credit stress: LQD/HYG (market-based proxy, blijft als secundair) ──
     const spreadSeries = hyg.map((h, i) => {
@@ -242,7 +338,7 @@ export default async function handler(req, res) {
     const latestSpread = spreadSeries[spreadSeries.length - 1]?.value ?? 1;
     const prevSpread   = spreadSeries[spreadSeries.length - 20]?.value ?? latestSpread;
     const latestYC     = yieldCurve[yieldCurve.length - 1]?.value ?? 0;
-    const latestERP    = erp[erp.length - 1]?.value ?? 0;
+    const latestBreakeven = breakeven[breakeven.length - 1]?.value ?? 0;
     const latestCY     = copperGold[copperGold.length - 1]?.value ?? 0;
     const prevCY       = copperGold[copperGold.length - 20]?.value ?? latestCY;
     const latestBI     = buffettSeries[buffettSeries.length - 1]?.value ?? null;
@@ -272,7 +368,7 @@ export default async function handler(req, res) {
     else if (latestVix > 20) riskScore -= 1;
     if (latestBV > prevBV) riskScore++; else if (latestBV < prevBV) riskScore--;
     if (latestYC > 0.5) riskScore++; else if (latestYC < -0.3) riskScore--;
-    if (latestERP > 2) riskScore++; else if (latestERP < 1.5) riskScore--;
+    if (latestBreakeven > 2) riskScore++; else if (latestBreakeven < 1.5) riskScore--;
     if (latestCY > prevCY) riskScore++; else if (latestCY < prevCY) riskScore--;
 
     // Credit stress component: HY OAS dalend = risk-on, stijgend = risk-off.
@@ -336,7 +432,8 @@ export default async function handler(req, res) {
       igOas:       latestIgOas,
       hyIgSpread:  latestHyIg,
       yieldCurve:  latestYC,
-      erp:         latestERP,
+      erp:         erpNow,                            // ← Echte ERP (point-in-time, kan null zijn)
+      breakeven:   latestBreakeven,                    // ← Breakeven inflation (was abusievelijk "erp")
       tipsYield:   tips10y[tips10y.length-1]?.value,
       copperGold:  latestCY,
       fedFunds:    fedFunds[fedFunds.length-1]?.value,
@@ -369,7 +466,7 @@ export default async function handler(req, res) {
       ok: true, riskSignal,
       series: {
         vix, dxy, wti, spxGold, betaValue, spreadSeries,
-        cpiYoY, cpiMoM, yieldCurve, erp, copperGold,
+        cpiYoY, cpiMoM, yieldCurve, breakeven, copperGold,
         jobless, m2YoY, fedFunds, treasury10y, treasury2y, tips10y,
         buffettSeries,                                // ← Buffett Indicator
         hyOasSeries, igOasSeries, hyIgSpread,         // ← Credit stress (OAS)
