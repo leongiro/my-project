@@ -305,8 +305,10 @@
       badge.className = `risk-badge ${riskSignal}`;
       const riskLabels = { "risk-on": "🟢 Risk On", "risk-off": "🔴 Risk Off", neutral: "🟡 Neutraal" };
       badge.textContent = riskLabels[riskSignal];
-      const momPart = latest.momentumScore ? ` (incl. momentum ${latest.momentumScore > 0 ? "+" : ""}${latest.momentumScore})` : "";
-      document.getElementById("risk-score").textContent = `Score: ${latest.riskScore > 0 ? "+" : ""}${latest.riskScore} / 9${momPart}`;
+      const momPart = (latest.momentumScore || latest.sectorScore)
+        ? ` (mom ${latest.momentumScore > 0 ? "+" : ""}${latest.momentumScore}, sector ${latest.sectorScore > 0 ? "+" : ""}${latest.sectorScore})`
+        : "";
+      document.getElementById("risk-score").textContent = `Score: ${latest.riskScore > 0 ? "+" : ""}${latest.riskScore} / 13${momPart}`;
 
       const hasHyOas = series.hyOasSeries && series.hyOasSeries.length > 0;
 
@@ -327,6 +329,11 @@
           <div class="stat"><div class="stat-label">Buffett Indicator</div><div class="stat-value ${buffettClass(latest.buffett)}">${fmt(latest.buffett, 1, "", "%")}</div><div class="stat-sub">${buffettLevel(latest.buffett)}</div></div>
           <div class="stat"><div class="stat-label">HY OAS</div><div class="stat-value ${deltaClassInverse(series.hyOasSeries)}">${fmt(latest.hyOas, 2, "", "%")}</div><div class="stat-sub">Credit stress (HY)</div></div>
           <div class="stat"><div class="stat-label">HY-IG Spread</div><div class="stat-value ${deltaClassInverse(series.hyIgSpread)}">${fmt(latest.hyIgSpread, 2, "", "%")}</div><div class="stat-sub">Flight to quality</div></div>
+          <div class="stat"><div class="stat-label">MOVE Index</div><div class="stat-value ${deltaClassInverse(series.moveSeries)}">${latest.move !== null ? fmt(latest.move, 1) : "—"}</div><div class="stat-sub">Rentevolatiliteit</div></div>
+          <div class="stat"><div class="stat-label">Discr./Staples</div><div class="stat-value ${deltaClass(series.discStaples)}">${fmt(latest.discStaples, 3)}</div><div class="stat-sub">XLY / XLP</div></div>
+          <div class="stat"><div class="stat-label">Industr./Utilities</div><div class="stat-value ${deltaClass(series.indusUtil)}">${fmt(latest.indusUtil, 3)}</div><div class="stat-sub">XLI / XLU</div></div>
+          <div class="stat"><div class="stat-label">Semis/Healthcare</div><div class="stat-value ${deltaClass(series.semisHealth)}">${fmt(latest.semisHealth, 3)}</div><div class="stat-sub">SMH / XLV</div></div>
+          <div class="stat"><div class="stat-label">Growth/Value</div><div class="stat-value ${deltaClass(series.growthValue)}">${fmt(latest.growthValue, 3)}</div><div class="stat-sub">IWF / IWD · EPS-proxy</div></div>
         </div>
 
         <div class="section-title">🧭 Momentum — Vroege Rotatie-signalen</div>
@@ -343,6 +350,22 @@
             <div class="mc-top"><div class="mc-label">HY OAS (5d momentum)</div>${momBadge(latest.momentumSignals?.hyOas)}</div>
             <div class="mc-values"><span>Laatste 5d verandering</span><span>${fmt(series.momentum?.hyOas?.d5?.slice(-1)[0]?.value, 2, "", " bps×100")}</span></div>
           </div>
+          <div class="momentum-card">
+            <div class="mc-top"><div class="mc-label">Discr./Staples (5d momentum)</div>${momBadge(latest.momentumSignals?.discStaples)}</div>
+            <div class="mc-values"><span>Laatste 5d %-verandering</span><span>${fmt(series.momentum?.discStaples?.d5?.slice(-1)[0]?.value, 2, "", "%")}</span></div>
+          </div>
+          <div class="momentum-card">
+            <div class="mc-top"><div class="mc-label">Industr./Utilities (5d momentum)</div>${momBadge(latest.momentumSignals?.indusUtil)}</div>
+            <div class="mc-values"><span>Laatste 5d %-verandering</span><span>${fmt(series.momentum?.indusUtil?.d5?.slice(-1)[0]?.value, 2, "", "%")}</span></div>
+          </div>
+          <div class="momentum-card">
+            <div class="mc-top"><div class="mc-label">Semis/Healthcare (5d momentum)</div>${momBadge(latest.momentumSignals?.semisHealth)}</div>
+            <div class="mc-values"><span>Laatste 5d %-verandering</span><span>${fmt(series.momentum?.semisHealth?.d5?.slice(-1)[0]?.value, 2, "", "%")}</span></div>
+          </div>
+          <div class="momentum-card">
+            <div class="mc-top"><div class="mc-label">Growth/Value (5d momentum)</div>${momBadge(latest.momentumSignals?.growthValue)}</div>
+            <div class="mc-values"><span>Laatste 5d %-verandering</span><span>${fmt(series.momentum?.growthValue?.d5?.slice(-1)[0]?.value, 2, "", "%")}</span></div>
+          </div>
         </div>
         <div class="grid-3" style="margin-top:1.25rem">
           <div class="chart-wrap">
@@ -358,9 +381,29 @@
             <canvas id="mom-hyoas-chart" height="110"></canvas>
           </div>
         </div>
+        <div class="grid-2" style="margin-top:1.25rem">
+          <div class="chart-wrap">
+            <div class="chart-top"><div class="chart-title">Discretionary/Staples — 5d vs 20d Momentum (%)</div></div>
+            <canvas id="mom-discstaples-chart" height="110"></canvas>
+          </div>
+          <div class="chart-wrap">
+            <div class="chart-top"><div class="chart-title">Industrials/Utilities — 5d vs 20d Momentum (%)</div></div>
+            <canvas id="mom-indusutil-chart" height="110"></canvas>
+          </div>
+        </div>
+        <div class="grid-2" style="margin-top:1.25rem">
+          <div class="chart-wrap">
+            <div class="chart-top"><div class="chart-title">Semis/Healthcare — 5d vs 20d Momentum (%)</div></div>
+            <canvas id="mom-semishealth-chart" height="110"></canvas>
+          </div>
+          <div class="chart-wrap">
+            <div class="chart-top"><div class="chart-title">Growth/Value — 5d vs 20d Momentum (%)</div></div>
+            <canvas id="mom-growthvalue-chart" height="110"></canvas>
+          </div>
+        </div>
 
         <div class="section-title">Volatiliteit & Sentiment</div>
-        <div class="grid-2">
+        <div class="grid-3">
           <div class="chart-wrap">
             <div class="chart-top">
               <div><div class="chart-title">VIX — Volatiliteitsindex</div><div class="vix-zones"><span class="vix-zone vz-low">Laag &lt;14</span><span class="vix-zone vz-mid">Neutraal 14-20</span><span class="vix-zone vz-high">Hoog &gt;20</span></div></div>
@@ -371,6 +414,10 @@
           <div class="chart-wrap">
             <div class="chart-top"><div class="chart-title">High Beta vs Value — SPHB/VTV</div><div class="chart-latest ${deltaClass(series.betaValue)}">${fmt(latest.betaValue, 3)}</div></div>
             <canvas id="betavalue-chart" height="110"></canvas>
+          </div>
+          <div class="chart-wrap">
+            <div class="chart-top"><div class="chart-title">MOVE Index — Rentevolatiliteit</div><div class="chart-latest ${deltaClassInverse(series.moveSeries)}">${latest.move !== null ? fmt(latest.move, 1) : "—"}</div></div>
+            ${series.moveSeries && series.moveSeries.length ? '<canvas id="move-chart" height="110"></canvas>' : '<div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--muted);text-align:center;padding:2.5rem 0">Geen data beschikbaar (^MOVE niet geleverd door Yahoo)</div>'}
           </div>
         </div>
 
@@ -403,6 +450,34 @@
           <div class="chart-wrap">
             <div class="chart-top"><div class="chart-title">Yield Curve (10Y - 2Y)</div><div class="chart-latest ${latest.yieldCurve > 0 ? "pos" : "neg"}">${fmt(latest.yieldCurve, 2, "", "%")}</div></div>
             <canvas id="yieldcurve-chart" height="110"></canvas>
+          </div>
+        </div>
+
+        <div class="section-title">🔄 Sector Rotatie Ratio's</div>
+        <div class="grid-2">
+          <div class="chart-wrap">
+            <div class="chart-top"><div class="chart-title">Discretionary/Staples — XLY/XLP (cyclisch vs defensief)</div><div class="chart-latest ${deltaClass(series.discStaples)}">${fmt(latest.discStaples, 3)}</div></div>
+            <canvas id="discstaples-chart" height="110"></canvas>
+          </div>
+          <div class="chart-wrap">
+            <div class="chart-top"><div class="chart-title">Industrials/Utilities — XLI/XLU (cyclisch vs defensief)</div><div class="chart-latest ${deltaClass(series.indusUtil)}">${fmt(latest.indusUtil, 3)}</div></div>
+            <canvas id="indusutil-chart" height="110"></canvas>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="chart-wrap">
+            <div class="chart-top"><div class="chart-title">Semis/Healthcare — SMH/XLV (groei vs defensief)</div><div class="chart-latest ${deltaClass(series.semisHealth)}">${fmt(latest.semisHealth, 3)}</div></div>
+            <canvas id="semishealth-chart" height="110"></canvas>
+          </div>
+          <div class="chart-wrap">
+            <div class="chart-top">
+              <div>
+                <div class="chart-title">Growth/Value — IWF/IWD</div>
+                <div class="vix-zones"><span class="vix-zone vz-mid">Proxy voor EPS-revisie sentiment</span></div>
+              </div>
+              <div class="chart-latest ${deltaClass(series.growthValue)}">${fmt(latest.growthValue, 3)}</div>
+            </div>
+            <canvas id="growthvalue-chart" height="110"></canvas>
           </div>
         </div>
 
@@ -472,7 +547,11 @@
               ERP ${latest.erp > 2 ? "✅ Hoog" : latest.erp < 0 ? "❌ Negatief" : "⚠️ Mid"}<br>
               Copper/Gold ${deltaClass(series.copperGold) === "pos" ? "✅ Stijgend" : "❌ Dalend"}<br>
               HY OAS ${deltaClassInverse(series.hyOasSeries) === "pos" ? "✅ Dalend" : "❌ Stijgend"}<br>
-              Momentum ${latest.momentumScore > 0 ? `✅ +${latest.momentumScore}` : latest.momentumScore < 0 ? `❌ ${latest.momentumScore}` : "⚠️ 0"}
+              Momentum ${latest.momentumScore > 0 ? `✅ +${latest.momentumScore}` : latest.momentumScore < 0 ? `❌ ${latest.momentumScore}` : "⚠️ 0"}<br>
+              Sector Rotatie ${latest.sectorScore > 0 ? `✅ +${latest.sectorScore}` : latest.sectorScore < 0 ? `❌ ${latest.sectorScore}` : "⚠️ 0"}
+              <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:6px;font-size:9px;text-align:left">
+                Sector Rotatie = Discr/Staples, Indus/Util, Semis/Health, Growth/Value (elk +1/-1 op 20d verandering)
+              </div>
             </div>
           </div>
         </div>
@@ -538,10 +617,26 @@
       makeChart("igoas-chart",      "igOasSeries", "#fb923c", { decimals: 2, suffix: "%" });
       makeChart("hyigspread-chart", "hyIgSpread",  "#e879f9", { decimals: 2, suffix: "%" });
 
+      // MOVE Index — kan leeg zijn als Yahoo geen data levert voor ^MOVE
+      if (series.moveSeries && series.moveSeries.length) {
+        makeChart("move-chart", "moveSeries", "#22d3ee", { decimals: 1 });
+      }
+
       // ── Momentum charts: 5d vs 20d rate-of-change ────────────────────
       makeDualChart("mom-coppergold-chart", "momentum.copperGold.d5", "5d %", "#fbbf24", "momentum.copperGold.d20", "20d %", "#5a5a7a", { decimals: 2, suffix: "%" });
       makeDualChart("mom-betavalue-chart",  "momentum.betaValue.d5",  "5d %", "#fb923c", "momentum.betaValue.d20",  "20d %", "#5a5a7a", { decimals: 2, suffix: "%" });
       makeDualChart("mom-hyoas-chart",      "momentum.hyOas.d5",      "5d Δ",  "#f87171", "momentum.hyOas.d20",      "20d Δ", "#5a5a7a", { decimals: 2, suffix: "%" });
+      makeDualChart("mom-discstaples-chart", "momentum.discStaples.d5", "5d %", "#4ade80", "momentum.discStaples.d20", "20d %", "#5a5a7a", { decimals: 2, suffix: "%" });
+      makeDualChart("mom-indusutil-chart",   "momentum.indusUtil.d5",   "5d %", "#60a5fa", "momentum.indusUtil.d20",   "20d %", "#5a5a7a", { decimals: 2, suffix: "%" });
+      makeDualChart("mom-semishealth-chart", "momentum.semisHealth.d5", "5d %", "#f472b6", "momentum.semisHealth.d20", "20d %", "#5a5a7a", { decimals: 2, suffix: "%" });
+      makeDualChart("mom-growthvalue-chart", "momentum.growthValue.d5", "5d %", "#a78bfa", "momentum.growthValue.d20", "20d %", "#5a5a7a", { decimals: 2, suffix: "%" });
+
+      // ── Sector rotatie ratio's (niveau) ──────────────────────────────
+      makeChart("discstaples-chart", "discStaples", "#4ade80", { decimals: 3 });
+      makeChart("indusutil-chart",   "indusUtil",   "#60a5fa", { decimals: 3 });
+      makeChart("semishealth-chart", "semisHealth", "#f472b6", { decimals: 3 });
+      makeChart("growthvalue-chart", "growthValue", "#a78bfa", { decimals: 3 });
+
 
       // Buffett Indicator — referentielijnen met label
       makeChart("buffett-chart", "buffettSeries", "#a78bfa", {
