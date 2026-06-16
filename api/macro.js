@@ -74,6 +74,9 @@ export default async function handler(req, res) {
       cpi, jobless, m2, fedFunds,
       w5000, gdp,                      // ← Buffett Indicator
       hyOas, igOas,                    // ← Credit stress (OAS)
+      move,                            // ← MOVE Index (bond volatility)
+      xlp, xly, xlu, xli, xlv, smh,    // ← Sector rotatie ratio's
+      iwf, iwd,                        // ← Growth/Value (EPS-revisie proxy)
     ] = await Promise.all([
       yahooSeries("^VIX",      p1_4y),
       yahooSeries("DX-Y.NYB",  p1_4y),
@@ -96,6 +99,15 @@ export default async function handler(req, res) {
       fredSeries("GDP",     150),      // US GDP in mrd $
       fredSeries("BAMLH0A0HYM2", 1000), // ICE BofA US High Yield OAS
       fredSeries("BAMLC0A0CM",   1000), // ICE BofA US Corporate (IG) OAS
+      yahooSeries("^MOVE",     p1_2y), // ICE BofA MOVE Index (rentevolatiliteit) — kan leeg zijn
+      yahooSeries("XLP",       p1_2y), // Consumer Staples
+      yahooSeries("XLY",       p1_2y), // Consumer Discretionary
+      yahooSeries("XLU",       p1_2y), // Utilities
+      yahooSeries("XLI",       p1_2y), // Industrials
+      yahooSeries("XLV",       p1_2y), // Healthcare
+      yahooSeries("SMH",       p1_2y), // Semiconductors
+      yahooSeries("IWF",       p1_2y), // Russell 1000 Growth (EPS-revisie proxy)
+      yahooSeries("IWD",       p1_2y), // Russell 1000 Value
     ]);
 
     const yieldCurve = treasury10y.map(t => {
@@ -153,6 +165,39 @@ export default async function handler(req, res) {
       return { date: s.date, value: parseFloat((s.value / v.value).toFixed(4)) };
     }).filter(Boolean);
 
+    // ── Generieke ratio-helper voor sector rotatie-pairs ────────────
+    function ratioSeries(numerator, denominator, decimals = 4) {
+      return numerator.map(n => {
+        const d = denominator.find(x => x.date === n.date);
+        if (!d || !d.value) return null;
+        return { date: n.date, value: parseFloat((n.value / d.value).toFixed(decimals)) };
+      }).filter(Boolean);
+    }
+
+    // ── Sector rotatie ratio's ───────────────────────────────────────
+    // XLY/XLP: Discretionary vs Staples — stijgend = risk-on (consumenten
+    // geven meer uit aan niet-essentiële zaken), dalend = defensief/risk-off.
+    const discStaples = ratioSeries(xly, xlp);
+
+    // XLI/XLU: Industrials vs Utilities — stijgend = cyclisch/risk-on,
+    // dalend = vlucht naar defensieve dividend-sectoren.
+    const indusUtil = ratioSeries(xli, xlu);
+
+    // SMH/XLV: Semis vs Healthcare — stijgend = risk-on/groei-appetijt
+    // (semis zijn hoogcyclisch), dalend = vlucht naar defensieve healthcare.
+    const semisHealth = ratioSeries(smh, xlv);
+
+    // IWF/IWD: Growth vs Value — proxy voor earnings-revisie sentiment.
+    // Groei-outperformance correleert historisch met breder positieve
+    // EPS-revisies (groeibedrijven worden geherwaardeerd op toekomstige
+    // winstgroei); dit is GEEN directe revisie-data maar een marktproxy.
+    const growthValue = ratioSeries(iwf, iwd);
+
+    // ── MOVE Index (rentevolatiliteit) ──────────────────────────────
+    // ^MOVE via Yahoo is onbetrouwbaar/vaak leeg — als de serie leeg is
+    // laten we dit gewoon weg in de output (frontend toont dan "—").
+    const moveSeries = move;
+
     const cpiYoY = cpi.slice(12).map((c, i) => ({
       date: c.date, value: parseFloat(((c.value - cpi[i].value) / cpi[i].value * 100).toFixed(2))
     }));
@@ -185,6 +230,10 @@ export default async function handler(req, res) {
       vix:           { d5: momentumSeries(vix,           5), d20: momentumSeries(vix,           20) },
       hyOas:         { d5: momentumSeries(hyOasSeries,   5), d20: momentumSeries(hyOasSeries,   20) },
       yieldCurve:    { d5: momentumSeries(yieldCurve,     5), d20: momentumSeries(yieldCurve,    20) },
+      discStaples:   { d5: momentumSeries(discStaples,   5), d20: momentumSeries(discStaples,   20) },
+      indusUtil:     { d5: momentumSeries(indusUtil,     5), d20: momentumSeries(indusUtil,     20) },
+      semisHealth:   { d5: momentumSeries(semisHealth,   5), d20: momentumSeries(semisHealth,   20) },
+      growthValue:   { d5: momentumSeries(growthValue,   5), d20: momentumSeries(growthValue,   20) },
     };
 
     const latestVix    = vix[vix.length - 1]?.value ?? 20;
@@ -202,6 +251,17 @@ export default async function handler(req, res) {
     const prevHyOas    = hyOasSeries[hyOasSeries.length - 20]?.value ?? latestHyOas;
     const latestIgOas  = igOasSeries[igOasSeries.length - 1]?.value ?? null;
     const latestHyIg   = hyIgSpread[hyIgSpread.length - 1]?.value ?? null;
+
+    const latestMove   = moveSeries[moveSeries.length - 1]?.value ?? null;
+
+    const latestDS     = discStaples[discStaples.length - 1]?.value ?? null;
+    const prevDS       = discStaples[discStaples.length - 20]?.value ?? latestDS;
+    const latestIU     = indusUtil[indusUtil.length - 1]?.value ?? null;
+    const prevIU       = indusUtil[indusUtil.length - 20]?.value ?? latestIU;
+    const latestSH     = semisHealth[semisHealth.length - 1]?.value ?? null;
+    const prevSH       = semisHealth[semisHealth.length - 20]?.value ?? latestSH;
+    const latestGV     = growthValue[growthValue.length - 1]?.value ?? null;
+    const prevGV       = growthValue[growthValue.length - 20]?.value ?? latestGV;
 
     // ── Risk score ───────────────────────────────────────────────────
     // Basis-componenten (ongewijzigd) + credit stress nu op HY OAS i.p.v.
@@ -243,6 +303,24 @@ export default async function handler(req, res) {
 
     riskScore += momentumScore;
 
+    // Sector-rotatie component: cyclisch/groei vs defensief.
+    // Discretionary>Staples, Industrials>Utilities, Semis>Healthcare en
+    // Growth>Value stijgend = risk-on; dalend = defensieve rotatie.
+    let sectorScore = 0;
+    if (latestDS !== null && prevDS !== null) {
+      if (latestDS > prevDS) sectorScore++; else if (latestDS < prevDS) sectorScore--;
+    }
+    if (latestIU !== null && prevIU !== null) {
+      if (latestIU > prevIU) sectorScore++; else if (latestIU < prevIU) sectorScore--;
+    }
+    if (latestSH !== null && prevSH !== null) {
+      if (latestSH > prevSH) sectorScore++; else if (latestSH < prevSH) sectorScore--;
+    }
+    if (latestGV !== null && prevGV !== null) {
+      if (latestGV > prevGV) sectorScore++; else if (latestGV < prevGV) sectorScore--;
+    }
+    riskScore += sectorScore;
+
     const riskSignal = riskScore >= 2 ? "risk-on" : riskScore <= -2 ? "risk-off" : "neutral";
 
     const latest = {
@@ -269,11 +347,21 @@ export default async function handler(req, res) {
       buffett:     latestBI,                          // ← Buffett Indicator
       riskScore,
       momentumScore,
+      sectorScore,
       momentumSignals: {
-        copperGold: momentumSignal(momentum.copperGold.d5),
-        betaValue:  momentumSignal(momentum.betaValue.d5),
-        hyOas:      momentumSignal(momentum.hyOas.d5),
+        copperGold:  momentumSignal(momentum.copperGold.d5),
+        betaValue:   momentumSignal(momentum.betaValue.d5),
+        hyOas:       momentumSignal(momentum.hyOas.d5),
+        discStaples: momentumSignal(momentum.discStaples.d5),
+        indusUtil:   momentumSignal(momentum.indusUtil.d5),
+        semisHealth: momentumSignal(momentum.semisHealth.d5),
+        growthValue: momentumSignal(momentum.growthValue.d5),
       },
+      move:        latestMove,
+      discStaples: latestDS,
+      indusUtil:   latestIU,
+      semisHealth: latestSH,
+      growthValue: latestGV,
     };
 
     res.setHeader("Cache-Control", "s-maxage=3600");
@@ -286,6 +374,8 @@ export default async function handler(req, res) {
         buffettSeries,                                // ← Buffett Indicator
         hyOasSeries, igOasSeries, hyIgSpread,         // ← Credit stress (OAS)
         momentum,                                      // ← Momentum-laag
+        moveSeries,                                    // ← MOVE Index
+        discStaples, indusUtil, semisHealth, growthValue, // ← Sector rotatie ratio's
       },
       latest,
     });
