@@ -320,7 +320,8 @@
           <div class="stat"><div class="stat-label">Fed Funds</div><div class="stat-value neu">${fmt(latest.fedFunds, 2, "", "%")}</div><div class="stat-sub">Huidige rente</div></div>
           <div class="stat"><div class="stat-label">10Y Treasury</div><div class="stat-value ${deltaClass(series.treasury10y)}">${fmt(latest.treasury10y, 2, "", "%")}</div><div class="stat-sub">2Y: ${fmt(latest.treasury2y, 2, "", "%")}</div></div>
           <div class="stat"><div class="stat-label">Yield Curve</div><div class="stat-value ${latest.yieldCurve > 0 ? "pos" : "neg"}">${fmt(latest.yieldCurve, 2, "", "%")}</div><div class="stat-sub">10Y - 2Y</div></div>
-          <div class="stat"><div class="stat-label">ERP</div><div class="stat-value ${latest.erp > 2 ? "pos" : latest.erp < 0 ? "neg" : "neu"}">${fmt(latest.erp, 2, "", "%")}</div><div class="stat-sub">Equity Risk Premium</div></div>
+          <div class="stat"><div class="stat-label">Breakeven Inflatie</div><div class="stat-value ${latest.breakeven > 2 ? "pos" : latest.breakeven < 0 ? "neg" : "neu"}">${fmt(latest.breakeven, 2, "", "%")}</div><div class="stat-sub">10Y nominaal − 10Y TIPS</div></div>
+          <div class="stat"><div class="stat-label">Equity Risk Premium</div><div class="stat-value ${latest.erp === null ? "neu" : latest.erp > 2 ? "pos" : "neg"}">${latest.erp !== null ? fmt(latest.erp, 2, "", "%") : "—"}</div><div class="stat-sub">Earnings yield − 10Y · snapshot</div></div>
           <div class="stat"><div class="stat-label">CPI YoY</div><div class="stat-value ${latest.cpiYoY > 3 ? "neg" : latest.cpiYoY < 2 ? "pos" : "neu"}">${fmt(latest.cpiYoY, 2, "", "%")}</div><div class="stat-sub">MoM: ${fmt(latest.cpiMoM, 2, "", "%")}</div></div>
           <div class="stat"><div class="stat-label">High Beta/Value</div><div class="stat-value ${deltaClass(series.betaValue)}">${fmt(latest.betaValue, 3)}</div><div class="stat-sub">SPHB / VTV</div></div>
           <div class="stat"><div class="stat-label">Copper/Gold</div><div class="stat-value ${deltaClass(series.copperGold)}">${fmt(latest.copperGold, 3)}</div><div class="stat-sub">Conjunctuur</div></div>
@@ -484,8 +485,8 @@
         <div class="section-title">Rente & Obligaties</div>
         <div class="grid-3">
           <div class="chart-wrap">
-            <div class="chart-top"><div class="chart-title">ERP — Equity Risk Premium</div><div class="chart-latest ${latest.erp > 2 ? "pos" : latest.erp < 0 ? "neg" : "neu"}">${fmt(latest.erp, 2, "", "%")}</div></div>
-            <canvas id="erp-chart" height="110"></canvas>
+            <div class="chart-top"><div class="chart-title">Breakeven Inflatie — 10Y nominaal − 10Y TIPS</div><div class="chart-latest ${latest.breakeven > 2 ? "pos" : latest.breakeven < 0 ? "neg" : "neu"}">${fmt(latest.breakeven, 2, "", "%")}</div></div>
+            <canvas id="breakeven-chart" height="110"></canvas>
           </div>
           <div class="chart-wrap">
             <div class="chart-top"><div class="chart-title">Fed Funds Rate</div><div class="chart-latest neu">${fmt(latest.fedFunds, 2, "", "%")}</div></div>
@@ -494,6 +495,19 @@
           <div class="chart-wrap">
             <div class="chart-top"><div class="chart-title">10Y vs 2Y Treasury Yield</div><div class="chart-latest ${deltaClass(series.treasury10y)}">${fmt(latest.treasury10y, 2, "", "%")}</div></div>
             <canvas id="treasury-chart" height="110"></canvas>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="chart-wrap" style="display:flex;flex-direction:column;justify-content:center;gap:0.6rem">
+            <div class="chart-top" style="margin-bottom:0">
+              <div class="chart-title">Equity Risk Premium — S&P 500 Earnings Yield − 10Y</div>
+              <div class="chart-latest ${latest.erp === null ? "neu" : latest.erp > 2 ? "pos" : "neg"}">${latest.erp !== null ? fmt(latest.erp, 2, "", "%") : "—"}</div>
+            </div>
+            <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);line-height:1.6">
+              ${latest.erp !== null
+                ? "Snapshot — gebaseerd op huidige trailing P/E (Yahoo), geen historische reeks beschikbaar via gratis databronnen."
+                : "Geen data — Yahoo quoteSummary leverde geen trailing P/E voor ^GSPC."}
+            </div>
           </div>
         </div>
 
@@ -544,7 +558,7 @@
               VIX ${latest.vix < 14 ? "✅ Laag" : latest.vix > 20 ? "❌ Hoog" : "⚠️ Mid"}<br>
               Beta/Value ${deltaClass(series.betaValue) === "pos" ? "✅ Stijgend" : "❌ Dalend"}<br>
               Yield Curve ${latest.yieldCurve > 0.5 ? "✅ Positief" : latest.yieldCurve < -0.3 ? "❌ Invers" : "⚠️ Vlak"}<br>
-              ERP ${latest.erp > 2 ? "✅ Hoog" : latest.erp < 0 ? "❌ Negatief" : "⚠️ Mid"}<br>
+              Breakeven Inflatie ${latest.breakeven > 2 ? "✅ Hoog" : latest.breakeven < 0 ? "❌ Negatief" : "⚠️ Mid"}<br>
               Copper/Gold ${deltaClass(series.copperGold) === "pos" ? "✅ Stijgend" : "❌ Dalend"}<br>
               HY OAS ${deltaClassInverse(series.hyOasSeries) === "pos" ? "✅ Dalend" : "❌ Stijgend"}<br>
               Momentum ${latest.momentumScore > 0 ? `✅ +${latest.momentumScore}` : latest.momentumScore < 0 ? `❌ ${latest.momentumScore}` : "⚠️ 0"}<br>
@@ -595,7 +609,7 @@
       makeChart("vix-chart",        "vix",           "#f472b6", { decimals: 1, zones: [{ val: 14, color: "rgba(74,222,128,0.5)" }, { val: 20, color: "rgba(248,113,113,0.5)" }] });
       makeChart("betavalue-chart",  "betaValue",     "#fb923c", { decimals: 3 });
       makeChart("yieldcurve-chart", "yieldCurve",    "#60a5fa", { decimals: 2, suffix: "%", zones: [{ val: 0, color: "rgba(96,165,250,0.4)" }] });
-      makeChart("erp-chart",        "erp",           "#4ade80", { decimals: 2, suffix: "%", zones: [{ val: 0, color: "rgba(248,113,113,0.4)" }, { val: 2, color: "rgba(74,222,128,0.4)" }] });
+      makeChart("breakeven-chart",  "breakeven",     "#4ade80", { decimals: 2, suffix: "%", zones: [{ val: 0, color: "rgba(248,113,113,0.4)" }, { val: 2, color: "rgba(74,222,128,0.4)" }] });
       makeChart("spread-chart",     "spreadSeries",  "#f87171", { decimals: 3 });
       makeChart("fedfunds-chart",   "fedFunds",      "#a78bfa", { decimals: 2, suffix: "%" });
       makeChart("cpi-chart",        "cpiYoY",        "#fbbf24", { decimals: 2, suffix: "%", fill: true });
